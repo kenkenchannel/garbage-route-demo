@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>回収選択デモ（Leaflet + 外部ナビ + 基本ルート/GPX）Ver.9</title>
+<title>回収選択デモ（Leaflet + 外部ナビ + 基本ルート/GPX）Ver.10</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
@@ -28,11 +28,23 @@
   details summary{cursor:pointer}
   .err{position:absolute;top:0;left:0;right:0;background:#fee;color:#900;padding:8px 10px;font-size:12px;z-index:2000;border-bottom:1px solid #f99;display:none}
   #btnPanel{position:absolute;right:10px;top:10px;z-index:1100;background:#fff;border:1px solid #ccc;border-radius:20px;padding:8px 10px;font-size:14px}
+
+  /* ★ 追加：地図上の大きい回収ボタン（FAB） */
+  .fab{
+    position:absolute; left:50%; bottom:18px; transform:translateX(-50%);
+    z-index:1200; padding:14px 22px; border-radius:999px;
+    background:#2563eb; color:#fff; font-weight:600; font-size:16px;
+    border:none; box-shadow:0 8px 18px rgba(0,0,0,.18);
+    display:none;
+  }
 </style>
 </head>
 <body>
 <div id="map"></div>
 <div id="err" class="err"></div>
+
+<!-- ★ 追加：地図上の大きい回収ボタン -->
+<button id="btnFabCollect" class="fab">回収（選択 0）</button>
 
 <button id="btnPanel" title="設定の表示/非表示">設定</button>
 
@@ -140,6 +152,16 @@
   }
   btnPanel.addEventListener('click',function(){ togglePanel(); });
 
+  // ★ 追加：FAB参照と表示制御
+  var fab=document.getElementById('btnFabCollect');
+  var fabHideTimer=null;
+  function showFab(seconds){
+    fab.style.display='inline-block';
+    if(fabHideTimer) clearTimeout(fabHideTimer);
+    if(seconds){ fabHideTimer=setTimeout(function(){fab.style.display='none';}, seconds*1000); }
+  }
+  function hideFab(){ fab.style.display='none'; if(fabHideTimer) clearTimeout(fabHideTimer); }
+
   // ===== 車両・運転者 =====
   var FLEET={"1772":["神山","大川","江田"],"5836":["熊坂","田端","藤田","平野","大川"],"8792":["熊坂","八田","平野","田端","大川"],"1771":["永浦","菊池","嶋田","田端","八田","藤田","大川"]};
   var vehicleSel=document.getElementById('vehicle');
@@ -218,15 +240,22 @@
     var rec={name:name,lat:lat,lon:lon,desc:(desc||''),marker:m,selected:false};
     m.on('click',function(){
       rec.selected=!rec.selected;
-      m.setIcon(rec.selected?redIcon:yellowIcon);
+      m.setIcon(rec.selected ? redIcon : yellowIcon);
       updatePointCount();
+      showFab(3); // ★ 追加：選択直後に3秒表示
     });
     points.push(rec);
   }
 
+  // 地図の任意タップでFAB表示
+  map.on('click', function(){ showFab(3); });
+
   function updatePointCount(){
     var n=points.filter(function(p){return p.selected;}).length;
     document.getElementById('pointCount').textContent=String(points.length)+' 点 (選択 '+String(n)+')';
+    // ★ 追加：FABのラベル更新と自動表示/非表示
+    fab.textContent='回収（選択 '+n+'）';
+    if(n>0) showFab(2); else hideFab();
   }
   function clearSelection(){
     points.forEach(function(p){p.selected=false;p.marker.setIcon(yellowIcon);});
@@ -320,10 +349,10 @@
     var blob=new Blob([makeCSVText()],{type:'text/csv;charset=utf-8;'});
     var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='collection_log.csv'; a.click();
   }
-  function previewCSV(){ // ★Androidでも「表示」できるように data: を新規タブで開く
+  function previewCSV(){
     var txt=makeCSVText();
     var url='data:text/plain;charset=utf-8,'+encodeURIComponent(txt);
-    window.open(url,'_blank'); // iOS/Androidとも標準ブラウザで閲覧可
+    window.open(url,'_blank');
   }
   document.getElementById('btnDownload').addEventListener('click',downloadCSV);
   document.getElementById('btnPreview').addEventListener('click',previewCSV);
@@ -354,6 +383,11 @@
     alert(String(selected.length)+' 件追記しました');
   }
   document.getElementById('btnCollect').addEventListener('click',collectSelected);
+  // ★ 追加：FABクリックでも回収
+  document.getElementById('btnFabCollect').addEventListener('click', function(){
+    collectSelected();
+    // hideFab(); // 必要なら回収後に隠す
+  });
 
   // ===== 基本回収ルート（GPX等） =====
   var routeLayer=null, routeLatLngs=[];
@@ -470,13 +504,11 @@
     openExternalRoute(curLL, nextLL);
   }
 
-  // ★ 回収済み→次：collection_log の最終行 Place と地点CSVの Description から推定
+  // 回収済み→次：collection_log の最終行 Place と地点CSVの Description から推定
   function openExternalFromLast(){
     if(points.length===0){ alert('地点がありません'); return; }
-    // name -> nextName マップを作成（descをそのまま「次の地点名」として利用）
     var nameToNext={}; points.forEach(function(p){ if(p.desc && p.desc.trim()) nameToNext[p.name]=p.desc.trim(); });
     if(Object.keys(nameToNext).length===0){ alert('地点CSVのDescription列に次地点名がありません'); return; }
-    // 最終回収地点
     var last=logRows.length? logRows[logRows.length-1][1] : null;
     if(!last){ alert('collection_log にデータがありません（まず「回収」で記録してください）'); return; }
     var next=nameToNext[last];
@@ -490,13 +522,10 @@
     var oLat=originLL[0], oLon=originLL[1], dLat=destLL[0], dLon=destLL[1];
     var choice=(document.getElementById('navApp')&&document.getElementById('navApp').value)||'auto';
     if(choice==='google' || (!isIOS() && choice==='auto')){
-      // Google Maps は origin/destination 指定が可能
       location.href='https://www.google.com/maps/dir/?api=1&origin='+oLat+','+oLon+'&destination='+dLat+','+dLon+'&travelmode=driving';
     }else if(choice==='apple' || (isIOS() && choice==='auto')){
-      // Apple Maps は saddr/daddr でOK（座標を指定）
       location.href='http://maps.apple.com/?saddr='+oLat+','+oLon+'&daddr='+dLat+','+dLon+'&dirflg=d';
     }else if(choice==='osmand'){
-      // OsmAnd は出発地指定が弱いので destination 優先（現在地→目的地）
       location.href='osmand://navigate?lat='+dLat+'&lon='+dLon+'&profile=car';
     }
   }
