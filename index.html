@@ -29,22 +29,47 @@
   .err{position:absolute;top:0;left:0;right:0;background:#fee;color:#900;padding:8px 10px;font-size:12px;z-index:2000;border-bottom:1px solid #f99;display:none}
   #btnPanel{position:absolute;right:10px;top:10px;z-index:1100;background:#fff;border:1px solid #ccc;border-radius:20px;padding:8px 10px;font-size:14px}
 
-  /* ★ 地図上の大きいFAB（4倍相当） */
-  .fab{
-    position:absolute; left:50%; bottom:18px; transform:translateX(-50%);
-    z-index:1200; padding:28px 44px; border-radius:999px;
-    background:#2563eb; color:#fff; font-weight:700; font-size:24px;
-    border:none; box-shadow:0 12px 28px rgba(0,0,0,.22);
-    display:none;
-  }
-  /* ★ 未回収（緑化）用FAB：右下に配置 */
-  .fab-right{
-    position:absolute; right:18px; bottom:18px;
-    z-index:1200; padding:24px 36px; border-radius:999px;
-    background:#10b981; color:#062; font-weight:700; font-size:20px;
-    border:none; box-shadow:0 12px 28px rgba(0,0,0,.22);
-    display:none;
-  }
+/* ★ 超特大：回収ボタン（青）— 画面下中央にどーん */
+.fab{
+  position:absolute;
+  left:50%;
+  bottom:72px;              /* ←青の下に緑が入るよう少し上げる */
+  transform:translateX(-50%);
+  z-index:1200;
+
+  /* 大きさ（右側サンプル相当） */
+  width:92vw;               /* 画面幅のほぼ全幅 */
+  max-width:900px;          /* 横幅の上限 */
+  padding:36px 0;           /* 高さを稼ぐ */
+  border-radius:40px;
+
+  background:#2563eb;
+  color:#fff;
+  font-weight:700;
+  font-size:28px;           /* 文字も大きく */
+  border:none;
+  box-shadow:0 18px 36px rgba(0,0,0,.25);
+  display:none;
+}
+
+/* ★ 小さめ：未回収（緑）— 画面最下部中央 */
+.fab-small{
+  position:absolute;
+  left:50%;
+  bottom:12px;              /* 最下部に寄せる */
+  transform:translateX(-50%);
+  z-index:1200;
+
+  padding:10px 18px;
+  border-radius:999px;
+  background:#10b981;
+  color:#063;
+  font-weight:700;
+  font-size:16px;
+  border:none;
+  box-shadow:0 10px 20px rgba(0,0,0,.22);
+  display:none;
+}
 </style>
 </head>
 <body>
@@ -54,7 +79,7 @@
 <!-- ★ 地図上の大きいFAB（回収） -->
 <button id="btnFabCollect" class="fab">回収（選択 0）</button>
 <!-- ★ 地図上の未回収FAB（緑化） -->
-<button id="btnFabSkip" class="fab-right">未回収（選択→緑）</button>
+<button id="btnFabSkip" class="fab-small">未回収（選択→緑）</button>
 
 <button id="btnPanel" title="設定の表示/非表示">設定</button>
 
