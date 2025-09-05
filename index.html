@@ -3,17 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>回収選択デモ（Leaflet + 外部ナビ + 基本ルート/GPX）Ver.19</title>
+<title>回収選択デモ（Leaflet + 外部ナビ + 基本ルート/GPX）leafletVer17a</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
   html,body{height:100%;margin:0}
   #map{position:absolute;inset:0}
-  .panel{position:absolute;left:8px;top:8px;z-index:1000;background:rgba(255,255,255,.95);
+
+  .panel{
+    position:absolute;left:8px;top:8px;z-index:1000;background:rgba(255,255,255,.95);
     border:1px solid #ddd;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08);
-    padding:10px;max-width:92vw;width:360px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-  .panel h2{font-size:16px;margin:0 0 6px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+    padding:10px;max-width:92vw;width:360px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif
+  }
+  .panel h2{font-size:18px;margin:0 0 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
   .row>*{width:100%}
   .controls{display:grid;gap:6px}
@@ -23,71 +26,64 @@
   button.warn{background:#f59e0b;color:#111;border:none}
   button.ghost{background:#fff}
   .small{font-size:12px;color:#555}
-  .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#eee;font-size:12px;margin-left:6px}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#eee;font-size:12px}
   .footer{font-size:11px;color:#555;margin-top:6px}
   details summary{cursor:pointer}
   .err{position:absolute;top:0;left:0;right:0;background:#fee;color:#900;padding:8px 10px;font-size:12px;z-index:2000;border-bottom:1px solid #f99;display:none}
 
-  /* 右上の「設定」ボタン（大きく） */
+  /* 設定ボタン（右上フローティング） */
   #btnPanel{
-    position:absolute; right:10px; top:10px; z-index:1100;
-    background:#fff; border:1px solid #ccc; border-radius:20px;
-    padding:24px 30px;                 /* ←縦×4、横×3 目安 */
-    font-size:22px;                    /* ←大きめ */
-    box-shadow:0 6px 16px rgba(0,0,0,.18);
+    position:absolute;right:12px;top:12px;z-index:1100;background:#fff;border:1px solid #ccc;
+    border-radius:16px;padding:10px 16px;font-size:16px;box-shadow:0 4px 12px rgba(0,0,0,.12)
+  }
+  /* タブレット/横幅広い端末では大きめ */
+  @media (min-width:760px){
+    #btnPanel{padding:18px 28px;font-size:24px;border-radius:24px}
   }
 
-  /* 地図上・巨大「回収」ボタン（横10cm × 縦4cm相当） */
+  /* 大きい回収ボタン */
   .fab{
-    position:absolute; left:50%; bottom:88px; transform:translateX(-50%); z-index:1200;
-    width: min(92vw, 10cm);
-    height: 4cm;
-    line-height: 4cm;
-    border-radius:40px;
-    background:#2563eb; color:#fff; font-weight:700; font-size:28px; border:none;
-    text-align:center;
-    box-shadow:0 18px 36px rgba(0,0,0,.25); display:none;
+    position:absolute;left:50%;bottom:72px;transform:translateX(-50%);z-index:1200;
+    width:92vw;max-width:900px;padding:52px 0;              /* ←高さUP */
+    border-radius:40px;background:#2563eb;color:#fff;font-weight:700;font-size:28px;border:none;
+    box-shadow:0 18px 36px rgba(0,0,0,.25);display:none;text-align:center
   }
-  /* 説明キャプション（赤文字） */
-  .fab-caption{
-    position:absolute; left:50%; bottom:calc(88px + 4cm + 10px); transform:translateX(-50%); z-index:1200;
-    color:#d70000; background:rgba(255,255,255,.9); padding:6px 10px; border-radius:10px; border:1px solid #f3c1c1;
-    font-size:14px; font-weight:700; display:none;
+  /* 「色の凡例」テキスト */
+  .legend{
+    position:absolute;left:50%;bottom:132px;transform:translateX(-50%);z-index:1200;
+    font-weight:700;color:#c62828;background:rgba(255,255,255,.9);padding:4px 10px;border-radius:10px;border:1px solid #f3caca;
+    display:none
   }
-
-  /* 地図下・「無回収（黄へ）」ボタン */
+  /* 未回収（黄化）ボタン小 */
   .fab-small{
-    position:absolute; left:50%; bottom:16px; transform:translateX(-50%); z-index:1200;
-    padding:12px 20px; border-radius:999px; background:#FFD84D; color:#5a4b00;
-    font-weight:700; font-size:16px; border:none; box-shadow:0 10px 20px rgba(0,0,0,.22); display:none;
+    position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:1200;
+    padding:10px 18px;border-radius:999px;background:#10b981;color:#063;font-weight:700;font-size:16px;border:none;
+    box-shadow:0 10px 20px rgba(0,0,0,.22);display:none
   }
 
-  /* 小さめボタン（見出し右のクリア） */
-  .mini{
-    padding:6px 10px; font-size:12px; border:1px solid #ccc; border-radius:12px; background:#fff;
-  }
+  /* ルートズームアウトの文字少し小さく */
+  .btn-mini{font-size:12px;padding:6px 8px}
 </style>
 </head>
 <body>
 <div id="map"></div>
 <div id="err" class="err"></div>
 
-<!-- 地図上のキャプション & FAB -->
-<div id="fabCaption" class="fab-caption">アイコンの色; 回収済「赤」、無回収「黄」、回収漏れ「青」です</div>
+<!-- 地図上フローティング -->
+<div id="legend" class="legend">アイコンの色：回収済「赤」・無回収「黄」・回収漏れ「青」</div>
 <button id="btnFabCollect" class="fab">回収（選択 0）</button>
 <button id="btnFabSkip" class="fab-small">無回収（選択→黄）</button>
 
-<!-- 右上トグル（設定パネルの表示/非表示） -->
 <button id="btnPanel" title="設定の表示/非表示">設定</button>
 
-<!-- 設定パネル -->
 <div class="panel" id="panel">
   <h2>
-    <span>回収結果数 <span class="pill" id="pointCount">0 点 (選択 0 / 黄 0)</span></span>
-    <button id="btnClearAll" class="mini" title="読み込んだ回収地点をすべて消去">回収地点全クリア</button>
+    <span>回収結果数</span>
+    <span class="pill" id="pointCount">0 箇所（赤 0 / 黄 0）</span>
+    <button id="btnClearAll" class="ghost">回収地点全クリア</button>
   </h2>
-  <div class="controls">
 
+  <div class="controls">
     <!-- 車両/運転者 -->
     <div class="row">
       <div><label>車両ID<select id="vehicle"></select></label></div>
@@ -96,12 +92,10 @@
 
     <!-- 地点CSV -->
     <div>
-      <label>地点CSVインポート（Name,Latitude,Longitude[,Description]）</label>
+      <label>地点CSV読込（Name,Latitude,Longitude[,Description]）</label>
       <input type="file" id="file" accept=".csv,.kml,.geojson,.json">
       <div class="small">CSV推奨。KML/GeoJSONは簡易対応（ポイントのみ）。</div>
     </div>
-
-    <!-- パネル内の操作ボタンはご要望により削除 -->
 
     <div class="row">
       <button id="btnDownload" class="warn">CSVダウンロード</button>
@@ -110,16 +104,13 @@
 
     <!-- 基本回収ルート（GPX/LineString等） -->
     <div>
-      <label>基本回収ルートインポート（.gpx / .geojson / .json / .csv）</label>
+      <label>基本回収ルート読込（.gpx / .geojson / .json / .csv）</label>
       <input type="file" id="fileRoute" accept=".gpx,.geojson,.json,.csv">
       <div class="small">GPXのtrkpt/rtept、GeoJSONのLineString、CSVはLatitude/Longitude列に対応。</div>
     </div>
     <div class="row" style="grid-template-columns:1fr 1fr">
-      <label><input type="checkbox" id="chkBase" checked> 基本回収ルートを表示</label>
-      <div class="row" style="grid-template-columns:1fr 1fr;gap:8px;margin:0">
-        <button id="btnRouteZoom" class="ghost">ルートへズーム</button>
-        <button id="btnRouteClear" class="ghost">ルート消去</button>
-      </div>
+      <button id="btnRouteZoom" class="ghost btn-mini">ルートへズームアウト</button>
+      <button id="btnHeading"   class="ghost btn-mini">自車位置表示変更</button>
     </div>
 
     <!-- ナビ方式＆操作 -->
@@ -158,167 +149,38 @@
     </div>
 
     <div class="small">出力: 日時, 地点名, 現在地緯度, 現在地経度, 車両ID, 運転者</div>
-    <details>
-      <summary>ヘルプ</summary>
-      <ul class="small">
-        <li>タップで色が切替：青=未選択 / ピンク=選択中 / 赤=回収済 / 黄=無回収。</li>
-        <li>地図の任意タップで下部に大きいボタンが3秒ポップ。</li>
-        <li>位置情報はhttps＋サイト許可が必要です。</li>
-      </ul>
-    </details>
     <div class="footer">Demo Leaflet + Vanilla JS</div>
   </div>
 </div>
 
 <script>
 (function(){
-  // === 正規化 ===
-  function norm(s){ if(s==null) return ''; return String(s).replace(/[\u3000]/g,' ').replace(/[\r\n\t]/g,' ').trim().replace(/\s{2,}/g,' '); }
+  // ===== ユーティリティ =====
+  function showErr(e){
+    var el=document.getElementById('err');
+    el.textContent='Error: '+(e&&e.message?e.message:e);
+    el.style.display='block';
+    console.error(e);
+  }
+  window.addEventListener('error',function(ev){showErr(ev.error||ev.message||'unknown');});
 
-  // === エラー表示 ===
-  function showErr(e){ var el=document.getElementById('err'); el.textContent='Error: '+(e&&e.message?e.message:e); el.style.display='block'; console.error(e); }
-  window.addEventListener('error',e=>showErr(e.error||e.message||'unknown'));
-
-  // === 設定パネル開閉 ===
+  // ===== パネル開閉 =====
   var panel=document.getElementById('panel');
   var btnPanel=document.getElementById('btnPanel');
   var panelVisible=true;
-  function togglePanel(force){ if(typeof force==='boolean'){ panelVisible=force; } else { panelVisible=!panelVisible; } panel.style.display=panelVisible?'block':'none'; }
-  btnPanel.addEventListener('click',()=>togglePanel());
-
-  // === 地図 ===
-  var map=L.map('map');
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'OpenStreetMap'}).addTo(map);
-  map.setView([35.841,139.34],14);
-
-  // 現在地マーカー
-  var gpsWatchId=null, locMarker=null, locCircle=null;
-  function ensureLocLayer(lat,lon,acc){
-    if(!locMarker){
-      var blue=L.icon({iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
-        shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
-      locMarker=L.marker([lat,lon],{icon:blue}).addTo(map);
-      locCircle=L.circle([lat,lon],{radius:acc||25,color:'#3388ff',fillColor:'#3388ff',fillOpacity:0.15}).addTo(map);
-    }else{ locMarker.setLatLng([lat,lon]); locCircle.setLatLng([lat,lon]).setRadius(acc||25); }
+  function togglePanel(force){
+    if(typeof force==='boolean'){ panelVisible=force; } else { panelVisible=!panelVisible; }
+    panel.style.display=panelVisible?'block':'none';
   }
-  function startGpsWatch(){
-    if(!navigator.geolocation) return;
-    if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
-    gpsWatchId=navigator.geolocation.watchPosition(pos=>{
-      var c=pos.coords; ensureLocLayer(c.latitude,c.longitude,c.accuracy);
-    }, ()=>{}, {enableHighAccuracy:true,maximumAge:2000,timeout:8000});
-  }
-  if(navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(pos=>{
-      var c=pos.coords; map.setView([c.latitude,c.longitude],15); ensureLocLayer(c.latitude,c.longitude,c.accuracy);
-    }, ()=>{}, {enableHighAccuracy:true,timeout:5000});
-    startGpsWatch();
-  }
+  btnPanel.addEventListener('click',function(){ togglePanel(); });
 
-  // === マーカー管理 ===
-  // 状態: 'normal'(青), 'selected'(ピンク), 'collected'(赤), 'uncollected'(黄)
-  var points=[]; // {name,lat,lon,desc,marker,status,selected}
-
-  const blueIcon=L.icon({
-    iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
-    shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
-  });
-  const redIcon=L.icon({
-    iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-    iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
-    shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
-  });
-  const yellowIcon=L.icon({
-    iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
-    iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
-    shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
-  });
-  const pinkSvg = encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="25" height="41" viewBox="0 0 25 41">
-      <defs><filter id="s" x="-50%" y="-50%" width="200%" height="200%">
-        <feOffset dy="1" /><feGaussianBlur stdDeviation="1" result="b"/>
-        <feColorMatrix type="matrix" values="0 0 0 0 0   0 0 0 0 0   0 0 0 0 0   0 0 0 .3 0"/>
-        <feBlend in="SourceGraphic" in2="b" mode="normal"/>
-      </filter></defs>
-      <g filter="url(#s)">
-        <path fill="#FF66CC" d="M12.5,0C5.6,0,0,5.6,0,12.5C0,21.5,11.1,30.7,12,40.5c0.1,0.7,1,0.7,1.1,0C13.9,30.7,25,21.5,25,12.5 C25,5.6,19.4,0,12.5,0z"/>
-        <circle cx="12.5" cy="12.5" r="5.2" fill="#fff"/>
-      </g>
-    </svg>`);
-  const pinkIcon=L.icon({
-    iconUrl:'data:image/svg+xml;charset=UTF-8,'+pinkSvg,
-    iconSize:[25,41], iconAnchor:[12,41], popupAnchor:[1,-34],
-    shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
-  });
-
-  function setMarkerIcon(rec){
-    if(rec.status==='selected') rec.marker.setIcon(pinkIcon);
-    else if(rec.status==='collected') rec.marker.setIcon(redIcon);
-    else if(rec.status==='uncollected') rec.marker.setIcon(yellowIcon);
-    else rec.marker.setIcon(blueIcon);
-  }
-
-  function addPoint(name,lat,lon,desc){
-    var m=L.marker([lat,lon],{icon:blueIcon}).addTo(map);
-    m.bindPopup('<b>'+name+'</b><br>'+lat.toFixed(6)+', '+lon.toFixed(6));
-    var rec={name:name,lat:lat,lon:lon,desc:(desc||''),marker:m,status:'normal',selected:false};
-    m.on('click',function(){
-      if(rec.status==='collected'){
-        return; // 回収済は固定
-      }
-      if(rec.status==='uncollected'){
-        rec.status='normal'; rec.selected=false; setMarkerIcon(rec);
-      }else{
-        rec.selected=!rec.selected;
-        rec.status = rec.selected ? 'selected' : 'normal';
-        setMarkerIcon(rec);
-      }
-      updatePointCount();
-      showFab(3); showFabSkip(3);
-    });
-    points.push(rec);
-    updatePointCount();
-  }
-
-  // === FAB 表示制御 ===
-  var fab=document.getElementById('btnFabCollect');
-  var fabSkip=document.getElementById('btnFabSkip');
-  var cap=document.getElementById('fabCaption');
-  var fabHideTimer=null, fabSkipHideTimer=null, capHideTimer=null;
-  function showFab(sec){ fab.style.display='inline-block'; if(fabHideTimer)clearTimeout(fabHideTimer); if(sec){fabHideTimer=setTimeout(()=>fab.style.display='none',sec*1000);} }
-  function showFabSkip(sec){ fabSkip.style.display='inline-block'; if(fabSkipHideTimer)clearTimeout(fabSkipHideTimer); if(sec){fabSkipHideTimer=setTimeout(()=>fabSkip.style.display='none',sec*1000);} }
-  function showCap(sec){ cap.style.display='block'; if(capHideTimer)clearTimeout(capHideTimer); if(sec){capHideTimer=setTimeout(()=>cap.style.display='none',sec*1000);} }
-  function hideFab(){ fab.style.display='none'; if(fabHideTimer)clearTimeout(fabHideTimer); }
-  function hideFabSkip(){ fabSkip.style.display='none'; if(fabSkipHideTimer)clearTimeout(fabSkipHideTimer); }
-  map.on('click',()=>{ showCap(4); showFab(4); showFabSkip(4); });
-
-  function updatePointCount(){
-    var nSel=points.filter(p=>p.status==='selected').length;
-    var nYellow=points.filter(p=>p.status==='uncollected').length;
-    document.getElementById('pointCount').textContent = `${points.length} 点 (選択 ${nSel} / 黄 ${nYellow})`;
-    fab.textContent = `回収（選択 ${nSel}）`;
-    if(nSel>0){ showFab(2); showFabSkip(2); } else { hideFab(); }
-  }
-
-  // === 「回収地点全クリア」 ===
-  document.getElementById('btnClearAll').addEventListener('click',()=>{
-    if(!points.length){ alert('消去する地点がありません'); return; }
-    if(!confirm('読み込んだ回収地点をすべて消去しますか？')) return;
-    points.forEach(p=>{ map.removeLayer(p.marker); });
-    points.length = 0;
-    updatePointCount();
-    alert('回収地点を消去しました');
-  });
-
-  // === 車両・運転者 ===
+  // ===== 車両・運転者 =====
   var FLEET={"1772":["神山","大川","江田"],"5836":["熊坂","田端","藤田","平野","大川"],"8792":["熊坂","八田","平野","田端","大川"],"1771":["永浦","菊池","嶋田","田端","八田","藤田","大川"]};
   var vehicleSel=document.getElementById('vehicle');
   var driverSel=document.getElementById('driver');
   function populateVehicles(){
     vehicleSel.innerHTML='';
-    Object.keys(FLEET).forEach(id=>{
+    Object.keys(FLEET).forEach(function(id){
       var o=document.createElement('option');o.value=id;o.textContent=id;vehicleSel.appendChild(o);
     });
     vehicleSel.value=localStorage.getItem('vehicle')||Object.keys(FLEET)[0];
@@ -327,37 +189,143 @@
   function populateDrivers(){
     var list=FLEET[vehicleSel.value]||[];
     driverSel.innerHTML='';
-    list.forEach(n=>{ var o=document.createElement('option');o.value=n;o.textContent=n;driverSel.appendChild(o); });
+    list.forEach(function(n){
+      var o=document.createElement('option');o.value=n;o.textContent=n;driverSel.appendChild(o);
+    });
     var saved=localStorage.getItem('driver');
     if(saved && list.indexOf(saved)>=0) driverSel.value=saved;
   }
-  vehicleSel.addEventListener('change',()=>{localStorage.setItem('vehicle',vehicleSel.value);populateDrivers();});
-  driverSel.addEventListener('change',()=>{localStorage.setItem('driver',driverSel.value);});
+  vehicleSel.addEventListener('change',function(){localStorage.setItem('vehicle',vehicleSel.value);populateDrivers();});
+  driverSel.addEventListener('change',function(){localStorage.setItem('driver',driverSel.value);});
   populateVehicles();
 
-  // === 地点CSV 読み込み ===
+  // ===== 地図 =====
+  var map=L.map('map');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'OpenStreetMap'}).addTo(map);
+  map.setView([35.841,139.34],14);
+
+  // 現在位置マーカー（青）＋精度円＋ヘディング（ノース/ヘディング切替）
+  var gpsWatchId=null, locMarker=null, locCircle=null, headingMode='north'; // 'north' | 'heading'
+  function ensureLocLayer(lat,lon,acc,heading){
+    if(!locMarker){
+      var blue=L.icon({iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
+        shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
+      locMarker=L.marker([lat,lon],{icon:blue}).addTo(map);
+      locCircle=L.circle([lat,lon],{radius:acc||25, color:'#3388ff', fillColor:'#3388ff', fillOpacity:0.15}).addTo(map);
+    }else{
+      locMarker.setLatLng([lat,lon]);
+      locCircle.setLatLng([lat,lon]).setRadius(acc||25);
+    }
+    if(headingMode==='heading' && typeof heading==='number'){
+      map.setBearing && map.setBearing(heading); // Leaflet標準にはないが将来拡張用
+    }
+  }
+  function startGpsWatch(){
+    if(!navigator.geolocation) return;
+    if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId=navigator.geolocation.watchPosition(function(pos){
+      var c=pos.coords; ensureLocLayer(c.latitude,c.longitude,c.accuracy,c.heading);
+    }, function(){}, {enableHighAccuracy:true,maximumAge:2000,timeout:8000});
+  }
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(function(pos){
+      var c=pos.coords; map.setView([c.latitude,c.longitude],15); ensureLocLayer(c.latitude,c.longitude,c.accuracy,c.heading);
+    }, function(){}, {enableHighAccuracy:true,timeout:5000});
+    startGpsWatch();
+  }
+  document.getElementById('btnHeading').addEventListener('click',function(){
+    headingMode = (headingMode==='north' ? 'heading' : 'north');
+    alert('自車表示：' + (headingMode==='north'?'ノースアップ':'ヘディングアップ（簡易）'));
+  });
+
+  // ===== マーカー管理 =====
+  // status: 'normal'(青) | 'selected'(ピンク) | 'skipped'(黄=無回収) | 'collected'(赤=回収済)
+  var points=[]; // {name,lat,lon,desc,marker,selected,status}
+  var iconBase='https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/';
+  var blueIcon =L.icon({iconUrl:iconBase+'marker-icon-2x-blue.png',  iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
+  var yellowIcon=L.icon({iconUrl:iconBase+'marker-icon-2x-yellow.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
+  var redIcon   =L.icon({iconUrl:iconBase+'marker-icon-2x-red.png',   iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
+  var pinkIcon  =L.icon({iconUrl:iconBase+'marker-icon-2x-violet.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'});
+  // ↑ violetをピンク代用
+
+  function setIconByStatus(rec){
+    if(rec.status==='collected') rec.marker.setIcon(redIcon);
+    else if(rec.status==='skipped') rec.marker.setIcon(yellowIcon);
+    else if(rec.status==='selected') rec.marker.setIcon(pinkIcon);
+    else rec.marker.setIcon(blueIcon);
+  }
+
+  function addPoint(name,lat,lon,desc){
+    var m=L.marker([lat,lon],{icon:blueIcon}).addTo(map);
+    m.bindPopup('<b>'+name+'</b><br>'+lat.toFixed(6)+', '+lon.toFixed(6));
+    var rec={name:name,lat:lat,lon:lon,desc:(desc||''),marker:m,selected:false,status:'normal'};
+    m.on('click',function(){
+      // 青→ピンク/ ピンク→青。赤・黄はタップで変えない
+      if(rec.status==='collected' || rec.status==='skipped'){ return; }
+      if(rec.status==='selected'){ rec.status='normal'; rec.selected=false; }
+      else { rec.status='selected'; rec.selected=true; }
+      setIconByStatus(rec);
+      updatePointCount();
+      popupFab();
+    });
+    points.push(rec);
+    updatePointCount();
+  }
+
+  function popupFab(){ // 地図タップ・マーカー操作時に3秒出す
+    document.getElementById('legend').style.display='block';
+    document.getElementById('btnFabCollect').style.display='inline-block';
+    document.getElementById('btnFabSkip').style.display='inline-block';
+    clearTimeout(popupFab._t1); clearTimeout(popupFab._t2);
+    popupFab._t1=setTimeout(function(){document.getElementById('btnFabCollect').style.display='none';},3000);
+    popupFab._t2=setTimeout(function(){
+      document.getElementById('btnFabSkip').style.display='none';
+      document.getElementById('legend').style.display='none';
+    },3000);
+  }
+  map.on('click', popupFab);
+
+  function updatePointCount(){
+    var nRed = points.filter(p=>p.status==='collected').length;
+    var nYel = points.filter(p=>p.status==='skipped').length;
+    document.getElementById('pointCount').textContent =
+      points.length + ' 箇所（赤 ' + nRed + ' / 黄 ' + nYel + '）';
+    // FABの選択数ラベル（ピンク＝選択）
+    var nSel = points.filter(p=>p.status==='selected').length;
+    document.getElementById('btnFabCollect').textContent = '回収（選択 ' + nSel + '）';
+  }
+
+  // 全クリア
+  document.getElementById('btnClearAll').addEventListener('click', function(){
+    if(!confirm('読み込んだ全ての回収地点を地図から消去します。よろしいですか？')) return;
+    points.forEach(p=>map.removeLayer(p.marker));
+    points.length=0;
+    updatePointCount();
+  });
+
+  // ===== 地点CSV 読み込み =====
   function importCSV(file){
     Papa.parse(file,{
       header:true,skipEmptyLines:true,
       complete:function(res){
         try{
-          var rows=res.data, added=0;
-          rows.forEach(r=>{
-            var name=r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||`地点${points.length+1}`;
+          var rows=res.data; var added=0;
+          rows.forEach(function(r){
+            var name=r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||('地点'+(points.length+1));
             var lat=parseFloat(r.Latitude||r.lat||r.Lat||r['緯度']);
             var lon=parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r.lng||r['経度']);
-            var desc=r.Description||r.desc||r['説明']||'';
-            if(isFinite(lat)&&isFinite(lon)){ addPoint(norm(name),lat,lon,norm(desc)); added++; }
+            if(isFinite(lat)&&isFinite(lon)){ addPoint(name,lat,lon,r.Description||r.desc||r['説明']||''); added++; }
           });
           if(added>0){
-            map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
-            alert(`${added} 点を読み込みました。`);
+            map.fitBounds(L.latLngBounds(points.map(function(p){return [p.lat,p.lon];})),{padding:[20,20]});
+            alert(added+' 点読み込み／閉じる');
           }else{
             alert('有効な列(Name,Latitude,Longitude)が見つかりません');
           }
         }catch(e){ showErr(e); }
       },
-      error:e=>showErr(e)
+      error:function(e){ showErr(e); }
     });
   }
   async function importOther(file){
@@ -366,139 +334,150 @@
       if(file.name.toLowerCase().endsWith('.kml')){
         var nameRegex=/<name>([\s\S]*?)<\/name>/gi;
         var coordRegex=/<coordinates>([-0-9.]+),([-0-9.]+)/gi;
-        var names=[]; let m;
-        while((m=nameRegex.exec(text))){ names.push(norm(m[1])); }
-        let i=0; while((m=coordRegex.exec(text))){
+        var names=[]; var m;
+        while((m=nameRegex.exec(text))){ names.push(m[1].trim()); }
+        var i=0; while((m=coordRegex.exec(text))){
           var lon=parseFloat(m[1]); var lat=parseFloat(m[2]);
-          var nm=names[i]||`地点${points.length+1}`; i++;
+          var nm=names[i]||('地点'+(points.length+1)); i++;
           if(isFinite(lat)&&isFinite(lon)) addPoint(nm,lat,lon,'');
         }
       }else if(file.name.toLowerCase().endsWith('.geojson')||file.name.toLowerCase().endsWith('.json')){
         var gj=JSON.parse(text);
         var feats=gj.type==='FeatureCollection'?gj.features:[];
-        feats.forEach(f=>{
+        feats.forEach(function(f){
           if(f.geometry && f.geometry.type==='Point' && Array.isArray(f.geometry.coordinates)){
-            var [lon,lat]=f.geometry.coordinates;
-            var nm=(f.properties&&(f.properties.Name||f.properties.name))||`地点${points.length+1}`;
-            addPoint(norm(nm),lat,lon,'');
+            var lon=f.geometry.coordinates[0], lat=f.geometry.coordinates[1];
+            var nm=(f.properties&&(f.properties.Name||f.properties.name))||('地点'+(points.length+1));
+            addPoint(nm,lat,lon,'');
           }
         });
       }
-      if(points.length){ map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]}); }
+      if(points.length){
+        map.fitBounds(L.latLngBounds(points.map(function(p){return [p.lat,p.lon];})),{padding:[20,20]});
+      }
     }catch(e){ showErr(e); }
   }
-  document.getElementById('file').addEventListener('change',e=>{
+  document.getElementById('file').addEventListener('change',function(e){
     var f=e.target.files[0]; if(!f) return;
     if(/\.csv$/i.test(f.name)) importCSV(f); else importOther(f);
   });
 
-  // === 記録CSV（ブラウザ内） ===
+  // ===== 記録CSV（ブラウザ内） =====
   var logRows=JSON.parse(localStorage.getItem('collectionLog')||'[]');
   function pushLogRow(row){ logRows.push(row); localStorage.setItem('collectionLog',JSON.stringify(logRows)); }
   function makeCSVText(){
     var header=['Datetime','Place','DeviceLat','DeviceLon','Vehicle','Driver'];
-    var lines=[header].concat(logRows).map(r=>r.map(x=>String(x).replace(/"/g,'""')).join(','));
+    var lines=[header].concat(logRows).map(function(r){return r.map(function(x){return String(x).replace(/"/g,'""');}).join(',');});
     return lines.join('\n');
   }
-  function downloadCSV(){ var blob=new Blob([makeCSVText()],{type:'text/csv;charset=utf-8;'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='collection_log.csv'; a.click(); }
-  function previewCSV(){ var url='data:text/plain;charset=utf-8,'+encodeURIComponent(makeCSVText()); window.open(url,'_blank'); }
+  function downloadCSV(){
+    var blob=new Blob([makeCSVText()],{type:'text/csv;charset=utf-8;'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='collection_log.csv'; a.click();
+  }
+  function previewCSV(){
+    var txt=makeCSVText();
+    var url='data:text/plain;charset=utf-8,'+encodeURIComponent(txt);
+    window.open(url,'_blank');
+  }
   document.getElementById('btnDownload').addEventListener('click',downloadCSV);
   document.getElementById('btnPreview').addEventListener('click',previewCSV);
 
-  // === 回収（選択→赤） ===
+  // ==== 回収（選択＝ピンク→赤、CSV追記） ====
   async function collectSelected(){
-    var vehicle=document.getElementById('vehicle').value;
-    var driver=document.getElementById('driver').value;
+    var vehicle=vehicleSel.value; var driver=driverSel.value;
     var selected=points.filter(p=>p.status==='selected');
-    if(selected.length===0){ alert('選択中（ピンク）の地点がありません'); return; }
+    if(selected.length===0){ alert('選択中の地点がありません'); return; }
 
-    function getPos(){ return new Promise((res,rej)=>{
+    function getPos(){ return new Promise(function(res,rej){
       if(!navigator.geolocation) return rej(new Error('Geolocation unsupported'));
-      navigator.geolocation.getCurrentPosition(p=>res(p), e=>rej(e), {enableHighAccuracy:true,timeout:8000});
+      navigator.geolocation.getCurrentPosition(function(pos){res(pos);},function(err){rej(err);},{enableHighAccuracy:true,timeout:8000});
     });}
-    let pos;
+    var pos;
     try{ pos=await getPos(); }
     catch(e){
-      alert('現在地が取得できませんでした。サイトの位置情報許可（https推奨）をご確認ください。');
+      alert('現在地が取得できませんでした。サイトの位置情報が「許可」になっているか確認してください（https推奨）。');
       if(!confirm('0,0で記録しますか？')) return;
       pos={coords:{latitude:0,longitude:0}};
     }
-    var {latitude,longitude}=pos.coords;
-    var dt=new Date(), pad=n=>String(n).padStart(2,'0');
+    var lat=pos.coords.latitude, lon=pos.coords.longitude;
+    var dt=new Date(); var pad=n=>String(n).padStart(2,'0');
     var stamp=`${dt.getFullYear()}/${pad(dt.getMonth()+1)}/${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
 
-    selected.forEach(p=>{
-      pushLogRow([stamp, p.name, latitude, longitude, vehicle, driver]);
-      p.selected=false; p.status='collected'; setMarkerIcon(p);
+    selected.forEach(function(p){
+      pushLogRow([stamp,p.name,lat,lon,vehicle,driver]);
+      p.status='collected'; p.selected=false; setIconByStatus(p); // ←赤に固定
     });
     updatePointCount();
-    cap.style.display='block'; showCap(4);
-    alert(`${selected.length} 件をCSVに追記しました（回収）。`);
+    alert(selected.length+' 件追記しました');
   }
   document.getElementById('btnFabCollect').addEventListener('click', collectSelected);
 
-  // === 無回収（選択→黄）：CSVも追記（A列＝「地点名無」） ===
+  // ==== 無回収（選択＝ピンク→黄、CSV追記：Placeに「◯◯ 無」） ====
   function skipSelected(){
-    var vehicle=document.getElementById('vehicle').value;
-    var driver=document.getElementById('driver').value;
+    var vehicle=vehicleSel.value; var driver=driverSel.value;
     var selected=points.filter(p=>p.status==='selected');
     if(selected.length===0){ alert('無回収にする地点（ピンク）を選択してください'); return; }
 
-    function record(lat,lon){
-      selected.forEach(p=>{
-        pushLogRow([`${p.name}無`, p.name, lat==null?'':lat, lon==null?'':lon, vehicle, driver]);
-        p.selected=false; p.status='uncollected'; setMarkerIcon(p);
+    var lat=0, lon=0;
+    // 現在地は任意取得（失敗時は0,0）
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(function(pos){
+        lat=pos.coords.latitude; lon=pos.coords.longitude; finalize();
+      }, function(){ finalize(); }, {enableHighAccuracy:true,timeout:3000});
+    }else{ finalize(); }
+
+    function finalize(){
+      var dt=new Date(); var pad=n=>String(n).padStart(2,'0');
+      var stamp=`${dt.getFullYear()}/${pad(dt.getMonth()+1)}/${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+      selected.forEach(function(p){
+        pushLogRow([stamp, p.name+' 無', lat, lon, vehicle, driver]);
+        p.status='skipped'; p.selected=false; setIconByStatus(p); // ←黄にする
       });
       updatePointCount();
-      cap.style.display='block'; showCap(4);
-      alert(`${selected.length} 件をCSVに追記しました（無回収）。`);
-    }
-
-    if(!navigator.geolocation){
-      record(null,null);
-    }else{
-      navigator.geolocation.getCurrentPosition(pos=>{
-        record(pos.coords.latitude, pos.coords.longitude);
-      }, err=>{
-        record(null,null);
-      }, {enableHighAccuracy:true,timeout:6000});
+      alert('無回収を '+selected.length+' 件記録しました');
     }
   }
   document.getElementById('btnFabSkip').addEventListener('click', skipSelected);
 
-  // === 基本回収ルート（GPX 等） ===
+  // ===== 基本回収ルート（GPX等） =====
   var routeLayer=null, routeLatLngs=[];
   function setRouteLatLngs(latlngs){
     routeLatLngs=latlngs||[];
     if(routeLayer){ map.removeLayer(routeLayer); routeLayer=null; }
-    if(document.getElementById('chkBase').checked && routeLatLngs.length>=2){
+    if(routeLatLngs.length>=2){
       routeLayer=L.polyline(routeLatLngs,{color:'#ff2d2d',weight:4,opacity:0.9}).addTo(map);
     }
   }
-  function fitRoute(){ if(routeLatLngs.length>=2){ map.fitBounds(L.latLngBounds(routeLatLngs),{padding:[30,30]}); } else { alert('ルートが未読込です'); } }
-  function clearRoute(){ routeLatLngs=[]; if(routeLayer){ map.removeLayer(routeLayer); routeLayer=null; } }
-  document.getElementById('btnRouteZoom').addEventListener('click',()=>{ togglePanel(false); setTimeout(fitRoute,50); });
-  document.getElementById('btnRouteClear').addEventListener('click',()=>{ togglePanel(false); setTimeout(()=>{ if(confirm('この基本回収ルート（赤線）を消去しますか？')){ clearRoute(); alert('ルートを消去しました'); } },50); });
-  document.getElementById('fileRoute').addEventListener('change', async e=>{
+  function fitRoute(){
+    if(routeLatLngs.length>=2){
+      map.fitBounds(L.latLngBounds(routeLatLngs),{padding:[30,30]});
+      if(locMarker){ map.addLayer(locMarker); map.addLayer(locCircle); }
+    } else {
+      alert('ルートが未読込です');
+    }
+  }
+  document.getElementById('btnRouteZoom').addEventListener('click',function(){ togglePanel(false); setTimeout(fitRoute,50); });
+
+  document.getElementById('fileRoute').addEventListener('change', async function(e){
     var f=e.target.files[0]; if(!f) return;
     try{
       if(/\.gpx$/i.test(f.name)){
         var text=await f.text();
         var xml=new DOMParser().parseFromString(text,'application/xml');
-        var pts=[...xml.querySelectorAll('trkpt, rtept')];
-        var latlngs=pts.map(el=>{var la=parseFloat(el.getAttribute('lat')); var lo=parseFloat(el.getAttribute('lon')); return (isFinite(la)&&isFinite(lo))?[la,lo]:null;}).filter(Boolean);
+        var pts=[].slice.call(xml.querySelectorAll('trkpt, rtept'));
+        var latlngs=pts.map(function(el){ var la=parseFloat(el.getAttribute('lat')); var lo=parseFloat(el.getAttribute('lon')); return (isFinite(la)&&isFinite(lo))?[la,lo]:null; }).filter(Boolean);
         if(latlngs.length<2) throw new Error('GPX内にtrkpt/rteptが見つかりません');
         setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
       }else if(/\.(geojson|json)$/i.test(f.name)){
         var gj=JSON.parse(await f.text()); var latlngs=[];
-        if(gj.type==='FeatureCollection'){ gj.features.forEach(feat=>{ if(feat.geometry&&feat.geometry.type==='LineString'){ feat.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); } }); }
-        else if(gj.type==='Feature'&&gj.geometry&&gj.geometry.type==='LineString'){ gj.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
-        else if(gj.type==='LineString'){ gj.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
+        if(gj.type==='FeatureCollection'){ gj.features.forEach(function(feat){ if(feat.geometry&&feat.geometry.type==='LineString'){ feat.geometry.coordinates.forEach(function(c){ latlngs.push([c[1],c[0]]); }); } }); }
+        else if(gj.type==='Feature'&&gj.geometry&&gj.geometry.type==='LineString'){ gj.geometry.coordinates.forEach(function(c){ latlngs.push([c[1],c[0]]); }); }
+        else if(gj.type==='LineString'){ gj.coordinates.forEach(function(c){ latlngs.push([c[1],c[0]]); }); }
         if(latlngs.length<2) throw new Error('GeoJSON内にLineStringがありません');
         setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
       }else if(/\.csv$/i.test(f.name)){
         Papa.parse(f,{header:true,skipEmptyLines:true,complete:function(res){
-          var latlngs=[]; res.data.forEach(r=>{ var la=parseFloat(r.Latitude||r.lat||r['緯度']); var lo=parseFloat(r.Longitude||r.lon||r['経度']); if(isFinite(la)&&isFinite(lo)) latlngs.push([la,lo]); });
+          var latlngs=[]; res.data.forEach(function(r){ var la=parseFloat(r.Latitude||r.lat||r['緯度']); var lo=parseFloat(r.Longitude||r.lon||r['経度']); if(isFinite(la)&&isFinite(lo)) latlngs.push([la,lo]); });
           if(latlngs.length<2){ showErr('CSVの行が少ない/列名不一致'); return; }
           setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
         }});
@@ -506,19 +485,25 @@
     }catch(err){ showErr(err); }
   });
 
-  // === 簡易ナビ（Description順）＋外部ナビ ===
+  // ===== 簡易ナビ（Description順＋近接/到着アナウンス） =====
   var nav={order:[],idx:0,active:false,watchId:null,thresholdM:50,arriveM:15};
-  function meters(a,b){ var dy=(a[0]-b[0])*111320; var dx=(a[1]-b[1])*111320*Math.cos((a[0]+b[0])*Math.PI/360); return Math.hypot(dx,dy); }
+  function meters(a,b){
+    var dy=(a[0]-b[0])*111320;
+    var dx=(a[1]-b[1])*111320*Math.cos((a[0]+b[0])*Math.PI/360);
+    return Math.hypot(dx,dy);
+  }
   function speakJa(t){ try{ var u=new SpeechSynthesisUtterance(t); u.lang='ja-JP'; u.rate=1.0; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(e){} }
-  function nameToLatLng(name){ if(!name) return null; var key=norm(name);
-    var p=points.find(x=>x.name===key) || points.find(x=>x.name.toLowerCase()===key.toLowerCase()) || points.find(x=>x.name.includes(key)||key.includes(x.name));
-    return p ? [p.lat,p.lon] : null; }
-  function focusTarget(name){ var ll=nameToLatLng(name); if(!ll) return; map.setView(ll,Math.max(map.getZoom(),16)); var p=points.find(x=>x.name===norm(name)); if(p) p.marker.openPopup(); }
+  function nameToLatLng(name){ var p=points.find(function(x){return x.name===name;}); return p?[p.lat,p.lon]:null; }
+  function focusTarget(name){
+    var ll=nameToLatLng(name); if(!ll) return;
+    map.setView(ll,Math.max(map.getZoom(),16));
+    var p=points.find(function(x){return x.name===name;}); if(p){ p.marker.openPopup(); }
+  }
   function buildOrderFromDescription(){
-    var nextMap={}, nameSet={}; points.forEach(p=>{ nameSet[p.name]=true; if(p.desc) nextMap[p.name]=p.desc; });
-    var appearsNext={}; Object.keys(nextMap).forEach(k=>{ appearsNext[nextMap[k]]=true; });
-    var names=points.map(p=>p.name);
-    var start=names.find(n=>!appearsNext[n]) || names[0];
+    var nextMap={}, nameSet={}; points.forEach(function(p){ nameSet[p.name]=true; var nx=(p.desc||'').trim(); if(nx) nextMap[p.name]=nx; });
+    var appearsNext={}; Object.keys(nextMap).forEach(function(k){ appearsNext[nextMap[k]]=true; });
+    var names=points.map(function(p){return p.name;});
+    var start=names.find(function(n){return !appearsNext[n];}) || names[0];
     var order=[], seen={}; var cur=start;
     while(cur && nameSet[cur] && !seen[cur]){ order.push(cur); seen[cur]=true; cur=nextMap[cur]; }
     if(order.length===0) order=names.slice();
@@ -532,70 +517,102 @@
     togglePanel(false);
     var cur=nav.order[nav.idx]; speakJa('ナビを開始します。まずは '+cur+' へ向かってください。'); focusTarget(cur);
     if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
-    nav.watchId=navigator.geolocation.watchPosition(onPos, ()=>{}, {enableHighAccuracy:true,maximumAge:2000,timeout:8000});
+    nav.watchId=navigator.geolocation.watchPosition(onPos,function(){},{enableHighAccuracy:true,maximumAge:2000,timeout:8000});
     startGpsWatch();
   }
-  function stopGuidance(){ nav.active=false; if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId); nav.watchId=null; speakJa('ナビを停止しました。'); }
-  function nextTarget(){ if(!nav.active) return; nav.idx++; if(nav.idx>=nav.order.length){ speakJa('すべて完了しました'); stopGuidance(); return; } var name=nav.order[nav.idx]; speakJa(name+' へ進んでください'); focusTarget(name); }
+  function stopGuidance(){
+    nav.active=false;
+    if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
+    nav.watchId=null;
+    speakJa('ナビを停止しました。');
+  }
+  function nextTarget(){
+    if(!nav.active) return;
+    nav.idx++;
+    if(nav.idx>=nav.order.length){ speakJa('すべて完了しました'); stopGuidance(); return; }
+    var name=nav.order[nav.idx]; speakJa(name+' へ進んでください'); focusTarget(name);
+  }
   var nearAnnouncedFor=null;
   function onPos(pos){
     if(!nav.active) return;
-    var {latitude,longitude}=pos.coords;
+    var lat=pos.coords.latitude, lon=pos.coords.longitude;
     var cur=nav.order[nav.idx]; var tll=nameToLatLng(cur); if(!tll) return;
-    var d=meters([latitude,longitude],tll);
+    var d=meters([lat,lon],tll);
     if(d<=nav.arriveM){ speakJa(cur+' に到着しました。次に進みます。'); nearAnnouncedFor=null; nextTarget(); return; }
     if(d<=nav.thresholdM && nearAnnouncedFor!==cur){ speakJa(cur+' が近くにあります。'); nearAnnouncedFor=cur; }
   }
   document.getElementById('btnNavStart').addEventListener('click',startGuidance);
   document.getElementById('btnNavStop').addEventListener('click',stopGuidance);
 
-  // 外部ナビ
+  // ===== 外部ナビ連携 =====
   function isIOS(){ return /iphone|ipad|macintosh/.test(navigator.userAgent.toLowerCase()); }
   function openExternalRoute(originLL, destLL){
-    var [oLat,oLon]=originLL, [dLat,dLon]=destLL;
-    var choice=(document.getElementById('navApp')?.value)||'auto';
+    var oLat=originLL[0], oLon=originLL[1], dLat=destLL[0], dLon=destLL[1];
+    var choice=(document.getElementById('navApp')&&document.getElementById('navApp').value)||'auto';
     if(choice==='google' || (!isIOS() && choice==='auto')){
-      location.href=`https://www.google.com/maps/dir/?api=1&origin=${oLat},${oLon}&destination=${dLat},${dLon}&travelmode=driving`;
+      location.href='https://www.google.com/maps/dir/?api=1&origin='+oLat+','+oLon+'&destination='+dLat+','+dLon+'&travelmode=driving';
     }else if(choice==='apple' || (isIOS() && choice==='auto')){
-      location.href=`http://maps.apple.com/?saddr=${oLat},${oLon}&daddr=${dLat},${dLon}&dirflg=d`;
+      location.href='http://maps.apple.com/?saddr='+oLat+','+oLon+'&daddr='+dLat+','+dLon+'&dirflg=d';
     }else if(choice==='osmand'){
-      location.href=`osmand://navigate?lat=${dLat}&lon=${dLon}&profile=car`;
+      location.href='osmand://navigate?lat='+dLat+'&lon='+dLon+'&profile=car';
     }
   }
-  function openExternalLeg(){
+  function openExternalLeg(){ // 現在ターゲット→次
     if(points.length===0){ alert('地点がありません'); return; }
-    var cur=nav.active?nav.order[nav.idx]:(points[0]?.name);
+    var cur=nav.active?nav.order[nav.idx]:(points[0]?points[0].name:null);
     var next=nav.active?nav.order[Math.min(nav.idx+1,nav.order.length-1)]:null;
     var curLL=nameToLatLng(cur), nextLL=next?nameToLatLng(next):curLL; if(!curLL||!nextLL){ alert('目的地が見つかりません'); return; }
-    openExternalRoute(curLL,nextLL);
+    openExternalRoute(curLL, nextLL);
   }
-  function openExternalFromLast(){
+  function openExternalFromLast(){ // 回収済み→次（CSVの最後行を参照）
     if(points.length===0){ alert('地点がありません'); return; }
-    var nameToNext={}; points.forEach(p=>{ if(p.desc) nameToNext[p.name]=p.desc; });
+    var nameToNext={}; points.forEach(function(p){ if(p.desc && p.desc.trim()) nameToNext[p.name]=p.desc.trim(); });
     if(Object.keys(nameToNext).length===0){ alert('地点CSVのDescription列に次地点名がありません'); return; }
-    var last = logRows.length ? norm(logRows[logRows.length-1][1]) : null;
+    var last=logRows.length? logRows[logRows.length-1][1] : null;
     if(!last){ alert('collection_log にデータがありません（まず「回収」で記録）'); return; }
-    var next = nameToNext[last] || Object.keys(nameToNext).find(k=>k.includes(last)||last.includes(k)) && nameToNext[Object.keys(nameToNext).find(k=>k.includes(last)||last.includes(k))];
-    if(!next){ alert('次地点が見つかりません'); return; }
-    var oLL=nameToLatLng(last), dLL=nameToLatLng(next);
+    // 「◯◯ 無」で終わっている場合は地名部分だけ抜く
+    var lastName = last.replace(/\s*無\s*$/,'');
+    var next=nameToNext[lastName];
+    if(!next){ alert('次地点が見つかりません（'+lastName+' のDescriptionが空）'); return; }
+    var oLL=nameToLatLng(lastName), dLL=nameToLatLng(next);
     if(!oLL||!dLL){ alert('座標が見つかりません'); return; }
-    openExternalRoute(oLL,dLL);
+    openExternalRoute(oLL, dLL);
   }
   document.getElementById('btnLeg').addEventListener('click',openExternalLeg);
   document.getElementById('btnLegFromLast').addEventListener('click',openExternalFromLast);
 
-  // === クリーンセンター往復 ===
+  // ===== クリーンセンター往復 =====
   var CLEAN_CENTER=[35.84436766945119,139.29538506649325];
-  function getCurrentLatLng(){ return new Promise((res,rej)=>{ if(!navigator.geolocation) return rej(new Error('Geolocation unsupported')); navigator.geolocation.getCurrentPosition(p=>res([p.coords.latitude,p.coords.longitude]), e=>rej(e), {enableHighAccuracy:true,timeout:8000}); }); }
-  document.getElementById('btnToClean').addEventListener('click', async ()=>{ try{ var cur=await getCurrentLatLng(); openExternalRoute(cur,CLEAN_CENTER);}catch(e){ alert('現在地が取得できませんでした'); }});
-  document.getElementById('btnResume').addEventListener('click', async ()=>{
+  async function getCurrentLatLng(){
+    return new Promise(function(resolve,reject){
+      if(!navigator.geolocation) return reject(new Error('Geolocation unsupported'));
+      navigator.geolocation.getCurrentPosition(function(pos){
+        resolve([pos.coords.latitude,pos.coords.longitude]);
+      }, function(err){ reject(err); }, {enableHighAccuracy:true,timeout:8000});
+    });
+  }
+  async function navToCleanCenter(){
+    try{
+      var cur=await getCurrentLatLng();
+      openExternalRoute(cur, CLEAN_CENTER);
+    }catch(e){ alert('現在地が取得できませんでした'); }
+  }
+  async function navResumePrompt(){
     var input=prompt('再開する「回収場所」の番号または名称を入力してください（例：23 または 回収場所23）');
-    if(!input) return; input=norm(String(input));
-    var targetName = (/^\d+$/.test(input)) ? '回収場所'+input : input;
-    var dest = points.find(p=>p.name===targetName) || points.find(p=>p.name.includes(input));
+    if(!input) return;
+    input=String(input).trim();
+    var targetName=null;
+    if(/^\d+$/.test(input)){ targetName='回収場所'+input; }
+    else{ targetName=input; }
+    var dest=points.find(function(p){return p.name===targetName;}) || points.find(function(p){return p.name.includes(input);});
     if(!dest){ alert('該当する地点が見つかりません'); return; }
-    try{ var cur=await getCurrentLatLng(); openExternalRoute(cur,[dest.lat,dest.lon]); }catch(e){ alert('現在地が取得できませんでした'); }
-  });
+    try{
+      var cur=await getCurrentLatLng();
+      openExternalRoute(cur, [dest.lat, dest.lon]);
+    }catch(e){ alert('現在地が取得できませんでした'); }
+  }
+  document.getElementById('btnToClean').addEventListener('click', navToCleanCenter);
+  document.getElementById('btnResume').addEventListener('click', navResumePrompt);
 
 })();
 </script>
