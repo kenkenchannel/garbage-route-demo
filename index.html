@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>回収選択デモ（Leaflet + 外部ナビ + 基本ルート/GPX）leafletVer23</title>
+<title>回収選択デモ（Leaflet + 外部ナビ + 基本ルート/GPX）leafletVer24</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
@@ -165,20 +165,27 @@
   $('btnVolDown').addEventListener('click', ()=>{ chime.volume=Math.max(0, Math.round((chime.volume-0.1)*10)/10); saveVol(); toast('音量: '+Math.round(chime.volume*100)+'%'); });
   $('btnVolUp').addEventListener('click', ()=>{ chime.volume=Math.min(1, Math.round((chime.volume+0.1)*10)/10); saveVol(); toast('音量: '+Math.round(chime.volume*100)+'%'); });
 
-  // 地図
-  const map=L.map('map');
+  // =====================
+  // 地図：専用 pane を作って重なり順を制御
+  // =====================
+  const map=L.map('map', { zoomControl:false }); // ←デフォのズームUIを消す
+  L.control.zoom({position:'bottomleft'}).addTo(map); // ←左下に設置
+
+  // pane（レイヤーの重なり順をz-indexで制御）
+  map.createPane('vehiclePane'); // 自車
+  map.getPane('vehiclePane').style.zIndex = 590;
+  map.createPane('poiPane');      // 回収地点
+  map.getPane('poiPane').style.zIndex = 610;
+
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'OpenStreetMap'}).addTo(map);
   map.setView([35.841,139.34],14);
 
-  // ===== 自車アイコン：緑の車（SVGデータURI） =====
+  // ===== 自車アイコン：緑の車（SVG）※vehiclePaneに載せる =====
   const carIcon = L.icon({
     iconUrl: 'data:image/svg+xml;utf8,' + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 64 64">
-        <defs>
-          <filter id="s" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.35"/>
-          </filter>
-        </defs>
+        <defs><filter id="s" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.35"/></filter></defs>
         <g filter="url(#s)">
           <circle cx="32" cy="32" r="21" fill="#23a455"/>
           <path d="M18 36c0-2 1-3 3-3h22c2 0 3 1 3 3v4c0 1-1 2-2 2h-2a4 4 0 0 1-8 0h-6a4 4 0 0 1-8 0h-2c-1 0-2-1-2-2z" fill="#0d5c2c"/>
@@ -194,29 +201,26 @@
   let gpsWatchId=null, locMarker=null, locCircle=null;
   function ensureLocLayer(lat,lon,acc){
     if(!locMarker){
-      locMarker=L.marker([lat,lon],{icon:carIcon, zIndexOffset:1000}).addTo(map);
-      locCircle=L.circle([lat,lon],{radius:acc||25, color:'#23a455', fillColor:'#23a455', fillOpacity:0.15}).addTo(map);
+      locMarker=L.marker([lat,lon],{icon:carIcon, pane:'vehiclePane'}).addTo(map);
+      locCircle=L.circle([lat,lon],{radius:acc||25, color:'#23a455', fillColor:'#23a455', fillOpacity:0.15, pane:'vehiclePane'}).addTo(map);
     }else{
       locMarker.setLatLng([lat,lon]);
       locCircle.setLatLng([lat,lon]).setRadius(acc||25);
     }
   }
-  // 初期位置取得＆ウォッチ。常に自車を画面中央へ。
+  // 初期位置＆追従
   if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(pos=>{
-      const c=pos.coords;
-      ensureLocLayer(c.latitude,c.longitude,c.accuracy);
+      const c=pos.coords; ensureLocLayer(c.latitude,c.longitude,c.accuracy);
       map.setView([c.latitude,c.longitude], 17, {animate:false});
     },()=>{}, {enableHighAccuracy:true,timeout:5000});
-
     gpsWatchId=navigator.geolocation.watchPosition(pos=>{
-      const c=pos.coords;
-      ensureLocLayer(c.latitude,c.longitude,c.accuracy);
-      map.setView([c.latitude,c.longitude], map.getZoom(), {animate:false}); // 常時センタリング
+      const c=pos.coords; ensureLocLayer(c.latitude,c.longitude,c.accuracy);
+      map.setView([c.latitude,c.longitude], map.getZoom(), {animate:false});
     },()=>{}, {enableHighAccuracy:true,maximumAge:2000,timeout:8000});
   }
 
-  /* --------- アイコン（地点） --------- */
+  /* --------- アイコン（地点）※poiPaneに載せる --------- */
   const blueIcon=L.icon({
     iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
     iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
@@ -249,15 +253,8 @@
   /* --------- 車両/運転者 --------- */
   const FLEET={"1772":["神山","大川","江田"],"5836":["熊坂","田端","藤田","平野","大川"],"8792":["熊坂","八田","平野","田端","大川"],"1771":["永浦","菊池","嶋田","田端","八田","藤田","大川"]};
   const vehicleSel=$('vehicle'), driverSel=$('driver');
-  function populateVehicles(){
-    vehicleSel.innerHTML=''; Object.keys(FLEET).forEach(id=>{const o=document.createElement('option');o.value=id;o.textContent=id;vehicleSel.appendChild(o);});
-    vehicleSel.value=localStorage.getItem('vehicle')||Object.keys(FLEET)[0]; populateDrivers();
-  }
-  function populateDrivers(){
-    const list=FLEET[vehicleSel.value]||[]; driverSel.innerHTML='';
-    list.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;driverSel.appendChild(o);});
-    const saved=localStorage.getItem('driver'); if(saved && list.includes(saved)) driverSel.value=saved;
-  }
+  function populateVehicles(){ vehicleSel.innerHTML=''; Object.keys(FLEET).forEach(id=>{const o=document.createElement('option');o.value=id;o.textContent=id;vehicleSel.appendChild(o);}); vehicleSel.value=localStorage.getItem('vehicle')||Object.keys(FLEET)[0]; populateDrivers(); }
+  function populateDrivers(){ const list=FLEET[vehicleSel.value]||[]; driverSel.innerHTML=''; list.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;driverSel.appendChild(o);}); const saved=localStorage.getItem('driver'); if(saved && list.includes(saved)) driverSel.value=saved; }
   vehicleSel.addEventListener('change',()=>{localStorage.setItem('vehicle',vehicleSel.value);populateDrivers();});
   driverSel.addEventListener('change',()=>{localStorage.setItem('driver',driverSel.value);});
   populateVehicles();
@@ -279,7 +276,7 @@
 
   function addPoint(name,lat,lon,desc=""){
     name = norm(name);
-    const m=L.marker([lat,lon],{icon:blueIcon}).addTo(map);  // 初期は青
+    const m=L.marker([lat,lon],{icon:blueIcon, pane:'poiPane'}).addTo(map);  // ← 常にpoiPane（自車より上）
     m.bindPopup(`<b>${name}</b><br>${lat.toFixed(6)}, ${lon.toFixed(6)}`);
     const rec={name,lat,lon,desc,marker:m,status:'blue'};
     m.on('click', ()=>{
@@ -294,9 +291,9 @@
   function clearAllPoints(){
     points.forEach(p=>map.removeLayer(p.marker));
     points=[]; nameIndex.clear(); updateCounters();
-    $('file').value=''; // 表示名もクリア
+    $('file').value='';
     alert('回収地点のデータを全て消去しました。');
-    refreshCollectedLayer(); // a,b…の丸も消す
+    refreshCollectedLayer();
   }
   $('btnClearPoints').addEventListener('click', clearAllPoints);
 
@@ -334,7 +331,7 @@
       const la=parseFloat(r[2]), lo=parseFloat(r[3]); if(!Number.isFinite(la)||!Number.isFinite(lo)) continue;
       const html = `<div class="lab">${letterFor(letterIdx)}</div>`;
       const icon = L.divIcon({html, className:'', iconSize:[22,22], iconAnchor:[11,11]});
-      const mk = L.marker([la,lo], {icon});
+      const mk = L.marker([la,lo], {icon, pane:'poiPane'}); // ← 丸ラベルもpoiPane（上層）
       mk.addTo(group).bindTooltip(`${r[1]}（${letterFor(letterIdx)}）`, {permanent:false});
     }
     collectedLayer = group.addTo(map);
@@ -496,13 +493,13 @@
 
   function isIOS(){ return /iphone|ipad|macintosh/.test(navigator.userAgent.toLowerCase()); }
 
-  // Googleマップ用：回収済みのウェイポイント（最大15）を &waypoints に付与
+  // Googleマップ用：回収済みのウェイポイント（最大15）
   function buildWaypointsForGoogle(){
     const pts=[];
     for(let i=0;i<logRows.length;i++){
       const r=logRows[i];
       const place = norm(r[1]||'');
-      if(place.endsWith('無')) continue; // 無回収は除外
+      if(place.endsWith('無')) continue;
       const la = parseFloat(r[2]), lo = parseFloat(r[3]);
       if(Number.isFinite(la) && Number.isFinite(lo)) pts.push(`${la},${lo}`);
     }
@@ -535,7 +532,6 @@
   function openExternalFromLast(){
     if(points.length===0){ alert('地点がありません'); return; }
     const nameToNext={}; points.forEach(p=>{ const nx=parseNextName(p.desc); if(nx) nameToNext[norm(p.name)]=nx; });
-    if(Object.keys(nameToNext).length===0){ alert('地点CSVのDescription列に次地点名がありません'); return; }
     let last = logRows.length ? norm(logRows[logRows.length-1][1]) : null; if(!last){ alert('collection_log にデータがありません（まず「回収」で記録）'); return; }
     last = last.replace(/無$/,''); // 無回収で終わる場合は除去
     const next = nameToNext[norm(last)]; if(!next){ alert('次地点が見つかりません（'+last+' のDescriptionが空または不一致）'); return; }
