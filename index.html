@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>回収選択デモ（Leaflet + 外部ナビ + 基本ルート/GPX）Ver.20</title>
+<title>回収選択デモ（Leaflet + 外部ナビ + 基本ルート/GPX）Ver.21</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
@@ -28,7 +28,7 @@
   .footer{font-size:11px;color:#555;margin-top:6px}
   .err{position:absolute;top:0;left:0;right:0;background:#fee;color:#900;padding:8px 10px;font-size:12px;z-index:2000;border-bottom:1px solid #f99;display:none}
 
-  /* 右上フローティング群 */
+  /* 右上：音量− 設定 音量＋ */
   .fab-top{position:absolute;right:10px;top:10px;z-index:1100;display:flex;gap:8px;align-items:center}
   #btnVolDown,#btnVolUp{
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:10px 12px;font-size:16px;
@@ -38,14 +38,12 @@
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:10px 14px;font-size:16px;
     box-shadow:0 2px 8px rgba(0,0,0,.15)
   }
-  /* iPhone（幅<=430px）：1ボタン分下げる */
-  @media (max-width:430px){ .fab-top{ top:70px; } }
-  /* 8インチタブレット（幅>=760px）：設定ボタン大型化 */
-  @media (min-width:760px){
+  @media (max-width:430px){ .fab-top{ top:70px; } }           /* iPhone：1ボタン分下げる */
+  @media (min-width:760px){                                     /* 8インチタブ：大きめ */
     #btnPanel{ padding:24px 28px;font-size:22px;border-radius:28px; }
   }
 
-  /* 地図下・巨大 回収ボタン（青） */
+  /* 地図下・巨大回収ボタン（青） */
   .fab{
     position:absolute; left:50%; bottom:72px; transform:translateX(-50%); z-index:1200;
     width:92vw; max-width:900px; padding:48px 0;
@@ -53,7 +51,7 @@
     font-weight:700; font-size:28px; border:none; box-shadow:0 18px 36px rgba(0,0,0,.25);
     display:none;
   }
-  /* 地図下・無回収ボタン（黄へ） */
+  /* 地図下・無回収（黄へ） */
   .fab-small{
     position:absolute; left:50%; bottom:12px; transform:translateX(-50%); z-index:1200;
     padding:12px 20px; border-radius:999px; background:#10b981; color:#063;
@@ -61,7 +59,7 @@
     display:none;
   }
 
-  /* モーダル（はい/いいえ・トースト兼用） */
+  /* モーダル＆トースト */
   .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:2001}
   .modal{
     position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2002;
@@ -73,7 +71,6 @@
   .modal .actions{display:flex;gap:8px;justify-content:flex-end}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111;color:#fff;
     padding:8px 12px;border-radius:999px;font-size:12px;opacity:.92;z-index:2003;display:none}
-
 </style>
 </head>
 <body>
@@ -169,28 +166,25 @@
       <label>到着判定(m)<input type="text" id="arrive" value="15" style="width:100%"></label>
     </div>
 
-    <!-- チャイム設定（mp3） -->
     <div>
       <label>チャイム音（mp3 相対パス）</label>
       <input type="text" id="chimeUrl" value="chime.mp3" style="width:100%">
-      <div class="small">※同じフォルダに <b>chime.mp3</b>（例：「クイズ・正解3.mp3」を chime.mp3 にリネームして置く）</div>
+      <div class="small">※同じフォルダに <b>chime.mp3</b> を置いてください（例：「クイズ・正解3.mp3」を chime.mp3 にリネーム）。</div>
     </div>
 
     <div class="footer">Demo Leaflet + Vanilla JS</div>
   </div>
 </div>
 
-<!-- チャイム用オーディオ -->
 <audio id="chime" preload="auto"></audio>
 
 <script>
 (function(){
-  /* ===== ユーティリティ ===== */
   const $ = (s)=>document.querySelector(s);
   function showErr(e){ const el=$('#err'); el.textContent='Error: '+(e&&e.message?e.message:e); el.style.display='block'; console.error(e); }
   window.addEventListener('error',ev=>showErr(ev.error||ev.message||'unknown'));
 
-  /* 自作 confirm（はい/いいえ） */
+  /* ===== 自作 confirm（はい/いいえ）＆トースト ===== */
   function confirmAsync(message, title='確認'){
     return new Promise(resolve=>{
       $('#modalTitle').textContent = title;
@@ -209,7 +203,6 @@
       $('#modalYes').addEventListener('click',onYes);
     });
   }
-  /* トースト */
   function toast(msg, ms=1800){
     const t=$('#toast'); t.textContent=msg; t.style.display='block';
     clearTimeout(toast._timer); toast._timer=setTimeout(()=>t.style.display='none', ms);
@@ -225,22 +218,11 @@
   const chimeUrlInput = $('#chimeUrl');
   const VOL_KEY = 'garbage_vol';
   let volume = Math.min(1, Math.max(0, parseFloat(localStorage.getItem(VOL_KEY) || '0.8')));
-  function applyVolume(){
-    chimeEl.volume = volume;
-    // 読み上げにも反映（1.0が最大）
-    window.speechSynthesis && (speechVolume = volume);
-  }
-  function setChimeSrc(){
-    const url = chimeUrlInput.value.trim();
-    if(url) { chimeEl.src = url; chimeEl.load(); }
-  }
+  function applyVolume(){ chimeEl.volume = volume; speechVolume = volume; }
+  function setChimeSrc(){ const url = chimeUrlInput.value.trim(); if(url){ chimeEl.src = url; chimeEl.load(); } }
   let speechVolume = volume;
   function speakJa(text){
-    try{
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang='ja-JP'; u.rate=1.0; u.volume = speechVolume;
-      speechSynthesis.cancel(); speechSynthesis.speak(u);
-    }catch(e){}
+    try{ const u=new SpeechSynthesisUtterance(text); u.lang='ja-JP'; u.rate=1.0; u.volume=speechVolume; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){}
   }
   setChimeSrc(); applyVolume();
   chimeUrlInput.addEventListener('change', setChimeSrc);
@@ -304,6 +286,31 @@
     toast('自車表示：'+(headingMode==='north'?'ノースアップ':'ヘディングアップ'), 1400);
   });
 
+  /* ===== 地図下FABの制御（★修正点） ===== */
+  const fab = $('#btnFabCollect');
+  const fabSkip = $('#btnFabSkip');
+  let fabTimer=null, fabSkipTimer=null;
+
+  function selectedCount(){ return points.filter(p=>p.status==='selected').length; }
+
+  function showFab(seconds=3){
+    const sel = selectedCount();
+    if(sel>0){
+      fab.textContent = `回収（選択 ${sel}）`;
+      fab.style.display = 'inline-block';
+      if(fabTimer) clearTimeout(fabTimer);
+      fabTimer = setTimeout(()=>{ fab.style.display='none'; }, seconds*1000);
+    }
+  }
+  function showFabSkip(seconds=3){
+    const sel = selectedCount();
+    if(sel>0){
+      fabSkip.style.display = 'inline-block';
+      if(fabSkipTimer) clearTimeout(fabSkipTimer);
+      fabSkipTimer = setTimeout(()=>{ fabSkip.style.display='none'; }, seconds*1000);
+    }
+  }
+
   /* ===== マーカー管理 ===== */
   // status: normal(青) / selected(ピンク) / collected(赤) / skipped(黄)
   let points=[];
@@ -326,13 +333,14 @@
     points.push(rec);
   }
 
-  map.on('click',()=>{ showFab(3); showFabSkip(3); });
+  // 地図タップでも表示（選択があるとき）
+  map.on('click', ()=>{ showFab(3); showFabSkip(3); });
 
   function updatePointCount(){
     const redCnt = points.filter(p=>p.status==='collected').length;
     const yelCnt = points.filter(p=>p.status==='skipped').length;
     $('#pointCount').textContent = `${points.length}箇所（赤${redCnt}/黄${yelCnt}）`;
-    const sel = points.filter(p=>p.status==='selected').length;
+    const sel = selectedCount();
     $('#btnFabCollect').textContent = `回収（選択 ${sel}）`;
   }
 
@@ -379,7 +387,6 @@
       p.status='collected'; p.selected=false; p.marker.setIcon(redIcon);
     });
     updatePointCount();
-    // 順序：チャイム → 読上げ → メッセージ
     if(chimeEl.src) chimeEl.play().catch(()=>{});
     speakJa(`${selected.length}件、回収を記録しました。`);
     alert(`${selected.length} 件（回収）を記録しました`);
@@ -591,20 +598,20 @@
     const oLL = nameToLatLng(lastPlace), dLL = nameToLatLng(next);
     if(!oLL || !dLL){ alert('座標が見つかりません'); return; }
 
-    // ウェイポイント：回収済みの実測座標（重複除去/最大15件、最近から）
+    // ウェイポイント：回収済みの実測座標（重複除去/最大15件）
+    const collectedRows = collected.slice(-15); // 末尾から最大15
     const seen=new Set(), wps=[];
-    for(let i=collected.length-1; i>=0 && wps.length<15; i--){
-      const lat=parseFloat(collected[i][2]), lon=parseFloat(collected[i][3]);
+    for(let i=collectedRows.length-1; i>=0; i--){
+      const lat=parseFloat(collectedRows[i][2]), lon=parseFloat(collectedRows[i][3]);
       if(!Number.isFinite(lat)||!Number.isFinite(lon)) continue;
       const key=lat.toFixed(6)+','+lon.toFixed(6);
       if(seen.has(key)) continue;
       seen.add(key);
-      // 出発地・到着地と同一は除外
       if(Math.abs(lat-oLL[0])<1e-6 && Math.abs(lon-oLL[1])<1e-6) continue;
       if(Math.abs(lat-dLL[0])<1e-6 && Math.abs(lon-dLL[1])<1e-6) continue;
       wps.push([lat,lon]);
     }
-    openExternalRoute(oLL, dLL, wps.reverse()); // 古い→新しい順で表示
+    openExternalRoute(oLL, dLL, wps.reverse());
   }
   $('#btnLegFromLast').addEventListener('click',openExternalFromLast);
 
