@@ -322,7 +322,7 @@
           rows.forEach(r=>{
             const name=r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||('地点'+(points.length+1));
             const lat =parseFloat(r.Latitude||r.lat||r.Lat||r['緯度']);
-            const lon =parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r.lng||r['経度']);
+            const lon =parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r['経度']);
             if(Number.isFinite(lat)&&Number.isFinite(lon)){ addPoint(name,lat,lon,r.Description||r.desc||r['説明']||''); added++; }
           });
           if(added>0){
@@ -381,25 +381,24 @@
     return lines.join('\n');
   }
 
-  // ★★ ここだけ修正（ユニークファイル名でキャッシュ回避）★★
+  /* ===== 修正①：ダウンロードは固定名に ===== */
   function downloadCSV(){
     const csvText = makeCSVText();
-    const dt = new Date();
-    const pad = n => String(n).padStart(2,'0');
-    const fname = `collection_log_${dt.getFullYear()}${pad(dt.getMonth()+1)}${pad(dt.getDate())}_${pad(dt.getHours())}${pad(dt.getMinutes())}${pad(dt.getSeconds())}.csv`;
     const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8' });
     const url  = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = fname; a.rel='noopener';
+    a.href = url;
+    a.download = 'collection_log.csv'; // 固定名に変更
+    a.rel = 'noopener';
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
   }
-  // ★★ ここまで修正 ★★
 
+  /* ===== 修正②：「CSV表示」は text/csv でタブ表示 ===== */
   function previewCSV(){
     const txt=makeCSVText();
-    const url='data:text/plain;charset=utf-8,'+encodeURIComponent(txt);
+    const url='data:text/csv;charset=utf-8,'+encodeURIComponent(txt); // text/csv に変更
     window.open(url,'_blank');
   }
   document.getElementById('btnDownload').addEventListener('click',downloadCSV);
