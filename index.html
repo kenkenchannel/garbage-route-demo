@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 外部ナビ + 基本ルート/GPX）leafletVer31</title>
+<title>回収選択デモ（Leaflet + 外部ナビ + 基本ルート/GPX）leafletVer32</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -34,8 +34,11 @@
   .err{position:absolute;top:0;left:0;right:0;background:#fee;color:#900;padding:8px 10px;font-size:12px;z-index:2000;border-bottom:1px solid #f99;display:none}
 
   /* パネル開閉ボタン＋音量 */
-  /* ← 横幅はそのまま、縦だけ2倍（padding上下を2倍に） */
-  #btnPanel{position:absolute;right:10px;top:10px;z-index:1100;background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px}
+  /* ← 横幅そのまま／縦だけ2倍（上下paddingを2倍） */
+  #btnPanel{
+    position:absolute;right:10px;top:10px;z-index:1100;background:#fff;
+    border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px
+  }
   .volbox{position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px}
   .volbox button{background:#fff;border:1px solid #ccc;border-radius:8px;padding:6px 8px;font-size:14px}
 
@@ -58,15 +61,6 @@
     background:rgba(0,0,0,.85);color:#fff;padding:12px 16px;border-radius:10px;
     font-size:14px;z-index:2000;display:none;max-width:90vw;text-align:center;
   }
-
-  /* Leaflet ズームコントロールを5倍に拡大 */
-  .leaflet-control-zoom a{
-    width:120px !important;   /* 24px → 5倍 */
-    height:120px !important;  /* 24px → 5倍 */
-    font-size:80px !important;/* 記号を大きく */
-    line-height:120px !important;
-  }
-  .leaflet-control-zoom{border-radius:24px; overflow:hidden;}
 </style>
 </head>
 <body>
@@ -147,7 +141,7 @@
 
 <script>
 (function(){
-  // DOM安全ガード
+  // ======== 初期化を安全に（早期エラーで止まらないように）========
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
@@ -155,7 +149,6 @@
   }
 
   function init(){
-
   /* ========= 共通ユーティリティ ========= */
   function showErr(e){
     var el=document.getElementById('err');
@@ -188,7 +181,7 @@
   document.getElementById('volDown').addEventListener('click', ()=>{ audioVol=Math.max(0,audioVol-0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('音量: '+Math.round(audioVol*100)+'%'); });
   document.getElementById('volUp').addEventListener('click',   ()=>{ audioVol=Math.min(1,audioVol+0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('音量: '+Math.round(audioVol*100)+'%'); });
 
-  // --- オーディオ解放（ユーザーの初回タップで再生許可を得る）---
+  // --- ユーザーの初回タップでオーディオ解放（自動再生制限対策）---
   let audioUnlocked = false;
   function unlockAudio(){
     if(audioUnlocked) return;
@@ -203,17 +196,17 @@
   document.addEventListener('pointerdown', unlockAudio, true);
   document.addEventListener('touchstart', unlockAudio, true);
 
-  // --- チャイム（英名→日本語名の順でフォールバック、再生完了は待たず開始できたらOK）---
-  const chimePlayer = new Audio();
-  chimePlayer.preload = 'auto';
+  // --- チャイム：相対パスに変更（配置しやすい）＋フォールバック ---
   async function chime(){
-    const srcs = ['/mnt/data/quiz-correct3.mp3','/mnt/data/クイズ・正解3.mp3'];
-    for(const src of srcs){
+    const candidates = [
+      './quiz-correct3.mp3',
+      './クイズ・正解3.mp3'
+    ];
+    for(const src of candidates){
       try{
-        chimePlayer.src = src;
-        chimePlayer.currentTime = 0;
-        chimePlayer.volume = audioVol;
-        await chimePlayer.play();
+        const a = new Audio(src);
+        a.volume = audioVol;
+        await a.play();
         return true;
       }catch(_e){
         // 次の候補へ
@@ -506,11 +499,10 @@
       });
       updatePointCount();
 
-      // ★ ここで先にチャイム
+      // 先にチャイム → その後メッセージを2秒表示
       await chime();
-
       const msg=`${selected.length}件（回収）を記録しました。`;
-      showToast(msg,2);  // 2秒で自動クローズ
+      showToast(msg,2);
       speakJa(msg);
 
     }else{
@@ -520,11 +512,10 @@
       });
       updatePointCount();
 
-      // ★ ここで先にチャイム
+      // 先にチャイム → その後メッセージを2秒表示
       await chime();
-
       const msg=`${selected.length}件（無回収）を記録しました。`;
-      showToast(msg,2);  // 2秒で自動クローズ
+      showToast(msg,2);
       speakJa(msg);
     }
   }
@@ -614,7 +605,68 @@
     }, ()=>{}, {enableHighAccuracy:true, maximumAge:0, timeout:15000});
   }
 
-  } // init 終了
+  // ★ ナビ開始/停止のイベントをここで必ず登録（早期エラーで消えないようこの位置に）
+  document.getElementById('btnNavStart').addEventListener('click', startGuidance);
+  document.getElementById('btnNavStop').addEventListener('click',  stopGuidance);
+
+  function startGuidance(){
+    if(points.length===0){ alert('地点がありません'); return; }
+    const v=parseFloat(document.getElementById('thres').value); if(Number.isFinite(v)) nav.thresholdM=v;
+    const a=parseFloat(document.getElementById('arrive').value); if(Number.isFinite(a)) nav.arriveM=a;
+
+    const ok = confirm('回収場所の先頭から開始しますか？\n「OK」で先頭、「キャンセル」で番号/名称を指定します。');
+    nav.order=buildOrderFromDescription();
+    if(!ok){
+      let input=prompt('開始する「回収場所」の番号または名称を入力（例：3 または 回収場所3）');
+      if(input){
+        input=String(input).trim();
+        let targetName=/^\d+$/.test(input)?('回収場所'+input):input;
+        const idx=nav.order.findIndex(n=>n===targetName || n.includes(input));
+        nav.idx = idx>=0? idx : 0;
+      }else{
+        nav.idx=0;
+      }
+    }else{
+      nav.idx=0;
+    }
+
+    nav.active=true;
+    togglePanel(false);
+    const cur=nav.order[nav.idx];
+    speakJa('ナビを開始します。まずは '+cur+' へ向かってください。');
+    focusTarget(cur);
+
+    if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
+    nav.watchId=navigator.geolocation.watchPosition(onPos,()=>{}, {enableHighAccuracy:true,maximumAge:0,timeout:15000});
+    startGpsWatch();
+  }
+  function stopGuidance(){
+    nav.active=false;
+    if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
+    nav.watchId=null;
+    speakJa('ナビを停止しました。');
+  }
+  function nextTarget(){
+    if(!nav.active) return;
+    nav.idx++;
+    if(nav.idx>=nav.order.length){ speakJa('すべて完了しました'); stopGuidance(); return; }
+    const name=nav.order[nav.idx];
+    speakJa(name+' へ進んでください'); focusTarget(name);
+  }
+  let nearAnnouncedFor=null;
+  function onPos(pos){
+    if(!nav.active) return;
+    const lat=pos.coords.latitude, lon=pos.coords.longitude;
+    const cur=nav.order[nav.idx]; const tll=nameToLatLng(cur); if(!tll) return;
+
+    openPopupIfNeeded(cur);
+
+    const d=meters([lat,lon],tll);
+    if(d<=nav.arriveM){ speakJa(cur+' に到着しました。次に進みます。'); nearAnnouncedFor=null; nextTarget(); return; }
+    if(d<=nav.thresholdM && nearAnnouncedFor!==cur){ speakJa(cur+' が近くにあります。'); nearAnnouncedFor=cur; }
+  }
+
+  } // init end
 })();
 </script>
 </body>
