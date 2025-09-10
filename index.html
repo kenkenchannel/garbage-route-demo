@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 外部ナビ + 基本ルート/GPX）leafletVer37</title>
+<title>回収選択デモ（Leaflet + 外部ナビ + 基本ルート/GPX）leafletVer38</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -70,15 +70,15 @@
 
   /* ファイル選択の黄色枠（枠は一重。色は枠の内側〜ボタンの外側に塗る） */
   .file-wrap{
-    background:#f0e68c;           /* ← この面が見える層 */
-    border:1px solid #ccc;        /* ← 外枠（1重） */
+    background:#f0e68c;
+    border:1px solid #ccc;
     border-radius:8px;
-    padding:6px;                  /* ← 黄色を見せる余白 */
+    padding:6px;
   }
   .file-wrap input[type="file"]{
     width:100%;
-    border:none;                  /* ← 内側の枠は消す（2重防止） */
-    background:#fff;              /* ← ボタン自体は白 */
+    border:none;
+    background:#fff;
     border-radius:6px;
     padding:8px;
     box-sizing:border-box;
@@ -176,6 +176,66 @@
   }
 
   function init(){
+  /* ================= GAS 送信設定 =================
+     ここにGASウェブアプリ公開URLを設定してください。
+     例）const GAS_URL = 'https://script.google.com/macros/s/xxxxxxxxxxxxxxxx/exec';
+     未設定（空文字）の場合は送信しません。 */
+  const GAS_URL = ''; // ★ここを書き換え
+
+  // 端末一意ID（初回発行→localStorageに保存）
+  const DEVICE_ID = (()=>{
+    const k='deviceUUID';
+    let v=localStorage.getItem(k);
+    if(!v){
+      v = 'dev-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem(k,v);
+    }
+    return v;
+  })();
+
+  // 送信キュー（オフライン時の保険）
+  let postQueue = JSON.parse(localStorage.getItem('postQueue')||'[]');
+  function saveQueue(){ localStorage.setItem('postQueue', JSON.stringify(postQueue)); }
+
+  // fetch にタイムアウトを付ける
+  function fetchWithTimeout(url,opts,ms=10000){
+    const controller=new AbortController();
+    const id=setTimeout(()=>controller.abort(),ms);
+    return fetch(url,{...opts,signal:controller.signal}).finally(()=>clearTimeout(id));
+  }
+
+  async function trySendQueue(){
+    if(!GAS_URL) return;         // 未設定なら何もしない
+    while(postQueue.length){
+      const body = postQueue[0];
+      try{
+        const res = await fetchWithTimeout(GAS_URL,{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          mode:'cors',            // GAS側でCORS許可が必要（doPostでsetAllowedOrigins('*')相当）
+          body: JSON.stringify(body)
+        },10000);
+        // GASは {ok:true} などJSONを返す想定
+        // レスポンスが読めない場合も送れたとみなして次へ（CORS設定がno-corsだと読めないため）
+        postQueue.shift(); saveQueue();
+      }catch(e){
+        // 失敗したら一旦終了（次回リトライ）
+        break;
+      }
+    }
+  }
+  // 定期リトライ & オンライン復帰時に再送
+  setInterval(trySendQueue, 60000);
+  window.addEventListener('online', trySendQueue);
+
+  function enqueuePost(rowObj){
+    // rowObj は {datetime, place, deviceLat, deviceLon, vehicle, driver, type, deviceId, ua}
+    postQueue.push(rowObj);
+    saveQueue();
+    trySendQueue();
+  }
+
+  /* ========= 共通ユーティリティ ========= */
   function showErr(e){
     var el=document.getElementById('err');
     el.textContent='Error: '+(e&&e.message?e.message:e);
@@ -426,6 +486,7 @@
     if(/\.csv$/i.test(f.name)) importCSV(f); else importOther(f);
   });
 
+  // 記録CSV（localStorage）
   let logRows=JSON.parse(localStorage.getItem('collectionLog')||'[]');
   function pushLogRow(row){ logRows.push(row); localStorage.setItem('collectionLog',JSON.stringify(logRows)); }
   function makeCSVText(){
@@ -486,7 +547,7 @@
     });
   }
 
-  /* 回収/無回収 */
+  /* 回収/無回収（GASへPOSTを追加） */
   async function collectSelected(type){
     const vehicle=vehicleSel.value; const driver=driverSel.value;
     const selected=points.filter(p=>p.selected);
@@ -505,8 +566,22 @@
 
     if(type==='collected'){
       selected.forEach(p=>{
+        // ローカル保存
         pushLogRow([stamp,p.name,lat,lon,vehicle,driver]);
+        // マーカー更新
         p.status='collected'; p.selected=false; p.marker.setIcon(redIcon);
+        // GAS送信用Payload
+        enqueuePost({
+          datetime: stamp,
+          type: 'collected',
+          place: p.name,
+          deviceLat: lat,
+          deviceLon: lon,
+          vehicle,
+          driver,
+          deviceId: DEVICE_ID,
+          ua: navigator.userAgent
+        });
       });
       updatePointCount();
       await chime();
@@ -516,6 +591,17 @@
       selected.forEach(p=>{
         pushLogRow([stamp, p.name+'無', lat, lon, vehicle, driver]);
         p.status='skipped'; p.selected=false; p.marker.setIcon(yellowIcon);
+        enqueuePost({
+          datetime: stamp,
+          type: 'skipped',
+          place: p.name,      // シート側で「無回収」扱いにします
+          deviceLat: lat,
+          deviceLon: lon,
+          vehicle,
+          driver,
+          deviceId: DEVICE_ID,
+          ua: navigator.userAgent
+        });
       });
       updatePointCount();
       await chime();
