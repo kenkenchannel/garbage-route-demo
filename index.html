@@ -4,13 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 外部ナビ + 基本ルート/GPX）leafletVer35</title>
+<title>回収選択デモ（Leaflet + 外部ナビ + 基本ルート/GPX）leafletVer36</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
+  /* レイアウトのはみ出し防止（到着判定入力の右はみ出し対策） */
+  *,*::before,*::after{ box-sizing:border-box; }
+
   html,body{height:100%;margin:0;-webkit-text-size-adjust:100%}
   body,button{touch-action:manipulation;}
   #map{position:absolute;inset:0}
@@ -22,8 +25,14 @@
   .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
   .row>*{width:100%}
   .controls{display:grid;gap:6px}
-  label{font-size:12px;color:#333;display:block}
-  select,input[type="text"],input[type="file"],button{padding:8px;border-radius:8px;border:1px solid #ccc;font-size:14px}
+  label{font-size:12px;color:#333;display:block;margin:0}
+  select,input[type="text"],input[type="file"],button{
+    padding:8px;border-radius:8px;border:1px solid #ccc;font-size:14px;width:100%;max-width:100%;
+  }
+  /* file選択エリアの囲み（#f0e68c） */
+  .file-wrap{
+    background:#f0e68c;border:1px solid #ccc;border-radius:10px;padding:8px;
+  }
   button.primary{background:#2563eb;color:#fff;border:none}
   button.warn{background:#f59e0b;color:#111;border:none}
   button.ghost{background:#fff}
@@ -32,13 +41,13 @@
   .footer{font-size:11px;color:#555;margin-top:6px}
   .err{position:absolute;top:0;left:0;right:0;background:#fee;color:#900;padding:8px 10px;font-size:12px;z-index:2000;border-bottom:1px solid #f99;display:none}
 
-  /* 設定ボタン：縦だけ2倍 */
+  /* 設定ボタン：縦だけ大きく（前回のまま） */
   #btnPanel{
     position:absolute;right:10px;top:10px;z-index:1100;background:#fff;
     border:1px solid #ccc;border-radius:20px;padding:20px 10px;font-size:14px
   }
   .volbox{position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px}
-  .volbox button{background:#fff;border:1px solid #ccc;border-radius:8px;padding:6px 8px;font-size:14px}
+  .volbox button{background:#fff;border:1px solid #ccc;border-radius:8px;padding:6px 8px;font-size:14px;width:auto}
 
   /* 地図上の大ボタン */
   .fab{
@@ -60,7 +69,7 @@
     font-size:14px;z-index:2000;display:none;max-width:90vw;text-align:center;
   }
 
-  /* Leaflet ズームボタン拡大＆左下へ（縦横2倍） */
+  /* Leaflet ズームボタン拡大＆左下（前回のまま） */
   .leaflet-control-zoom-in,
   .leaflet-control-zoom-out {
     width: 52px !important;
@@ -96,13 +105,17 @@
 
     <div>
       <label>地点CSV読込（Name,Latitude,Longitude[,Description]）</label>
-      <input type="file" id="file" accept=".csv,.kml,.geojson,.json">
+      <div class="file-wrap">
+        <input type="file" id="file" accept=".csv,.kml,.geojson,.json">
+      </div>
       <div class="small">CSV推奨。KML/GeoJSONは簡易対応（ポイントのみ）。</div>
     </div>
 
     <div>
       <label>基本回収ルート読込（.gpx / .geojson / .json / .csv）</label>
-      <input type="file" id="fileRoute" accept=".gpx,.geojson,.json,.csv">
+      <div class="file-wrap">
+        <input type="file" id="fileRoute" accept=".gpx,.geojson,.json,.csv">
+      </div>
       <div class="row" style="grid-template-columns:1fr 1fr">
         <button id="btnRouteZoom" class="ghost" style="font-size:12px">ルートへズームアウト</button>
         <button id="btnHeading" class="ghost" style="font-size:12px">ヘディング：OFF</button>
@@ -111,7 +124,7 @@
 
     <div class="row">
       <label style="grid-column:1/-1">ナビ方式
-        <select id="navApp" style="width:100%">
+        <select id="navApp">
           <option value="auto">自動 (iOS=Apple / Android=Google)</option>
           <option value="google">Googleマップ</option>
           <option value="apple">Appleマップ</option>
@@ -130,10 +143,10 @@
 
     <div class="row">
       <label>近接しきい値(m)
-        <input type="text" id="thres" value="50" style="width:100%">
+        <input type="text" id="thres" value="50">
       </label>
       <label>到着判定(m)
-        <input type="text" id="arrive" value="15" style="width:100%">
+        <input type="text" id="arrive" value="15">
       </label>
     </div>
 
@@ -180,14 +193,13 @@
       panel.style.display=panelVisible?'block':'none';
     }
     btnPanel.addEventListener('click',()=>togglePanel());
-    togglePanel(true); // 初期は開く
+    togglePanel(true);
 
     /* ========= ボリューム（チャイム） ========= */
     let audioVol=parseFloat(localStorage.getItem('chimeVol')||'0.7');
     document.getElementById('volDown').addEventListener('click', ()=>{ audioVol=Math.max(0,audioVol-0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('音量: '+Math.round(audioVol*100)+'%'); });
     document.getElementById('volUp').addEventListener('click',   ()=>{ audioVol=Math.min(1,audioVol+0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('音量: '+Math.round(audioVol*100)+'%'); });
 
-    // iOS 自動再生対策
     let audioUnlocked=false;
     function unlockAudio(){
       if(audioUnlocked) return;
@@ -242,12 +254,11 @@
     map.createPane('vehiclePane'); map.getPane('vehiclePane').style.zIndex=500;
     map.createPane('markerPane');  map.getPane('markerPane').style.zIndex =600;
 
-    // ズームボタンを左下
     L.control.zoom({position:'bottomleft'}).addTo(map);
 
     /* ========= 現在地表示 ========= */
     let gpsWatchId=null, locMarker=null, locCircle=null, followSelf=true, headingMode=false;
-    let followPauseTimer=null; // ★ 一時停止タイマー
+    let followPauseTimer=null;
 
     function pauseFollow(ms){
       followSelf=false;
@@ -305,7 +316,6 @@
 
     function addPoint(name,lat,lon,desc){
       const m=L.marker([lat,lon],{icon:blueIcon,pane:'markerPane'}).addTo(map);
-      // ★ 依頼：ポップアップは名称のみ
       m.bindPopup('<b>'+name+'</b>');
       const rec={name,lat,lon,desc:(desc||''),marker:m,selected:false,status:'normal'};
       m.on('click',()=>{
@@ -348,10 +358,8 @@
       alert('回収地点のデータを全て消去しました。');
     }
     document.getElementById('btnClearAll').addEventListener('click', ()=>{
-      // ★ 依頼：誤操作防止の確認
       const ok = confirm('回収地点のデータをすべて消去します。よろしいですか？');
       if(ok){ clearAllPoints(); }
-      // 「いいえ」の場合は何もしない
     });
 
     /* ========= CSV 入出力 ========= */
@@ -526,7 +534,7 @@
       routeLatLngs=latlngs||[];
       if(routeLayer){ map.removeLayer(routeLayer); routeLayer=null; }
       if(routeLatLngs.length>=2){
-        // 太さ 8
+        // 太さ 8（仕様どおり）
         routeLayer=L.polyline(routeLatLngs,{color:'#ff2d2d',weight:8,opacity:0.9,pane:'markerPane'}).addTo(map);
       }
     }
@@ -537,7 +545,7 @@
     document.getElementById('btnRouteZoom').addEventListener('click',()=>{
       togglePanel(false);
       fitRoute();
-      pauseFollow(2000); // ★ 2秒間は自車追従を止める
+      pauseFollow(2000); // 2秒は自車追従オフ
     });
 
     document.getElementById('fileRoute').addEventListener('change', async (e)=>{
@@ -569,7 +577,7 @@
 
     /* ========= 簡易ナビ ========= */
     const nav={order:[],idx:0,active:false,watchId:null,thresholdM:50,arriveM:15};
-    const CLOSE_POPUP_DISTANCE = 60; // ★ 依頼：60mでポップアップを閉じる
+    const CLOSE_POPUP_DISTANCE = 60; // 60mでポップアップを閉じる
 
     function meters(a,b){
       const dy=(a[0]-b[0])*111320;
@@ -582,7 +590,7 @@
     function focusTarget(name){
       const ll=nameToLatLng(name); if(!ll) return;
       map.setView(ll,Math.max(map.getZoom(),16));
-      const p=findPoint(name); if(p){ p.marker.openPopup(); } // 表示は名称のみ
+      const p=findPoint(name); if(p){ p.marker.openPopup(); }
     }
     function openPopupIfNeeded(name){
       const p=findPoint(name);
@@ -666,7 +674,6 @@
       const lat=pos.coords.latitude, lon=pos.coords.longitude;
       const cur=nav.order[nav.idx]; const tll=nameToLatLng(cur); if(!tll) return;
 
-      // ターゲットのポップアップは遠いときだけ表示、近づいたら閉じる（60m）
       const d=meters([lat,lon],tll);
       if(d > CLOSE_POPUP_DISTANCE){ openPopupIfNeeded(cur); }
       else { closePopupIfNeeded(cur); }
