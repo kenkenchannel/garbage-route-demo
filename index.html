@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer43</title>
+<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer44</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -88,7 +88,7 @@
 
 <div class="panel" id="panel">
   <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
-  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver64</div>
+  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver65</div>
 
   <div class="controls">
     <div class="row">
@@ -147,9 +147,10 @@
 
   function init(){
   /* ================== 基本設定・ユーティリティ ================== */
-  const AUTO_COLLECT_M = 10;
-  const EXCEPTION_M    = 20;
-  const CLOSE_POPUP_NEAR_M = 60;
+  const AUTO_COLLECT_M = 10;          // 自動回収距離
+  const EXCEPTION_M    = 20;          // 例外地点の到着扱い距離
+  const POPUP_STAY_UNTIL_M = 10;      // ★この距離未満になるまで吹き出しを常時表示
+  const SUPPRESS_MS = 2000;           // 追従抑制
 
   function showErr(e){
     var el=document.getElementById('err');
@@ -170,9 +171,8 @@
   const panel=document.getElementById('panel');
   const btnPanel=document.getElementById('btnPanel');
   let panelVisible=true;
-
   let suppressFollowUntil=0;
-  const SUPPRESS_MS = 2000;
+
   function suppressFollow(ms = SUPPRESS_MS){
     suppressFollowUntil = Math.max(suppressFollowUntil, Date.now() + ms);
   }
@@ -180,7 +180,6 @@
     if(typeof force==='boolean'){ panelVisible=force; } else { panelVisible=!panelVisible; }
     panel.style.display=panelVisible?'block':'none';
   }
-  // 「設定」ボタンで明示にトグル（←ここが効かない症状の対策）
   btnPanel.addEventListener('click',()=>{ suppressFollow(); togglePanel(); });
 
   /* ボリューム（チャイム） */
@@ -191,16 +190,15 @@
   let audioUnlocked = false;
   function unlockAudio(){
     if(audioUnlocked) return;
-    const a = new Audio();
-    a.muted = true;
+    const a = new Audio(); a.muted = true;
     a.play().catch(()=>{}).finally(()=>{
       audioUnlocked = true;
       document.removeEventListener('pointerdown', unlockAudio, true);
-      document.removeEventListener('touchstart', unlockAudio, true);
+      document.removeEventListener('touchstart',  unlockAudio, true);
     });
   }
   document.addEventListener('pointerdown', unlockAudio, true);
-  document.addEventListener('touchstart', unlockAudio, true);
+  document.addEventListener('touchstart',  unlockAudio, true);
 
   async function chime(){
     const candidates = ['./quiz-correct3.mp3','./クイズ・正解3.mp3'];
@@ -228,7 +226,6 @@
   }
   vehicleSel.addEventListener('change', ()=>{ localStorage.setItem('vehicle',vehicleSel.value); populateDrivers(); });
   driverSel .addEventListener('change', ()=>{ localStorage.setItem('driver' ,driverSel.value ); });
-  // 初期化時に必ず呼ぶ（←プルダウンが出ない症状の対策）
   populateVehicles();
 
   /* 地図・Pane */
@@ -241,13 +238,10 @@
 
   L.control.zoom({position:'bottomleft'}).addTo(map);
 
-  // 地図操作開始で追従一時停止
-  map.on('movestart',   ()=> suppressFollow(2200));
-  map.on('dragstart',   ()=> suppressFollow(2200));
-  map.on('zoomstart',   ()=> suppressFollow(2200));
-  map.on('mousedown',   ()=> suppressFollow(2200));
-  map.on('touchstart',  ()=> suppressFollow(2200));
-  map.on('wheel',       ()=> suppressFollow(2200));
+  // 地図操作で追従を少し止める
+  ['movestart','dragstart','zoomstart','mousedown','touchstart','wheel'].forEach(ev=>{
+    map.on(ev, ()=> suppressFollow(2200));
+  });
 
   /* 現在地表示 */
   let gpsWatchId=null, locMarker=null, locCircle=null, followSelf=true, headingMode=false;
@@ -283,9 +277,12 @@
     }
   }
 
-  /* ===== 回収地点（選択→手動回収 併用） ===== */
-  const points=[];               // {name,lat,lon,desc,marker,status,selRing,seq}
-  const nameIndex=new Map();     // name -> point
+  /* ===== 回収地点（重複Name対応） ===== */
+  const points=[];               // {uid,name,display,lat,lon,desc,marker,status,selRing,seq}
+  const nameIndex=new Map();     // unique name -> rec
+  const aliasIndex=new Map();    // display(original name) -> rec[]
+  const nameCount=new Map();     // for duplicate numbering
+
   const blueIcon=L.icon({
     iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
     iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
@@ -304,10 +301,10 @@
 
   function setPopupContent(p){
     const badge = (typeof p.seq==='number') ? ` <span class="pill">#${p.seq}</span>` : '';
-    p.marker.bindPopup('<b>'+p.name+'</b>'+badge);
+    p.marker.bindPopup('<b>'+p.display+'</b>'+badge);
   }
 
-  const selected = new Set(); // name の集合
+  const selected = new Set(); // unique name の集合
   const btnFabCollect = document.getElementById('btnFabCollect');
   const btnFabSkip    = document.getElementById('btnFabSkip');
 
@@ -334,10 +331,25 @@
     refreshFab();
   }
 
-  function addPoint(name,lat,lon,desc){
+  function addPoint(display,lat,lon,desc){
+    // ユニーク名の決定（同名があれば #2, #3… と付番）
+    const base = String(display);
+    const cnt  = (nameCount.get(base)||0) + 1;
+    nameCount.set(base,cnt);
+    const uniqueName = (cnt===1) ? base : `${base}#${cnt}`;
+
     const m=L.marker([lat,lon],{icon:blueIcon,pane:'markerPane'}).addTo(map);
-    const rec={name,lat,lon,desc:(desc||'').trim(),marker:m,status:'normal',selRing:null,seq:undefined};
-    nameIndex.set(name,rec);
+    const rec={
+      uid:crypto.randomUUID ? crypto.randomUUID() : (uniqueName+'_'+Math.random().toString(36).slice(2)),
+      name:uniqueName,         // 内部キー（ユニーク）
+      display:base,            // 画面表示は元のName
+      lat,lon,desc:(desc||'').trim(),
+      marker:m,status:'normal',selRing:null,seq:undefined
+    };
+    nameIndex.set(uniqueName,rec);
+    if(!aliasIndex.has(base)) aliasIndex.set(base,[]);
+    aliasIndex.get(base).push(rec);
+
     setPopupContent(rec);
     m.on('click', ()=> toggleSelect(rec));
     points.push(rec);
@@ -358,43 +370,76 @@
     refreshFab();
   }
 
-  /* ===== Description 鎖に基づく厳格順・採番 ===== */
-  let strictOrder=[]; // [name1,name2,...]
+  /* ===== Description 鎖に基づく厳格順・採番（重複名→近い候補を採用） ===== */
+  let strictOrder=[]; // unique name の配列
+
+  function meters(a,b){
+    const dy=(a[0]-b[0])*111320;
+    const dx=(a[1]-b[1])*111320*Math.cos((a[0]+b[0])*Math.PI/360);
+    return Math.hypot(dx,dy);
+  }
+
+  function resolveDescToUnique(curRec, descText){
+    // 別名(表示名)で候補を取得し、curRec から最も近い候補を選ぶ
+    const cands = aliasIndex.get(String(descText)) || [];
+    if(cands.length===0) return null;
+    if(cands.length===1) return cands[0].name;
+    let best=null, bestD=Infinity;
+    for(const r of cands){
+      const d = meters([curRec.lat,curRec.lon],[r.lat,r.lon]);
+      if(d<bestD){ bestD=d; best=r; }
+    }
+    return best ? best.name : null;
+  }
 
   function buildStrictOrderAndNumber(){
     strictOrder=[];
-    const nextOf=new Map();      // name -> nextName (desc)
-    const appearsNext=new Set(); // 次として出現した name
+    // name -> nextUniqueName
+    const nextOf=new Map();
+    const appearsNext=new Set();
+
+    // まずは各点から「自分のdesc(表示名)に最も近い候補」をnextに採用
     points.forEach(p=>{
       if(p.desc){
-        if(nameIndex.has(p.desc)){ nextOf.set(p.name,p.desc); appearsNext.add(p.desc); }
+        const nx = resolveDescToUnique(p, p.desc);
+        if(nx){
+          nextOf.set(p.name, nx);
+          appearsNext.add(nx);
+        }
       }
     });
+
+    // head（誰からも next として参照されない点）を列挙し、各headから連鎖
     const heads=[];
     points.forEach(p=>{
-      if(nextOf.has(p.name) && !appearsNext.has(p.name)){ heads.push(p.name); }
+      if(nextOf.has(p.name) && !appearsNext.has(p.name)) heads.push(p.name);
     });
+
     const visited=new Set();
     for(const h of heads){
-      let cur=h;
-      while(cur && !visited.has(cur) && nextOf.has(cur)){
-        strictOrder.push(cur); visited.add(cur);
-        cur=nextOf.get(cur);
+      let curName=h;
+      while(curName && !visited.has(curName) && nextOf.has(curName)){
+        strictOrder.push(curName); visited.add(curName);
+        curName = nextOf.get(curName);
       }
-      if(cur && !visited.has(cur) && nameIndex.has(cur)){
-        strictOrder.push(cur); visited.add(cur);
+      if(curName && !visited.has(curName) && nameIndex.has(curName)){
+        strictOrder.push(curName); visited.add(curName);
       }
     }
+
+    // 採番（#n）
     points.forEach(p=>{ p.seq=undefined; setPopupContent(p); });
-    strictOrder.forEach((nm,i)=>{
-      const p=nameIndex.get(nm); if(p){ p.seq=i+1; setPopupContent(p); }
-    });
+    strictOrder.forEach((nm,i)=>{ const p=nameIndex.get(nm); if(p){ p.seq=i+1; setPopupContent(p); }});
   }
 
   /* ===== 手動回収 ===== */
   async function collectSelected(){
-    // 追加：確認ダイアログ
-    if(!confirm('本当に回収しますか？')) return;
+    // 確認（キャンセルなら選択解除して大ボタンを消す）
+    if(!confirm('本当に回収しますか？')){
+      clearSelection();
+      refreshFab();
+      return;
+    }
 
     if(selected.size===0) return;
     const selectedNow = Array.from(selected);
@@ -407,7 +452,7 @@
       const vehicle=vehicleSel.value; const driver=driverSel.value;
       const dt=new Date(); const pad=n=>String(n).padStart(2,'0');
       const stamp=`${dt.getFullYear()}/${pad(dt.getMonth()+1)}/${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
-      pushLogRow([stamp,p.name,lat,lon,vehicle,driver]);
+      pushLogRow([stamp,p.display,lat,lon,vehicle,driver]);
       p.status='collected';
       p.marker.setIcon(redIcon);
       if(p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
@@ -445,7 +490,7 @@
     const ok = confirm('回収地点のデータを消去しますか？');
     if(!ok) return;
     points.forEach(p=>{ if(p.selRing) map.removeLayer(p.selRing); map.removeLayer(p.marker); });
-    points.length=0; nameIndex.clear(); strictOrder=[];
+    points.length=0; nameIndex.clear(); aliasIndex.clear(); nameCount.clear(); strictOrder=[];
     clearSelection();
     document.getElementById('file').value='';
     updatePointCount();
@@ -522,7 +567,7 @@
   });
 
   /* 例外到着CSV */
-  const exceptions = new Map(); // place -> {lat,lon}
+  const exceptions = new Map(); // place(display) -> {lat,lon}
   function importExceptionCSV(file){
     exceptions.clear();
     Papa.parse(file,{
@@ -604,36 +649,24 @@
     });
   }
 
-  /* ===== 自動回収ロジック ===== */
-  function meters(a,b){
-    const dy=(a[0]-b[0])*111320;
-    const dx=(a[1]-b[1])*111320*Math.cos((a[0]+b[0])*Math.PI/360);
-    return Math.hypot(dx,dy);
-  }
-
-  function nextByDescription(name){
-    const p=nameIndex.get(name);
-    if(!p) return null;
-    const nx=p.desc;
-    if(!nx) return null;
-    return nameIndex.has(nx) ? nx : null;
-  }
-
   /* ---- ナビ状態（鎖のみ使用） ---- */
   const nav={order:[],idx:0,active:false,watchId:null,thresholdM:50,arriveM:15,lastAnnounceTarget:null};
 
-  function rebuildOrderFromStrictChain(){
-    nav.order = strictOrder.slice();
-  }
+  function rebuildOrderFromStrictChain(){ nav.order = strictOrder.slice(); }
 
-  function focusTarget(name){
-    const p=nameIndex.get(name); if(!p) return;
+  function focusTarget(uniqueName){
+    const p=nameIndex.get(uniqueName); if(!p) return;
     map.setView([p.lat,p.lon], Math.max(map.getZoom(),16));
-    p.marker.openPopup();
+    p.marker.openPopup(); // フォーカス時は即オープン
   }
 
-  function openPopupIfNeeded(name){
-    const p=nameIndex.get(name); if(p && p.marker && !p.marker.isPopupOpen()){ p.marker.openPopup(); }
+  function nextByDescription(uniqueName){
+    const p=nameIndex.get(uniqueName);
+    if(!p) return null;
+    const alias = p.desc;
+    if(!alias) return null;
+    const nxUnique = resolveDescToUnique(p, alias);
+    return nxUnique && nameIndex.has(nxUnique) ? nxUnique : null;
   }
 
   function startGuidance(){
@@ -657,7 +690,7 @@
     nav.idx=startIdx; nav.active=true; togglePanel(false);
 
     const cur=nav.order[nav.idx];
-    speakJa('ナビを開始します。まずは '+cur+' へ向かってください。');
+    speakJa('ナビを開始します。まずは '+nameIndex.get(cur).display+' へ向かってください。');
     nav.lastAnnounceTarget = cur;
     focusTarget(cur);
 
@@ -674,12 +707,12 @@
   document.getElementById('btnNavStart').addEventListener('click', startGuidance);
   document.getElementById('btnNavStop').addEventListener('click',  stopGuidance);
 
-  function guideNextAfter(collectedName){
-    const nx = nextByDescription(collectedName);
+  function guideNextAfter(collectedUnique){
+    const nx = nextByDescription(collectedUnique);
     if(nx){
       nav.active=true;
       nav.lastAnnounceTarget = nx;
-      speakJa(nx+' へ向かってください');
+      speakJa(nameIndex.get(nx).display+' へ向かってください');
       focusTarget(nx);
       const j = strictOrder.indexOf(nx);
       if(j>=0){ nav.order = strictOrder.slice(); nav.idx = j; }
@@ -688,14 +721,15 @@
     }
   }
 
-  function autoCollectIfArrived(lat,lon, curName){
-    const p = nameIndex.get(curName);
+  /* 自動回収（到着→即次へ） */
+  function autoCollectIfArrived(lat,lon, curUnique){
+    const p = nameIndex.get(curUnique);
     if(!p || p.status==='collected') return false;
 
     const dPoint = meters([lat,lon],[p.lat,p.lon]);
     let arrived = (dPoint <= AUTO_COLLECT_M);
 
-    const ex = exceptions.get(p.name);
+    const ex = exceptions.get(p.display);
     if(!arrived && ex){
       const dEx = meters([lat,lon],[ex.lat,ex.lon]);
       if(dEx <= EXCEPTION_M) arrived = true;
@@ -705,16 +739,15 @@
       const vehicle=vehicleSel.value; const driver=driverSel.value;
       const dt=new Date(); const pad=n=>String(n).padStart(2,'0');
       const stamp=`${dt.getFullYear()}/${pad(dt.getMonth()+1)}/${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
-      pushLogRow([stamp,p.name,lat,lon,vehicle,driver]);
+      pushLogRow([stamp,p.display,lat,lon,vehicle,driver]);
 
       p.status='collected';
       p.marker.setIcon(redIcon);
       updatePointCount();
 
       chime();
-      showToast(`1件（回収）を記録しました：${p.name}`,2);
+      showToast(`1件（回収）を記録しました：${p.display}`,2);
 
-      // 直ちに次へ
       guideNextAfter(p.name);
       return true;
     }
@@ -728,12 +761,17 @@
     let cur = nav.order[nav.idx];
     let currentPoint = nameIndex.get(cur);
 
+    // 既に赤化していたら鎖の次へ
     if(!currentPoint || currentPoint.status==='collected'){
       const k = strictOrder.indexOf(cur);
       if(k>=0 && k+1 < strictOrder.length){
         nav.idx = k+1; cur = nav.order[nav.idx] = strictOrder[nav.idx];
         currentPoint = nameIndex.get(cur);
-        if(currentPoint){ speakJa(cur+' へ向かってください'); nav.lastAnnounceTarget=cur; focusTarget(cur); }
+        if(currentPoint){
+          speakJa(currentPoint.display+' へ向かってください');
+          nav.lastAnnounceTarget=cur;
+          focusTarget(cur);
+        }
       }else{
         speakJa('すべて完了しました'); stopGuidance(); return;
       }
@@ -742,16 +780,19 @@
     const lat=pos.coords.latitude, lon=pos.coords.longitude;
     const d = meters([lat,lon], [currentPoint.lat,currentPoint.lon]);
 
-    if(d<=CLOSE_POPUP_NEAR_M){
-      if(currentPoint.marker && currentPoint.marker.isPopupOpen()) currentPoint.marker.closePopup();
+    // ★ 吹き出し常時表示（10m未満で自動クローズ）
+    if(d >= POPUP_STAY_UNTIL_M){
+      if(currentPoint.marker && !currentPoint.marker.isPopupOpen()) currentPoint.marker.openPopup();
     }else{
-      openPopupIfNeeded(cur);
+      if(currentPoint.marker && currentPoint.marker.isPopupOpen()) currentPoint.marker.closePopup();
     }
 
+    // 到着判定→即次へ
     autoCollectIfArrived(lat,lon,cur);
 
+    // 近接通知（任意）
     if(d<=nav.thresholdM && nav.lastAnnounceTarget !== (cur+'-near')){
-      speakJa(cur+' が近くにあります');
+      speakJa(currentPoint.display+' が近くにあります');
       nav.lastAnnounceTarget = (cur+'-near');
     }
   }
