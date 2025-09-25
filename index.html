@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer39</title>
+<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer40</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -13,11 +13,17 @@
 <style>
   html,body{height:100%;margin:0;-webkit-text-size-adjust:100%}
   body,button{touch-action:manipulation;}
-  #map{position:absolute;inset:0}
 
-  .panel{position:absolute;left:8px;top:8px;z-index:1000;background:rgba(255,255,255,.95);
+  /* map は最背面 */
+  #map{position:absolute;inset:0;z-index:0}
+
+  .panel{
+    position:absolute;left:8px;top:8px;z-index:1000;
+    background:rgba(255,255,255,.95);
     border:1px solid #ddd;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08);
-    padding:10px;max-width:92vw;width:360px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+    padding:10px;max-width:92vw;width:360px;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif
+  }
   .panel h2{font-size:16px;margin:0 0 6px}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
   .row>*{width:100%}
@@ -30,51 +36,44 @@
   .small{font-size:12px;color:#555}
   .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#eee;font-size:12px;margin-left:6px}
   .footer{font-size:11px;color:#555;margin-top:6px}
-  details summary{cursor:pointer}
   .err{position:absolute;top:0;left:0;right:0;background:#fee;color:#900;padding:8px 10px;font-size:12px;z-index:2000;border-bottom:1px solid #f99;display:none}
 
-  /* パネル開閉ボタン（縦だけ2倍） */
+  /* 右上トグル */
   #btnPanel{
-    position:absolute;right:10px;top:10px;z-index:1100;background:#fff;
-    border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
+    position:absolute;right:10px;top:10px;z-index:1100;
+    background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
     display:inline-block;width:auto
   }
   .volbox{position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px}
   .volbox button{background:#fff;border:1px solid #ccc;border-radius:8px;padding:6px 8px;font-size:14px}
 
-  /* （将来復活用の地図上大ボタン：現在は非表示のまま） */
-  .fab{display:none}
-  .fab-small{display:none}
+  /* 地図上の大ボタン（復活） */
+  .fab{
+    position:fixed;right:16px;bottom:84px;z-index:1500;
+    background:#ef4444;color:#fff;border:none;border-radius:9999px;
+    padding:14px 18px;font-size:16px;box-shadow:0 6px 18px rgba(0,0,0,.18);display:none
+  }
+  .fab-small{
+    position:fixed;right:16px;bottom:24px;z-index:1500;
+    background:#f59e0b;color:#111;border:none;border-radius:9999px;
+    padding:12px 16px;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.18);display:none
+  }
 
-  /* トースト（自動消去メッセージ） */
+  /* トースト */
   #toast{
     position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
     background:rgba(0,0,0,.85);color:#fff;padding:12px 16px;border-radius:10px;
     font-size:14px;z-index:2000;display:none;max-width:90vw;text-align:center;
   }
 
-  /* 右下→左下へ／ズームボタンを縦横2倍 */
+  /* ズームボタン大型化（左下） */
   .leaflet-control-zoom{font-size:28px}
-  .leaflet-control-zoom a{
-    width:52px;height:52px;line-height:52px;font-size:28px
-  }
+  .leaflet-control-zoom a{width:52px;height:52px;line-height:52px;font-size:28px}
 
-  /* ファイル選択の黄色枠（一重枠、内側塗り） */
-  .file-wrap{
-    background:#f0e68c;
-    border:1px solid #ccc;
-    border-radius:8px;
-    padding:6px;
-  }
+  /* ファイル選択枠（黄色） */
+  .file-wrap{background:#f0e68c;border:1px solid #ccc;border-radius:8px;padding:6px}
   .file-wrap input[type="file"]{
-    width:100%;
-    border:none;
-    background:#fff;
-    border-radius:6px;
-    padding:8px;
-    box-sizing:border-box;
-    outline:none;
-    -webkit-appearance:auto;
+    width:100%;border:none;background:#fff;border-radius:6px;padding:8px;box-sizing:border-box;outline:none;-webkit-appearance:auto;
   }
 </style>
 </head>
@@ -83,7 +82,7 @@
 <div id="err" class="err"></div>
 <div id="toast"></div>
 
-<!-- 将来復活用（現在は非表示のまま残置） -->
+<!-- 地図上：大きい回収ボタン / 未回収（黄化）ボタン -->
 <button id="btnFabCollect" class="fab">回収（選択 0）</button>
 <button id="btnFabSkip" class="fab-small">無回収（選択→黄）</button>
 
@@ -95,7 +94,7 @@
 
 <div class="panel" id="panel">
   <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
-  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」ver54</div>
+  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver62</div>
 
   <div class="controls">
     <div class="row">
@@ -105,17 +104,13 @@
 
     <div>
       <label>地点CSV読込（Name,Latitude,Longitude[,Description]）</label>
-      <div class="file-wrap">
-        <input type="file" id="file" accept=".csv,.kml,.geojson,.json">
-      </div>
+      <div class="file-wrap"><input type="file" id="file" accept=".csv,.kml,.geojson,.json"></div>
       <div class="small">CSV推奨。KML/GeoJSONは簡易対応（ポイントのみ）。</div>
     </div>
 
     <div>
       <label>基本回収ルート読込（.gpx / .geojson / .json / .csv）</label>
-      <div class="file-wrap">
-        <input type="file" id="fileRoute" accept=".gpx,.geojson,.json,.csv">
-      </div>
+      <div class="file-wrap"><input type="file" id="fileRoute" accept=".gpx,.geojson,.json,.csv"></div>
       <div class="row" style="grid-template-columns:1fr 1fr">
         <button id="btnRouteZoom" class="ghost" style="font-size:12px">ルートへズームアウト</button>
         <button id="btnHeading" class="ghost" style="font-size:12px">ヘディング：OFF</button>
@@ -124,10 +119,8 @@
 
     <div>
       <label>例外到着CSV読込（Place,DeviceLat,DeviceLon）</label>
-      <div class="file-wrap">
-        <input type="file" id="fileException" accept=".csv">
-      </div>
-      <div class="small">例外地点は <b>20m以内</b>で回収済として扱います（場所ごとに例外座標を指定）。</div>
+      <div class="file-wrap"><input type="file" id="fileException" accept=".csv"></div>
+      <div class="small">例外地点は <b>20m以内</b>で回収済として扱います。</div>
     </div>
 
     <div class="row">
@@ -137,12 +130,8 @@
     </div>
 
     <div class="row">
-      <label>近接しきい値(m)
-        <input type="text" id="thres" value="50" style="width:100%">
-      </label>
-      <label>到着判定(m)
-        <input type="text" id="arrive" value="15" style="width:100%">
-      </label>
+      <label>近接しきい値(m)<input type="text" id="thres" value="50" style="width:100%"></label>
+      <label>到着判定(m)<input type="text" id="arrive" value="15" style="width:100%"></label>
     </div>
 
     <div class="row">
@@ -164,8 +153,8 @@
 
   function init(){
   /* ================== 基本設定・ユーティリティ ================== */
-  const AUTO_COLLECT_M = 10;   // 通常の自動回収距離
-  const EXCEPTION_M    = 20;   // 例外到着の距離
+  const AUTO_COLLECT_M = 10;
+  const EXCEPTION_M    = 20;
   const CLOSE_POPUP_NEAR_M = 60;
 
   function showErr(e){
@@ -183,15 +172,20 @@
   }
   window.addEventListener('error',ev=>showErr(ev.error||ev.message||'unknown'));
 
-  /* パネル開閉 */
+  /* ========== パネル開閉・追従抑制 ========== */
   const panel=document.getElementById('panel');
   const btnPanel=document.getElementById('btnPanel');
   let panelVisible=true;
+
+  let suppressFollowUntil=0;
+  const SUPPRESS_MS = 2000;
+  function suppressFollow(ms = SUPPRESS_MS){
+    suppressFollowUntil = Math.max(suppressFollowUntil, Date.now() + ms);
+  }
   function togglePanel(force){
     if(typeof force==='boolean'){ panelVisible=force; } else { panelVisible=!panelVisible; }
     panel.style.display=panelVisible?'block':'none';
   }
-  btnPanel.addEventListener('click',()=>togglePanel());
 
   /* ボリューム（チャイム） */
   let audioVol=parseFloat(localStorage.getItem('chimeVol')||'0.7');
@@ -240,7 +234,7 @@
   driverSel .addEventListener('change', ()=>{ localStorage.setItem('driver' ,driverSel.value ); });
   populateVehicles();
 
-  /* 地図・Pane（ズームは左下） */
+  /* 地図・Pane */
   const map=L.map('map',{zoomControl:false});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'OpenStreetMap'}).addTo(map);
   map.setView([35.841,139.34],14);
@@ -250,9 +244,16 @@
 
   L.control.zoom({position:'bottomleft'}).addTo(map);
 
+  // 地図操作開始で追従一時停止
+  map.on('movestart',   ()=> suppressFollow(2200));
+  map.on('dragstart',   ()=> suppressFollow(2200));
+  map.on('zoomstart',   ()=> suppressFollow(2200));
+  map.on('mousedown',   ()=> suppressFollow(2200));
+  map.on('touchstart',  ()=> suppressFollow(2200));
+  map.on('wheel',       ()=> suppressFollow(2200));
+
   /* 現在地表示 */
   let gpsWatchId=null, locMarker=null, locCircle=null, followSelf=true, headingMode=false;
-  let suppressFollowUntil=0;
 
   const carSVG = encodeURIComponent(`
   <svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 64 64">
@@ -280,10 +281,12 @@
       locMarker.setLatLng([lat,lon]);
       if(locCircle) locCircle.setLatLng([lat,lon]).setRadius(acc||25);
     }
-    if(followSelf && Date.now()>suppressFollowUntil){ map.setView([lat,lon], map.getZoom()); }
+    if(followSelf && Date.now() >= suppressFollowUntil){
+      map.setView([lat,lon], map.getZoom());
+    }
   }
 
-  /* マーカー（回収地点） */
+  /* ===== 回収地点（選択→手動回収 併用） ===== */
   const points=[];
   const blueIcon=L.icon({
     iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -301,14 +304,39 @@
     shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
   });
 
+  const selected = new Set(); // name の集合
+  const btnFabCollect = document.getElementById('btnFabCollect');
+  const btnFabSkip    = document.getElementById('btnFabSkip');
+
+  function refreshFab(){
+    const n = selected.size;
+    btnFabCollect.textContent = `回収（選択 ${n}）`;
+    btnFabCollect.style.display = n>0 ? 'inline-block' : 'none';
+    btnFabSkip.style.display    = n>0 ? 'inline-block' : 'none';
+  }
+
+  function toggleSelect(rec){
+    if(rec.status!=='normal') return; // 既に赤/黄は選択不可
+    if(selected.has(rec.name)){
+      selected.delete(rec.name);
+      if(rec.selRing){ map.removeLayer(rec.selRing); rec.selRing=null; }
+      rec.marker.setZIndexOffset(0);
+    }else{
+      selected.add(rec.name);
+      // 視覚化：水色リング
+      rec.selRing = L.circleMarker([rec.lat,rec.lon],{
+        radius:18,color:'#06b6d4',weight:4,fill:false,opacity:0.8,pane:'markerPane'
+      }).addTo(map);
+      rec.marker.setZIndexOffset(500);
+    }
+    refreshFab();
+  }
+
   function addPoint(name,lat,lon,desc){
     const m=L.marker([lat,lon],{icon:blueIcon,pane:'markerPane'}).addTo(map);
-    m.bindPopup('<b>'+name+'</b>'); // 緯度経度は表示しない
-    const rec={name,lat,lon,desc:(desc||''),marker:m,status:'normal'}; // selected削除
-    // 旧：タップで選択→fab確定 は廃止（将来復活のため下記をコメントで残置）
-    /*
-    m.on('click',()=>{ ... });
-    */
+    m.bindPopup('<b>'+name+'</b>');
+    const rec={name,lat,lon,desc:(desc||''),marker:m,status:'normal',selRing:null};
+    m.on('click', ()=> toggleSelect(rec));   // ← タップで選択/解除
     points.push(rec);
   }
 
@@ -318,11 +346,64 @@
     document.getElementById('pointCount').textContent = `${points.length} 箇所(赤${nRed}/黄${nYellow})`;
   }
 
+  function clearSelection(){
+    for(const nm of Array.from(selected)){
+      const p=points.find(x=>x.name===nm);
+      if(p && p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
+      selected.delete(nm);
+    }
+    refreshFab();
+  }
+
+  async function collectSelected(){
+    if(selected.size===0) return;
+    let lat=0,lon=0;
+    try{ const cur=await getCurrentLatLng(); lat=cur[0]; lon=cur[1]; }catch(_e){}
+    let done=0;
+    for(const nm of Array.from(selected)){
+      const p=points.find(x=>x.name===nm);
+      if(!p || p.status!=='normal') continue;
+      // ログ
+      const vehicle=vehicleSel.value; const driver=driverSel.value;
+      const dt=new Date(); const pad=n=>String(n).padStart(2,'0');
+      const stamp=`${dt.getFullYear()}/${pad(dt.getMonth()+1)}/${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+      pushLogRow([stamp,p.name,lat,lon,vehicle,driver]);
+      // 見た目
+      p.status='collected';
+      p.marker.setIcon(redIcon);
+      if(p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
+      selected.delete(nm);
+      done++;
+    }
+    if(done>0){ chime(); showToast(`${done} 件（回収）を記録しました`,2); updatePointCount(); }
+    refreshFab();
+  }
+
+  function skipSelected(){
+    if(selected.size===0) return;
+    let done=0;
+    for(const nm of Array.from(selected)){
+      const p=points.find(x=>x.name===nm);
+      if(!p || p.status!=='normal') continue;
+      p.status='skipped';
+      p.marker.setIcon(yellowIcon);
+      if(p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
+      selected.delete(nm);
+      done++;
+    }
+    if(done>0){ showToast(`${done} 件を「無回収」にしました`,2); updatePointCount(); }
+    refreshFab();
+  }
+
+  btnFabCollect.addEventListener('click', collectSelected);
+  btnFabSkip.addEventListener('click', skipSelected);
+
   function clearAllPoints(){
     const ok = confirm('回収地点のデータを消去しますか？');
     if(!ok) return;
-    points.forEach(p=>{ map.removeLayer(p.marker); });
+    points.forEach(p=>{ if(p.selRing) map.removeLayer(p.selRing); map.removeLayer(p.marker); });
     points.length=0;
+    clearSelection();
     document.getElementById('file').value='';
     updatePointCount();
     alert('回収地点のデータを全て消去しました。');
@@ -333,7 +414,7 @@
   function importCSV(file){
     const existing = JSON.parse(localStorage.getItem('collectionLog')||'[]');
     if(existing.length){
-      const ok = confirm('logCSVファイルにデータが存在します。データを消去しますか？\n「OK」で消去、「キャンセル」で残します。');
+      const ok = confirm('logCSVファイルにデータが存在します。消去しますか？\nOKで消去／キャンセルで残す');
       if(ok){ localStorage.setItem('collectionLog','[]'); }
     }
     Papa.parse(file,{
@@ -394,7 +475,7 @@
     if(/\.csv$/i.test(f.name)) importCSV(f); else importOther(f);
   });
 
-  /* 例外到着CSV（Place,DeviceLat,DeviceLon） */
+  /* 例外到着CSV */
   const exceptions = new Map(); // place -> {lat,lon}
   function importExceptionCSV(file){
     exceptions.clear();
@@ -429,18 +510,13 @@
     const lines=[header].concat(logRows).map(r=>r.map(x=>String(x).replace(/"/g,'""')).join(','));
     return lines.join('\n');
   }
-
   function downloadCSV(){
     const csvText = makeCSVText();
     const bom = '\uFEFF';
     const blob = new Blob([bom + csvText], { type: 'text/csv;charset=utf-8' });
     const url  = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'collection_log.csv';
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
+    const a = document.createElement('a'); a.href = url; a.download = 'collection_log.csv'; a.rel='noopener';
+    document.body.appendChild(a); a.click();
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 800);
   }
   function escapeHTML(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -482,7 +558,7 @@
     });
   }
 
-  /* 自動回収ロジック */
+  /* ===== 自動回収ロジック ===== */
   function meters(a,b){
     const dy=(a[0]-b[0])*111320;
     const dx=(a[1]-b[1])*111320*Math.cos((a[0]+b[0])*Math.PI/360);
@@ -490,7 +566,6 @@
   }
   function nameToLatLng(name){ const p=points.find(x=>x.name===name); return p?[p.lat,p.lon]:null; }
 
-  // ナビ順序：Descriptionの鎖 → なければ読み込み順
   function buildOrderFromDescription(){
     const nextMap={}, nameSet={}; points.forEach(p=>{ nameSet[p.name]=true; const nx=(p.desc||'').trim(); if(nx) nextMap[p.name]=nx; });
     const appearsNext={}; Object.keys(nextMap).forEach(k=>{ appearsNext[nextMap[k]]=true; });
@@ -501,7 +576,6 @@
     if(order.length===0) order.push(...names);
     return order;
   }
-
   function firstUncollectedIndexIn(order){
     for(let i=0;i<order.length;i++){
       const p=points.find(pp=>pp.name===order[i]);
@@ -544,9 +618,7 @@
     const startIdx = firstUncollectedIndexIn(nav.order);
     if(startIdx<0){ alert('未回収の地点がありません'); return; }
 
-    nav.idx=startIdx;
-    nav.active=true;
-    togglePanel(false);
+    nav.idx=startIdx; nav.active=true; togglePanel(false);
 
     const cur=nav.order[nav.idx];
     speakJa('ナビを開始します。まずは '+cur+' へ向かってください。');
@@ -567,12 +639,11 @@
   document.getElementById('btnNavStop').addEventListener('click',  stopGuidance);
 
   function nextTarget(){
-    // 次の未回収を探す
     for(let i=nav.idx+1;i<nav.order.length;i++){
       const p=points.find(pp=>pp.name===nav.order[i]);
       if(p && p.status!=='collected'){ nav.idx=i; return p.name; }
     }
-    return null; // すべて完了
+    return null;
   }
 
   function autoCollectIfArrived(lat,lon, curName){
@@ -582,7 +653,6 @@
     const dPoint = meters([lat,lon],[p.lat,p.lon]);
     let arrived = (dPoint <= AUTO_COLLECT_M);
 
-    // 例外座標（あれば20m判定）
     const ex = exceptions.get(p.name);
     if(!arrived && ex){
       const dEx = meters([lat,lon],[ex.lat,ex.lon]);
@@ -590,7 +660,6 @@
     }
 
     if(arrived){
-      // ログ書き込み＆アイコン更新
       const vehicle=vehicleSel.value; const driver=driverSel.value;
       const dt=new Date(); const pad=n=>String(n).padStart(2,'0');
       const stamp=`${dt.getFullYear()}/${pad(dt.getMonth()+1)}/${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
@@ -600,10 +669,8 @@
       p.marker.setIcon(redIcon);
       updatePointCount();
 
-      // 通知
       chime();
-      const msg=`1件（回収）を記録しました：${p.name}`;
-      showToast(msg,2);
+      showToast(`1件（回収）を記録しました：${p.name}`,2);
       speakJa(p.name+' に到着。次へ進みます。');
 
       return true;
@@ -615,56 +682,41 @@
     ensureLocLayer(pos.coords.latitude,pos.coords.longitude,pos.coords.accuracy);
     if(!nav.active) return;
 
-    // 現在ターゲット（未回収）が無ければ停止
     let cur = nav.order[nav.idx];
     let currentPoint = points.find(x=>x.name===cur);
     if(!currentPoint || currentPoint.status==='collected'){
       const idx = firstUncollectedIndexIn(nav.order);
       if(idx<0){ speakJa('すべて完了しました'); stopGuidance(); return; }
-      nav.idx = idx;
-      cur = nav.order[nav.idx];
+      nav.idx = idx; cur = nav.order[nav.idx];
       currentPoint = points.find(x=>x.name===cur);
-      if(cur !== nav.lastAnnounceTarget){
-        speakJa(cur+' へ向かってください');
-        nav.lastAnnounceTarget = cur;
-      }
+      if(cur !== nav.lastAnnounceTarget){ speakJa(cur+' へ向かってください'); nav.lastAnnounceTarget = cur; }
     }
 
     const lat=pos.coords.latitude, lon=pos.coords.longitude;
-
-    // 近づいたらポップアップ退避（タップを邪魔しない）
     const tll=[currentPoint.lat,currentPoint.lon];
     const d = meters([lat,lon], tll);
+
     if(d<=CLOSE_POPUP_NEAR_M){
       if(currentPoint.marker && currentPoint.marker.isPopupOpen()) currentPoint.marker.closePopup();
     }else{
       openPopupIfNeeded(cur);
     }
 
-    // ===== 到着判定 → 自動回収 =====
     const done = autoCollectIfArrived(lat,lon,cur);
     if(done){
-      // 次ターゲットへ
       const next = nextTarget();
-      if(next){
-        speakJa(next+' へ向かってください');
-        nav.lastAnnounceTarget = next;
-        focusTarget(next);
-      }else{
-        speakJa('すべて完了しました');
-        stopGuidance();
-      }
+      if(next){ speakJa(next+' へ向かってください'); nav.lastAnnounceTarget = next; focusTarget(next); }
+      else { speakJa('すべて完了しました'); stopGuidance(); }
       return;
     }
 
-    // しきい値内に近づいた通知（任意）
     if(d<=nav.thresholdM && nav.lastAnnounceTarget !== (cur+'-near')){
       speakJa(cur+' が近くにあります');
       nav.lastAnnounceTarget = (cur+'-near');
     }
   }
 
-  /* ルート読込・ズーム（線は太さ2倍） */
+  /* ルート読込・ズーム */
   let routeLayer=null, routeLatLngs=[];
   function setRouteLatLngs(latlngs){
     routeLatLngs=latlngs||[];
@@ -679,7 +731,7 @@
   }
   document.getElementById('btnRouteZoom').addEventListener('click',()=>{
     togglePanel(false);
-    suppressFollowUntil = Date.now() + 2000;
+    suppressFollow(2500);
     setTimeout(fitRoute,50);
   });
 
@@ -710,15 +762,8 @@
     }catch(err){ showErr(err); }
   });
 
-  // === （外部ナビ関連は廃止。将来復活のためコメントとして残置） ===
-  /*
-  function isIOS(){ ... }
-  function openExternalRoute(...){ ... }
-  function openExternalLeg(){ ... }
-  function openExternalFromLast(){ ... }
-  document.getElementById('btnLeg').addEventListener('click',openExternalLeg);
-  document.getElementById('btnLegFromLast').addEventListener('click',openExternalFromLast);
-  */
+  // 「設定」ボタン
+  btnPanel.addEventListener('click',()=>{ suppressFollow(); togglePanel(); });
 
   } // init end
 })();
