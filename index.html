@@ -15,9 +15,11 @@
   body,button{touch-action:manipulation;}
   #map{position:absolute;inset:0}
 
-  .panel{position:absolute;left:8px;top:8px;z-index:1000;background:rgba(255,255,255,.95);
+  .panel{
+    position:absolute;left:8px;top:8px;z-index:1000;background:rgba(255,255,255,.95);
     border:1px solid #ddd;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08);
-    padding:10px;max-width:92vw;width:360px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:block}
+    padding:10px;max-width:92vw;width:360px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif
+  }
   .panel h2{font-size:16px;margin:0 0 6px}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
   .row>*{width:100%}
@@ -44,59 +46,4 @@
 
   /* （将来復活用の地図上大ボタン：現在は非表示のまま） */
   .fab{display:none}
-  .fab-small{display:none}
-
-  /* トースト（自動消去メッセージ） */
-  #toast{
-    position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
-    background:rgba(0,0,0,.85);color:#fff;padding:12px 16px;border-radius:10px;
-    font-size:14px;z-index:2000;display:none;max-width:90vw;text-align:center;
-  }
-
-  /* 右下→左下へ／ズームボタンを縦横2倍 */
-  .leaflet-control-zoom{font-size:28px}
-  .leaflet-control-zoom a{
-    width:52px;height:52px;line-height:52px;font-size:28px
-  }
-
-  /* ファイル選択の黄色枠（一重枠、内側塗り） */
-  .file-wrap{
-    background:#f0e68c;
-    border:1px solid #ccc;
-    border-radius:8px;
-    padding:6px;
-  }
-  .file-wrap input[type="file"]{
-    width:100%;
-    border:none;
-    background:#fff;
-    border-radius:6px;
-    padding:8px;
-    box-sizing:border-box;
-    outline:none;
-    -webkit-appearance:auto;
-  }
-</style>
-</head>
-<body>
-<div id="map"></div>
-<div id="err" class="err"></div>
-<div id="toast"></div>
-
-<!-- 将来復活用（現在は非表示のまま残置） -->
-<button id="btnFabCollect" class="fab">回収（選択 0）</button>
-<button id="btnFabSkip" class="fab-small">無回収（選択→黄）</button>
-
-<button id="btnPanel" title="設定の表示/非表示">設定</button>
-<div class="volbox">
-  <button id="volDown">音量-</button>
-  <button id="volUp">音量+</button>
-</div>
-
-<div class="panel" id="panel">
-  <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
-  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</div>
-
-  <div class="controls">
-    <div class="row">
-      <div><label>車両ID<select id="vehicle"></selec
+  .fab-small{d
