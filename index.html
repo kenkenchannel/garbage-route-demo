@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer44</title>
+<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer45</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -44,7 +44,6 @@
   .volbox{position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px}
   .volbox button{background:#fff;border:1px solid #ccc;border-radius:8px;padding:6px 8px;font-size:14px}
 
-  /* 地図上の大ボタン */
   .fab{
     position:fixed;right:16px;bottom:84px;z-index:1500;
     background:#ef4444;color:#fff;border:none;border-radius:9999px;
@@ -76,7 +75,6 @@
 <div id="err" class="err"></div>
 <div id="toast"></div>
 
-<!-- 地図上ボタン（手動回収・無回収） -->
 <button id="btnFabCollect" class="fab">回収（選択 0）</button>
 <button id="btnFabSkip" class="fab-small">無回収（選択→黄）</button>
 
@@ -88,7 +86,7 @@
 
 <div class="panel" id="panel">
   <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
-  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver65</div>
+  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver66</div>
 
   <div class="controls">
     <div class="row">
@@ -124,8 +122,12 @@
     </div>
 
     <div class="row">
-      <label>近接しきい値(m)<input type="text" id="thres" value="50" style="width:100%"></label>
-      <label>到着判定(m)<input type="text" id="arrive" value="15" style="width:100%"></label>
+      <label>近接しきい値(m)
+        <input type="text" id="thres" value="50" style="width:100%" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" >
+      </label>
+      <label>到着判定(m)
+        <input type="text" id="arrive" value="15" style="width:100%" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" >
+      </label>
     </div>
 
     <div class="row">
@@ -146,11 +148,27 @@
   }
 
   function init(){
-  /* ================== 基本設定・ユーティリティ ================== */
-  const AUTO_COLLECT_M = 10;          // 自動回収距離
-  const EXCEPTION_M    = 20;          // 例外地点の到着扱い距離
-  const POPUP_STAY_UNTIL_M = 10;      // ★この距離未満になるまで吹き出しを常時表示
-  const SUPPRESS_MS = 2000;           // 追従抑制
+  /* ========== 共通設定 ========== */
+  const AUTO_COLLECT_M = 10;
+  const EXCEPTION_M    = 20;
+  const POPUP_STAY_UNTIL_M = 10;
+  const SUPPRESS_MS = 2000;
+
+  /* --- iOS「シェイクで取り消し」回避：入力フォーカスを極力外す --- */
+  function blurActiveInput(){
+    const el = document.activeElement;
+    if(!el) return;
+    const tag = el.tagName;
+    if(tag==='INPUT' || tag==='SELECT' || tag==='TEXTAREA'){ try{ el.blur(); }catch(_e){} }
+  }
+  function blurAllInputs(){
+    blurActiveInput();
+    document.querySelectorAll('input,select,textarea').forEach(el=>{
+      if(el===document.activeElement){ try{ el.blur(); }catch(_e){} }
+    });
+  }
+  // 端末揺れっぽい時は保険で blur（iOS Safari でのみ意味がある）
+  window.addEventListener('devicemotion', ()=>{ blurActiveInput(); }, {passive:true});
 
   function showErr(e){
     var el=document.getElementById('err');
@@ -167,7 +185,7 @@
   }
   window.addEventListener('error',ev=>showErr(ev.error||ev.message||'unknown'));
 
-  /* ========== パネル開閉・追従抑制 ========== */
+  /* パネル開閉 */
   const panel=document.getElementById('panel');
   const btnPanel=document.getElementById('btnPanel');
   let panelVisible=true;
@@ -179,10 +197,15 @@
   function togglePanel(force){
     if(typeof force==='boolean'){ panelVisible=force; } else { panelVisible=!panelVisible; }
     panel.style.display=panelVisible?'block':'none';
+    if(!panelVisible){ blurAllInputs(); } // 閉じる時に必ずフォーカスを外す
   }
   btnPanel.addEventListener('click',()=>{ suppressFollow(); togglePanel(); });
 
-  /* ボリューム（チャイム） */
+  /* 音量ボタンでも blur（誤って直前に数値欄へフォーカスした場合の保険） */
+  document.getElementById('volDown').addEventListener('click', ()=>{ blurActiveInput(); });
+  document.getElementById('volUp').addEventListener('click',   ()=>{ blurActiveInput(); });
+
+  /* オーディオ */
   let audioVol=parseFloat(localStorage.getItem('chimeVol')||'0.7');
   document.getElementById('volDown').addEventListener('click', ()=>{ audioVol=Math.max(0,audioVol-0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('音量: '+Math.round(audioVol*100)+'%'); });
   document.getElementById('volUp').addEventListener('click',   ()=>{ audioVol=Math.min(1,audioVol+0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('音量: '+Math.round(audioVol*100)+'%'); });
@@ -228,7 +251,7 @@
   driverSel .addEventListener('change', ()=>{ localStorage.setItem('driver' ,driverSel.value ); });
   populateVehicles();
 
-  /* 地図・Pane */
+  /* 地図 */
   const map=L.map('map',{zoomControl:false});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'OpenStreetMap'}).addTo(map);
   map.setView([35.841,139.34],14);
@@ -238,9 +261,9 @@
 
   L.control.zoom({position:'bottomleft'}).addTo(map);
 
-  // 地図操作で追従を少し止める
+  // 地図操作で追従停止 + 入力blur
   ['movestart','dragstart','zoomstart','mousedown','touchstart','wheel'].forEach(ev=>{
-    map.on(ev, ()=> suppressFollow(2200));
+    map.on(ev, ()=>{ suppressFollow(2200); blurActiveInput(); });
   });
 
   /* 現在地表示 */
@@ -277,11 +300,11 @@
     }
   }
 
-  /* ===== 回収地点（重複Name対応） ===== */
-  const points=[];               // {uid,name,display,lat,lon,desc,marker,status,selRing,seq}
-  const nameIndex=new Map();     // unique name -> rec
-  const aliasIndex=new Map();    // display(original name) -> rec[]
-  const nameCount=new Map();     // for duplicate numbering
+  /* ===== 回収地点（重複Name対応：ver44と同じロジック） ===== */
+  const points=[];
+  const nameIndex=new Map();   // unique name -> rec
+  const aliasIndex=new Map();  // display -> rec[]
+  const nameCount=new Map();
 
   const blueIcon=L.icon({
     iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -304,7 +327,7 @@
     p.marker.bindPopup('<b>'+p.display+'</b>'+badge);
   }
 
-  const selected = new Set(); // unique name の集合
+  const selected = new Set();
   const btnFabCollect = document.getElementById('btnFabCollect');
   const btnFabSkip    = document.getElementById('btnFabSkip');
 
@@ -316,7 +339,7 @@
   }
 
   function toggleSelect(rec){
-    if(rec.status!=='normal') return; // 既に赤/黄は選択不可
+    if(rec.status!=='normal') return;
     if(selected.has(rec.name)){
       selected.delete(rec.name);
       if(rec.selRing){ map.removeLayer(rec.selRing); rec.selRing=null; }
@@ -332,7 +355,6 @@
   }
 
   function addPoint(display,lat,lon,desc){
-    // ユニーク名の決定（同名があれば #2, #3… と付番）
     const base = String(display);
     const cnt  = (nameCount.get(base)||0) + 1;
     nameCount.set(base,cnt);
@@ -340,10 +362,7 @@
 
     const m=L.marker([lat,lon],{icon:blueIcon,pane:'markerPane'}).addTo(map);
     const rec={
-      uid:crypto.randomUUID ? crypto.randomUUID() : (uniqueName+'_'+Math.random().toString(36).slice(2)),
-      name:uniqueName,         // 内部キー（ユニーク）
-      display:base,            // 画面表示は元のName
-      lat,lon,desc:(desc||'').trim(),
+      name:uniqueName, display:base, lat,lon, desc:(desc||'').trim(),
       marker:m,status:'normal',selRing:null,seq:undefined
     };
     nameIndex.set(uniqueName,rec);
@@ -370,17 +389,14 @@
     refreshFab();
   }
 
-  /* ===== Description 鎖に基づく厳格順・採番（重複名→近い候補を採用） ===== */
-  let strictOrder=[]; // unique name の配列
-
+  /* 鎖の構築（重複名→“直前から最も近い候補”を採用） */
+  let strictOrder=[];
   function meters(a,b){
     const dy=(a[0]-b[0])*111320;
     const dx=(a[1]-b[1])*111320*Math.cos((a[0]+b[0])*Math.PI/360);
     return Math.hypot(dx,dy);
   }
-
   function resolveDescToUnique(curRec, descText){
-    // 別名(表示名)で候補を取得し、curRec から最も近い候補を選ぶ
     const cands = aliasIndex.get(String(descText)) || [];
     if(cands.length===0) return null;
     if(cands.length===1) return cands[0].name;
@@ -391,30 +407,19 @@
     }
     return best ? best.name : null;
   }
-
   function buildStrictOrderAndNumber(){
     strictOrder=[];
-    // name -> nextUniqueName
-    const nextOf=new Map();
-    const appearsNext=new Set();
-
-    // まずは各点から「自分のdesc(表示名)に最も近い候補」をnextに採用
+    const nextOf=new Map(), appearsNext=new Set();
     points.forEach(p=>{
       if(p.desc){
         const nx = resolveDescToUnique(p, p.desc);
-        if(nx){
-          nextOf.set(p.name, nx);
-          appearsNext.add(nx);
-        }
+        if(nx){ nextOf.set(p.name, nx); appearsNext.add(nx); }
       }
     });
-
-    // head（誰からも next として参照されない点）を列挙し、各headから連鎖
     const heads=[];
     points.forEach(p=>{
       if(nextOf.has(p.name) && !appearsNext.has(p.name)) heads.push(p.name);
     });
-
     const visited=new Set();
     for(const h of heads){
       let curName=h;
@@ -426,26 +431,23 @@
         strictOrder.push(curName); visited.add(curName);
       }
     }
-
-    // 採番（#n）
     points.forEach(p=>{ p.seq=undefined; setPopupContent(p); });
     strictOrder.forEach((nm,i)=>{ const p=nameIndex.get(nm); if(p){ p.seq=i+1; setPopupContent(p); }});
   }
 
-  /* ===== 手動回収 ===== */
+  /* 手動回収 */
   async function collectSelected(){
-    // 確認（キャンセルなら選択解除して大ボタンを消す）
+    // キャンセルなら選択解除＋ボタン消去（ver44で実装済み）
     if(!confirm('本当に回収しますか？')){
       clearSelection();
       refreshFab();
       return;
     }
-
     if(selected.size===0) return;
-    const selectedNow = Array.from(selected);
     let lat=0,lon=0;
     try{ const cur=await getCurrentLatLng(); lat=cur[0]; lon=cur[1]; }catch(_e){}
     let done=0;
+    const selectedNow = Array.from(selected);
     for(const nm of selectedNow){
       const p=nameIndex.get(nm);
       if(!p || p.status!=='normal') continue;
@@ -462,7 +464,6 @@
     if(done>0){ chime(); showToast(`${done} 件（回収）を記録しました`,2); updatePointCount(); }
     refreshFab();
 
-    // 1件のみ回収した場合はその Description の次へ即ガイド
     if(done===1 && selectedNow.length===1){
       guideNextAfter(selectedNow[0]);
     }
@@ -483,12 +484,11 @@
     if(done>0){ showToast(`${done} 件を「無回収」にしました`,2); updatePointCount(); }
     refreshFab();
   }
-  btnFabCollect.addEventListener('click', collectSelected);
-  btnFabSkip.addEventListener('click',    skipSelected);
+  document.getElementById('btnFabCollect').addEventListener('click', collectSelected);
+  document.getElementById('btnFabSkip').addEventListener('click',    skipSelected);
 
   function clearAllPoints(){
-    const ok = confirm('回収地点のデータを消去しますか？');
-    if(!ok) return;
+    const ok = confirm('回収地点のデータを消去しますか？'); if(!ok) return;
     points.forEach(p=>{ if(p.selRing) map.removeLayer(p.selRing); map.removeLayer(p.marker); });
     points.length=0; nameIndex.clear(); aliasIndex.clear(); nameCount.clear(); strictOrder=[];
     clearSelection();
@@ -563,11 +563,12 @@
   }
   document.getElementById('file').addEventListener('change',(e)=>{
     const f=e.target.files[0]; if(!f) return;
+    blurAllInputs(); // ファイル選択後も blur
     if(/\.csv$/i.test(f.name)) importCSV(f); else importOther(f);
   });
 
   /* 例外到着CSV */
-  const exceptions = new Map(); // place(display) -> {lat,lon}
+  const exceptions = new Map(); // display -> {lat,lon}
   function importExceptionCSV(file){
     exceptions.clear();
     Papa.parse(file,{
@@ -589,11 +590,12 @@
   }
   document.getElementById('fileException').addEventListener('change',(e)=>{
     const f=e.target.files[0]; if(!f) return;
+    blurAllInputs();
     if(!/\.csv$/i.test(f.name)){ alert('CSVファイルを選択してください'); return; }
     importExceptionCSV(f);
   });
 
-  // 記録CSV（localStorage）
+  // 記録CSV
   let logRows=JSON.parse(localStorage.getItem('collectionLog')||'[]');
   function pushLogRow(row){ logRows.push(row); localStorage.setItem('collectionLog',JSON.stringify(logRows)); }
   function makeCSVText(){
@@ -634,8 +636,8 @@
 </body></html>`;
     w.document.open(); w.document.write(html); w.document.close();
   }
-  document.getElementById('btnDownload').addEventListener('click',downloadCSV);
-  document.getElementById('btnPreview').addEventListener('click',previewCSV);
+  document.getElementById('btnDownload').addEventListener('click',()=>{ blurActiveInput(); downloadCSV(); });
+  document.getElementById('btnPreview').addEventListener('click', ()=>{ blurActiveInput(); previewCSV(); });
 
   /* 位置取得 */
   async function getCurrentLatLng(){
@@ -649,7 +651,7 @@
     });
   }
 
-  /* ---- ナビ状態（鎖のみ使用） ---- */
+  /* ナビ */
   const nav={order:[],idx:0,active:false,watchId:null,thresholdM:50,arriveM:15,lastAnnounceTarget:null};
 
   function rebuildOrderFromStrictChain(){ nav.order = strictOrder.slice(); }
@@ -657,7 +659,7 @@
   function focusTarget(uniqueName){
     const p=nameIndex.get(uniqueName); if(!p) return;
     map.setView([p.lat,p.lon], Math.max(map.getZoom(),16));
-    p.marker.openPopup(); // フォーカス時は即オープン
+    p.marker.openPopup();
   }
 
   function nextByDescription(uniqueName){
@@ -670,6 +672,7 @@
   }
 
   function startGuidance(){
+    blurAllInputs();              // ★開始時に必ずフォーカスを外す
     if(points.length===0){ alert('地点がありません'); return; }
     const v=parseFloat(document.getElementById('thres').value); if(Number.isFinite(v)) nav.thresholdM=v;
     const a=parseFloat(document.getElementById('arrive').value); if(Number.isFinite(a)) nav.arriveM=a;
@@ -721,7 +724,6 @@
     }
   }
 
-  /* 自動回収（到着→即次へ） */
   function autoCollectIfArrived(lat,lon, curUnique){
     const p = nameIndex.get(curUnique);
     if(!p || p.status==='collected') return false;
@@ -761,7 +763,6 @@
     let cur = nav.order[nav.idx];
     let currentPoint = nameIndex.get(cur);
 
-    // 既に赤化していたら鎖の次へ
     if(!currentPoint || currentPoint.status==='collected'){
       const k = strictOrder.indexOf(cur);
       if(k>=0 && k+1 < strictOrder.length){
@@ -780,17 +781,15 @@
     const lat=pos.coords.latitude, lon=pos.coords.longitude;
     const d = meters([lat,lon], [currentPoint.lat,currentPoint.lon]);
 
-    // ★ 吹き出し常時表示（10m未満で自動クローズ）
+    // 吹き出し常時表示（10m未満で閉じる）
     if(d >= POPUP_STAY_UNTIL_M){
       if(currentPoint.marker && !currentPoint.marker.isPopupOpen()) currentPoint.marker.openPopup();
     }else{
       if(currentPoint.marker && currentPoint.marker.isPopupOpen()) currentPoint.marker.closePopup();
     }
 
-    // 到着判定→即次へ
     autoCollectIfArrived(lat,lon,cur);
 
-    // 近接通知（任意）
     if(d<=nav.thresholdM && nav.lastAnnounceTarget !== (cur+'-near')){
       speakJa(currentPoint.display+' が近くにあります');
       nav.lastAnnounceTarget = (cur+'-near');
@@ -812,12 +811,14 @@
   }
   document.getElementById('btnRouteZoom').addEventListener('click',()=>{
     togglePanel(false);
+    blurAllInputs();            // ★ズーム前にblur
     suppressFollow(2500);
     setTimeout(fitRoute,50);
   });
 
   document.getElementById('fileRoute').addEventListener('change', async (e)=>{
     const f=e.target.files[0]; if(!f) return;
+    blurAllInputs();
     try{
       if(/\.gpx$/i.test(f.name)){
         const text=await f.text();
