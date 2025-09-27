@@ -123,7 +123,7 @@
 
     <div class="row">
       <label>近接しきい値(m)
-        <input type="text" id="thres" value="50" style="width:100%" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" >
+        <input type="text" id="thres" value="25" style="width:100%" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" >
       </label>
       <label>到着判定(m)
         <input type="text" id="arrive" value="15" style="width:100%" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" >
@@ -802,7 +802,7 @@
     routeLatLngs=latlngs||[];
     if(routeLayer){ map.removeLayer(routeLayer); routeLayer=null; }
     if(routeLatLngs.length>=2){
-      routeLayer=L.polyline(routeLatLngs,{color:'#ff2d2d',weight:8,opacity:0.9,pane:'markerPane'}).addTo(map);
+      routeLayer=L.polyline(routeLatLngs,{color:'#ff2d2d',weight:4,opacity:0.9,pane:'markerPane'}).addTo(map);
     }
   }
   function fitRoute(){
