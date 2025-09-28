@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer68</title>
+<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer70</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -86,7 +86,7 @@
 
 <div class="panel" id="panel">
   <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
-  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver69</div>
+  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver70</div>
 
   <div class="controls">
     <div class="row">
@@ -123,16 +123,16 @@
 
     <div class="row">
       <label>近接しきい値(m)
-        <input type="text" id="thres" value="25" style="width:100%" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" >
+        <input type="text" id="thres" value="25" style="width:100%" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off">
       </label>
       <label>到着判定(m)
-        <input type="text" id="arrive" value="15" style="width:100%" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" >
+        <input type="text" id="arrive" value="15" style="width:100%" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off">
       </label>
     </div>
 
     <div class="row">
       <label>遠距離オートズーム(m)
-        <input type="text" id="farZoom" value="100" style="width:100%" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off" >
+        <input type="text" id="farZoom" value="100" style="width:100%" inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="off">
       </label>
       <div></div>
     </div>
@@ -580,11 +580,15 @@
     document.body.appendChild(a); a.click();
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 800);
   }
-  function escapeHTML(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  // ★★★ ここを Ver70 で強化：プレビュー内に「ダウンロード」と「共有」ボタンを追加 ★★★
   function previewCSV(){
+    blurAllInputs();
     const txt = makeCSVText();
     const w = window.open('', '_blank');
     if(!w){ alert('ポップアップがブロックされました。設定で許可してください。'); return; }
+
+    const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const html = `
 <!DOCTYPE html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -592,20 +596,63 @@
 <style>
   body{font-family:ui-monospace,Menlo,Consolas,monospace;margin:0;padding:0}
   header{position:sticky;top:0;background:#f6f6f6;border-bottom:1px solid #ddd;padding:10px}
-  pre{white-space:pre;overflow:auto;margin:0;padding:12px}
+  header .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  button{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:8px 12px;border-radius:8px;border:1px solid #ccc;background:#fff}
+  button.primary{background:#2563eb;color:#fff;border:none}
   .hint{font-size:12px;color:#555}
+  pre{white-space:pre;overflow:auto;margin:0;padding:12px}
 </style>
 </head><body>
 <header>
-  <div><strong>CSVプレビュー</strong></div>
-  <div class="hint">共有ボタン → 「ファイルに保存」で iCloud Drive 等に保存できます。</div>
+  <div class="row">
+    <button id="btnDl" class="primary">このCSVをダウンロード</button>
+    <button id="btnShare">“ファイル”に保存/共有</button>
+  </div>
+  <div class="hint">iPhone: ダウンロード後は Safari の「↓」から共有 → 「“ファイル”に保存」。<br>
+  「“ファイル”に保存/共有」は Web Share API で共有シートへ直接ファイルを渡します。</div>
 </header>
-<pre>${escapeHTML(txt)}</pre>
+<pre id="csvpre">${esc(txt)}</pre>
+<script>
+  const csvText = ${JSON.stringify(txt)};
+  function downloadCSVInner(){
+    const blob = new Blob(['\\uFEFF' + csvText], {type:'text/csv;charset=utf-8'});
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'collection_log.csv'; a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 600);
+  }
+  async function shareCSV(){
+    try{
+      if(!('share' in navigator) || !('canShare' in navigator)){
+        alert('この端末/ブラウザはファイル共有に対応していません。ダウンロードをご利用ください。');
+        return;
+      }
+      const encoder = (window.TextEncoder) ? new TextEncoder() : null;
+      const data = encoder ? encoder.encode('\\uFEFF' + csvText) : ('\\uFEFF' + csvText);
+      const file = new File([data], 'collection_log.csv', {type:'text/csv'});
+      if(!navigator.canShare({files:[file]})){
+        alert('この端末/ブラウザでは共有できません。ダウンロードをご利用ください。');
+        return;
+      }
+      await navigator.share({ files:[file], title:'collection_log.csv', text:'CSV ログ' });
+    }catch(e){
+      // ユーザーがキャンセルした場合などもここに来ます
+      console.log('share canceled or failed:', e);
+    }
+  }
+  document.getElementById('btnDl').addEventListener('click', downloadCSVInner, {passive:true});
+  document.getElementById('btnShare').addEventListener('click', shareCSV, {passive:true});
+</script>
 </body></html>`;
     w.document.open(); w.document.write(html); w.document.close();
   }
+
+  function escapeHTML(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
   document.getElementById('btnDownload').addEventListener('click',()=>{ blurActiveInput(); downloadCSV(); });
-  document.getElementById('btnPreview').addEventListener('click', ()=>{ blurActiveInput(); previewCSV(); });
+  document.getElementById('btnPreview').addEventListener('click', ()=>{ previewCSV(); });
 
   /* 位置取得 */
   async function getCurrentLatLng(){
