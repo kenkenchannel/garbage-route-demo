@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer74</title>
+<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer75</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -67,7 +67,7 @@
   .file-wrap{background:#f0e68c;border:1px solid #ccc;border-radius:8px;padding:6px}
   .file-wrap input[type="file"]{width:100%;border:none;background:#fff;border-radius:6px;padding:8px;box-sizing:border-box;outline:none;-webkit-appearance:auto}
 
-  /* === CSVプレビュー：ページ内モーダル（Ver74） === */
+  /* === CSVプレビュー：ページ内モーダル === */
   #csvOverlay{
     position:fixed; inset:0; background:rgba(0,0,0,.55);
     z-index:3000; display:none; align-items:center; justify-content:center;
@@ -78,9 +78,7 @@
     box-shadow:0 10px 30px rgba(0,0,0,.35); display:flex; flex-direction:column;
     font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
   }
-  #csvHead{
-    padding:10px; border-bottom:1px solid #e5e7eb; background:#f7f7f8;
-  }
+  #csvHead{ padding:10px; border-bottom:1px solid #e5e7eb; background:#f7f7f8; }
   #csvHead .row{ display:flex; gap:8px; flex-wrap:wrap }
   #csvHead h1{ font-size:16px; margin:0 0 6px }
   #csvHead .btn{ appearance:none; border:0; border-radius:10px; padding:10px 14px; font-size:14px }
@@ -110,7 +108,7 @@
 
 <div class="panel" id="panel">
   <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
-  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver74</div>
+  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver75</div>
 
   <div class="controls">
     <div class="row">
@@ -170,7 +168,7 @@
   </div>
 </div>
 
-<!-- === Ver74: CSVプレビュー用モーダル（別タブを使わない） === -->
+<!-- CSVプレビュー用モーダル -->
 <div id="csvOverlay" aria-modal="true" role="dialog">
   <div id="csvPanel">
     <div id="csvHead">
@@ -460,10 +458,12 @@
     }
   }
 
+  /* 無回収（黄化） */
   function skipSelected(){
     if(selected.size===0) return;
     let done=0;
-    for(const nm of Array.from(selected)){
+    const selectedNow = Array.from(selected);
+    for(const nm of selectedNow){
       const p=nameIndex.get(nm);
       if(!p || p.status!=='normal') continue;
       p.status='skipped';
@@ -474,6 +474,11 @@
     }
     if(done>0){ showToast(`${done} 件を「無回収」にしました`,2); updatePointCount(); }
     refreshFab();
+
+    /* ★ 追加：1件だけ黄化した場合、その地点の次（Description）へ即ナビ */
+    if(done===1 && selectedNow.length===1){
+      guideNextAfter(selectedNow[0]);
+    }
   }
   document.getElementById('btnFabCollect').addEventListener('click', collectSelected);
   document.getElementById('btnFabSkip').addEventListener('click',    skipSelected);
@@ -618,7 +623,7 @@
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 800);
   }
 
-  // === Ver74: ページ内モーダル版 CSVプレビュー（保存強化） ===
+  // === ページ内モーダル版 CSVプレビュー（保存強化） ===
   function previewCSV(){
     const csvText = makeCSVText();
     const bom = '\uFEFF';
@@ -665,7 +670,6 @@
       document.getElementById('csvBtnDownload').click();
     };
 
-    // オーバーレイ外クリックで閉じる（誤タップ防止のため外側のみ）
     overlay.onclick = (e)=>{ if(e.target === overlay) close(); };
   }
 
@@ -718,7 +722,7 @@
     let startIdx = -1;
     for(let i=0;i<nav.order.length;i++){
       const p=nameIndex.get(nav.order[i]);
-      if(p && p.status!=='collected'){ startIdx=i; break; }
+      if(p && p.status!=='collected'){ startIdx=i; break; } // collected 以外から開始（skipped も含む）
     }
     if(startIdx<0){ alert('未回収の地点がありません'); return; }
 
@@ -755,8 +759,8 @@
     }catch(_e){}
   }
 
-  function guideNextAfter(collectedName){
-    const nx = nextByDescription(collectedName);
+  function guideNextAfter(doneName){
+    const nx = nextByDescription(doneName);
     if(nx){
       nav.active=true;
       nav.lastAnnounceTarget = nx;
@@ -809,7 +813,8 @@
     let cur = nav.order[nav.idx];
     let currentPoint = nameIndex.get(cur);
 
-    if(!currentPoint || currentPoint.status==='collected'){
+    /* ★ 修正：currentPoint が collected だけでなく skipped でも次へ進む */
+    if(!currentPoint || currentPoint.status!=='normal'){ // 'collected' も 'skipped' もここに入る
       const k = strictOrder.indexOf(cur);
       if(k>=0 && k+1 < strictOrder.length){
         nav.idx = k+1; cur = nav.order[nav.idx] = strictOrder[nav.idx];
