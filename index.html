@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer75</title>
+<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer76</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -108,7 +108,7 @@
 
 <div class="panel" id="panel">
   <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
-  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver75</div>
+  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver76</div>
 
   <div class="controls">
     <div class="row">
@@ -395,6 +395,7 @@
   }
 
   let strictOrder=[];
+  const nextDistByName = new Map(); // A.name -> 距離(m) of (A -> A.desc)
   function meters(a,b){
     const dy=(a[0]-b[0])*111320;
     const dx=(a[1]-b[1])*111320*Math.cos((a[0]+b[0])*Math.PI/360);
@@ -403,6 +404,7 @@
 
   function buildStrictOrderFromFirst(){
     strictOrder=[];
+    nextDistByName.clear();
     if(!firstLoadedName || !nameIndex.has(firstLoadedName)){
       alert('先頭行の Name が正しく読み込めていません。');
       return;
@@ -419,7 +421,13 @@
         alert('Description が未定義の地点を参照しています: '+p.name+' → '+p.desc);
         break;
       }
-      cur = p.desc;
+      const nx = p.desc;
+      // ★ 事前計算：A(=p) → B(=nx) の直線距離を保存
+      const q = nameIndex.get(nx);
+      const d = meters([p.lat,p.lon],[q.lat,q.lon]);
+      nextDistByName.set(p.name, d);
+
+      cur = nx;
     }
     points.forEach(p=>{ p.seq=undefined; setPopupContent(p); });
     strictOrder.forEach((nm,i)=>{ const p=nameIndex.get(nm); if(p){ p.seq=i+1; setPopupContent(p); }});
@@ -475,7 +483,7 @@
     if(done>0){ showToast(`${done} 件を「無回収」にしました`,2); updatePointCount(); }
     refreshFab();
 
-    /* ★ 追加：1件だけ黄化した場合、その地点の次（Description）へ即ナビ */
+    /* 1件だけ黄化した場合、その地点の次（Description）へ即ナビ */
     if(done===1 && selectedNow.length===1){
       guideNextAfter(selectedNow[0]);
     }
@@ -486,7 +494,7 @@
   function clearAllPoints(){
     const ok = confirm('回収地点のデータを消去しますか？'); if(!ok) return;
     points.forEach(p=>{ if(p.selRing) map.removeLayer(p.selRing); map.removeLayer(p.marker); });
-    points.length=0; nameIndex.clear(); strictOrder=[]; firstLoadedName=null;
+    points.length=0; nameIndex.clear(); strictOrder=[]; firstLoadedName=null; nextDistByName.clear();
     clearSelection();
     document.getElementById('file').value='';
     updatePointCount();
@@ -501,7 +509,7 @@
       const ok = confirm('logCSVファイルにデータが存在します。消去しますか？\nOKで消去／キャンセルで残す');
       if(ok){ localStorage.setItem('collectionLog','[]'); }
     }
-    points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[];
+    points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[]; nextDistByName.clear();
     Papa.parse(file,{
       header:true,skipEmptyLines:true,
       complete:(res)=>{
@@ -541,7 +549,7 @@
   }
   async function importOther(file){
     try{
-      points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[];
+      points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[]; nextDistByName.clear();
       const text=await file.text();
       if(file.name.toLowerCase().endsWith('.kml')){
         const nameRegex=/<name>([\s\S]*?)<\/name>/gi;
@@ -746,15 +754,27 @@
   document.getElementById('btnNavStart').addEventListener('click', startGuidance);
   document.getElementById('btnNavStop').addEventListener('click',  stopGuidance);
 
-  function maybeFitToCarAndTarget(targetName){
+  // ★ 事前距離に基づくオートズーム実装
+  function autoZoomForNext(fromName, toName){
     try{
-      if(!locMarker) return;
-      const p=nameIndex.get(targetName); if(!p) return;
-      const latlngCar = locMarker.getLatLng();
-      const d = meters([latlngCar.lat,latlngCar.lng],[p.lat,p.lon]);
-      if(d >= nav.farZoomM){
-        const b=L.latLngBounds([ [latlngCar.lat,latlngCar.lng], [p.lat,p.lon] ]);
+      const req = nextDistByName.get(fromName); // A→B の直線距離（事前計算）
+      if(!Number.isFinite(req)) return;
+      if(req < nav.farZoomM) return;
+
+      const to = nameIndex.get(toName); if(!to) return;
+
+      if(locMarker){
+        const c = locMarker.getLatLng();
+        const b = L.latLngBounds([ [c.lat,c.lng], [to.lat,to.lon] ]);
         map.fitBounds(b,{padding:[30,30]});
+      }else{
+        const from = nameIndex.get(fromName);
+        if(from){
+          const b = L.latLngBounds([ [from.lat,from.lon], [to.lat,to.lon] ]);
+          map.fitBounds(b,{padding:[30,30]});
+        }else{
+          map.setView([to.lat,to.lon], 15);
+        }
       }
     }catch(_e){}
   }
@@ -766,7 +786,9 @@
       nav.lastAnnounceTarget = nx;
       speakJa(nameIndex.get(nx).name+' へ向かってください');
       focusTarget(nx);
-      maybeFitToCarAndTarget(nx);
+      // ★ from=完了した地点 / to=次地点 でオートズーム判定
+      autoZoomForNext(doneName, nx);
+
       const j = strictOrder.indexOf(nx);
       if(j>=0){ nav.order = strictOrder.slice(); nav.idx = j; }
     }else{
@@ -813,17 +835,19 @@
     let cur = nav.order[nav.idx];
     let currentPoint = nameIndex.get(cur);
 
-    /* ★ 修正：currentPoint が collected だけでなく skipped でも次へ進む */
-    if(!currentPoint || currentPoint.status!=='normal'){ // 'collected' も 'skipped' もここに入る
+    // collected も skipped も通過扱いで「次へ」
+    if(!currentPoint || currentPoint.status!=='normal'){
       const k = strictOrder.indexOf(cur);
       if(k>=0 && k+1 < strictOrder.length){
+        const prev = cur; // ★ 直前（from）
         nav.idx = k+1; cur = nav.order[nav.idx] = strictOrder[nav.idx];
         currentPoint = nameIndex.get(cur);
         if(currentPoint){
           speakJa(currentPoint.name+' へ向かってください');
           nav.lastAnnounceTarget=cur;
           focusTarget(cur);
-          maybeFitToCarAndTarget(cur);
+          // ★ 事前距離に基づくオートズーム（from=prev, to=cur）
+          autoZoomForNext(prev, cur);
         }
       }else{
         speakJa('すべて完了しました'); stopGuidance(); return;
@@ -833,6 +857,7 @@
     const lat=pos.coords.latitude, lon=pos.coords.longitude;
     const d = meters([lat,lon], [currentPoint.lat,currentPoint.lon]);
 
+    // 吹き出しの「常時表示」制御（近づいたら閉じる）
     if(d >= POPUP_STAY_UNTIL_M){
       if(currentPoint.marker && !currentPoint.marker.isPopupOpen()) currentPoint.marker.openPopup();
     }else{
@@ -841,7 +866,7 @@
 
     autoCollectIfArrived(lat,lon,cur);
 
-    // 回収前だけ「近くにあります」を発話（= currentPoint.status==='normal'）
+    // 回収前だけ「近くにあります」を発話
     if(currentPoint.status==='normal' && d<=nav.thresholdM && nav.lastAnnounceTarget !== (cur+'-near')){
       speakJa(currentPoint.name+' が近くにあります');
       nav.lastAnnounceTarget = (cur+'-near');
