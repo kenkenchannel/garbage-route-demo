@@ -84,7 +84,7 @@
 
 <div class="panel" id="panel">
   <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
-  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver72</div>
+  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver73</div>
 
   <div class="controls">
     <div class="row">
@@ -573,68 +573,106 @@
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 800);
   }
 
-  // ★ Ver72: 共有ウィンドウはスクリプト埋め込み無し（親側でイベント付与）
-  function previewCSV(){
-    blurAllInputs();
-    const txt = makeCSVText();
-    const w = window.open('', '_blank');
-    if(!w){ alert('ポップアップがブロックされました。設定で許可してください。'); return; }
+// --- ここから Ver73: CSVプレビュー（保存強化版） ---
+function previewCSV(){
+  const csvText = makeCSVText();               // 既存の関数を利用
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csvText], { type: 'text/csv;charset=utf-8' });
+  const blobUrl = URL.createObjectURL(blob);
+  const fileName = 'collection_log.csv';
 
-    const html = `
-<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8">
+  const w = window.open('', '_blank', 'noopener');
+  if(!w){ alert('ポップアップがブロックされました。設定で許可してください。'); return; }
+
+  const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  w.document.open();
+  w.document.write(`<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CSVプレビュー</title>
 <style>
-  body{font-family:ui-monospace,Menlo,Consolas,monospace;margin:0;padding:0}
-  header{position:sticky;top:0;background:#f6f6f6;border-bottom:1px solid #ddd;padding:10px}
-  header .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  button{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:8px 12px;border-radius:8px;border:1px solid #ccc;background:#fff}
-  button.primary{background:#2563eb;color:#fff;border:none}
-  .hint{font-size:12px;color:#555}
-  pre{white-space:pre;overflow:auto;margin:0;padding:12px}
+  :root{--fg:#111;--sub:#555;--bg:#fff;--btn:#2563eb;--btn2:#10b981}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif}
+  header{position:sticky;top:0;background:#f7f7f8;border-bottom:1px solid #e5e7eb;padding:10px;z-index:10}
+  h1{font-size:16px;margin:0 0 6px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{appearance:none;border:0;border-radius:10px;padding:10px 14px;font-size:14px}
+  .btn-primary{background:var(--btn);color:#fff}
+  .btn-share{background:var(--btn2);color:#fff}
+  .btn-ghost{background:#fff;border:1px solid #d1d5db;color:#111}
+  .hint{font-size:12px;color:var(--sub);margin-top:6px}
+  pre{white-space:pre;overflow:auto;margin:0;padding:12px;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace}
+  a.save-link{display:inline-block;margin-top:8px;font-size:13px}
 </style>
-</head><body>
+</head>
+<body>
 <header>
+  <h1>CSVプレビュー</h1>
   <div class="row">
-    <button id="btnDl" class="primary">このCSVをダウンロード</button>
-    <button id="btnShare">“ファイル”に保存/共有</button>
+    <button id="btnDownload" class="btn btn-primary">このCSVをダウンロード</button>
+    <button id="btnShare" class="btn btn-share">“ファイル”に保存 / 共有</button>
+    <button id="btnClose" class="btn btn-ghost">閉じる</button>
   </div>
-  <div class="hint">iPhone: ダウンロード後は Safari の「↓」から共有 → 「“ファイル”に保存」。<br>
-  「“ファイル”に保存/共有」は Web Share API で共有シートへ直接ファイルを渡します。</div>
+  <div class="hint">
+    iPhoneの「ダウンロード」フォルダに保存されます。<br>
+    共有が開かない場合は、<a id="longpress" class="save-link" href="${blobUrl}" download="${fileName}">このリンクを長押しして“ファイルに保存”</a> をお試しください。
+  </div>
 </header>
-<pre id="csvpre"></pre>
-</body></html>`;
-    w.document.open(); w.document.write(html); w.document.close();
+<pre>${esc(csvText)}</pre>
 
-    // 親側から安全に内容設定＆イベント付与（scriptタグは使わない）
-    w.document.getElementById('csvpre').textContent = txt;
+<script>
+(function(){
+  const fileName = ${JSON.stringify(fileName)};
+  const blobUrl = ${JSON.stringify(blobUrl)};
 
-    w.document.getElementById('btnDl').addEventListener('click', ()=>{
-      const blob = new Blob(['\uFEFF' + txt], {type:'text/csv;charset=utf-8'});
-      const url  = URL.createObjectURL(blob);
-      const a = w.document.createElement('a');
-      a.href = url; a.download = 'collection_log.csv'; a.rel = 'noopener';
-      w.document.body.appendChild(a); a.click();
-      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 600);
-    }, {passive:true});
-
-    w.document.getElementById('btnShare').addEventListener('click', async ()=>{
-      try{
-        if(!('share' in navigator) || !('canShare' in navigator)){
-          w.alert('この端末/ブラウザはファイル共有に対応していません。ダウンロードをご利用ください。');
-          return;
-        }
-        const encoder = (window.TextEncoder) ? new TextEncoder() : null;
-        const data = encoder ? encoder.encode('\uFEFF' + txt) : ('\uFEFF' + txt);
-        const file = new File([data], 'collection_log.csv', {type:'text/csv'});
-        if(!navigator.canShare({files:[file]})){
-          w.alert('この端末/ブラウザでは共有できません。ダウンロードをご利用ください。');
-          return;
-        }
-        await navigator.share({ files:[file], title:'collection_log.csv', text:'CSV ログ' });
-      }catch(e){ console.log('share canceled or failed:', e); }
-    }, {passive:true});
+  function downloadFallback(){
+    // a[download] → iOS で確実に実行させるため setTimeout でクリック
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = fileName;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    setTimeout(()=>{ a.click(); a.remove(); }, 0);
+    // ユーザーに保存場所のヒント
+    setTimeout(()=>alert('保存しました：”ファイル”アプリ → ダウンロード → ' + fileName), 200);
   }
+
+  async function shareWithFallback(){
+    try{
+      // Web Share Level 2（ファイル共有）
+      const resp = await fetch(blobUrl);
+      const blob = await resp.blob();
+      const file = new File([blob], fileName, {type: blob.type || 'text/csv'});
+      if(navigator.canShare && navigator.canShare({ files:[file] })){
+        await navigator.share({ files:[file], title:'collection_log.csv', text:'回収ログCSV' });
+        return;
+      }
+      // URL共有のみ
+      if(navigator.share){
+        await navigator.share({ title:'collection_log.csv', url: blobUrl });
+        return;
+      }
+      // どちらも不可 → ダウンロードにフォールバック
+      downloadFallback();
+    }catch(e){
+      // キャンセル含むすべての例外時もフォールバック
+      downloadFallback();
+    }
+  }
+
+  document.getElementById('btnDownload').addEventListener('click', downloadFallback, {once:false});
+  document.getElementById('btnShare').addEventListener('click', shareWithFallback, {once:false});
+  document.getElementById('btnClose').addEventListener('click', ()=>window.close());
+})();
+<\/script>
+</body>
+</html>`);
+  w.document.close();
+}
+// --- ここまで Ver73 ---
 
   document.getElementById('btnDownload').addEventListener('click',()=>{ blurActiveInput(); downloadCSV(); });
   document.getElementById('btnPreview').addEventListener('click', ()=>{ previewCSV(); });
