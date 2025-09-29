@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer72</title>
+<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer74</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -66,6 +66,31 @@
 
   .file-wrap{background:#f0e68c;border:1px solid #ccc;border-radius:8px;padding:6px}
   .file-wrap input[type="file"]{width:100%;border:none;background:#fff;border-radius:6px;padding:8px;box-sizing:border-box;outline:none;-webkit-appearance:auto}
+
+  /* === CSVプレビュー：ページ内モーダル（Ver74） === */
+  #csvOverlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.55);
+    z-index:3000; display:none; align-items:center; justify-content:center;
+  }
+  #csvPanel{
+    width:min(920px, 94vw); height:min(80vh, 720px);
+    background:#fff; color:#111; border-radius:12px; overflow:hidden;
+    box-shadow:0 10px 30px rgba(0,0,0,.35); display:flex; flex-direction:column;
+    font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
+  }
+  #csvHead{
+    padding:10px; border-bottom:1px solid #e5e7eb; background:#f7f7f8;
+  }
+  #csvHead .row{ display:flex; gap:8px; flex-wrap:wrap }
+  #csvHead h1{ font-size:16px; margin:0 0 6px }
+  #csvHead .btn{ appearance:none; border:0; border-radius:10px; padding:10px 14px; font-size:14px }
+  #csvHead .btn-primary{ background:#2563eb; color:#fff }
+  #csvHead .btn-share{ background:#10b981; color:#fff }
+  #csvHead .btn-ghost{ background:#fff; border:1px solid #d1d5db; color:#111 }
+  #csvHead .hint{ font-size:12px; color:#555; margin-top:6px }
+  #csvBody{ flex:1; overflow:auto; }
+  #csvBody pre{ margin:0; padding:12px; white-space:pre; font:12px/1.5 ui-monospace,Menlo,Consolas,monospace }
+  #csvHead a.save-link{ display:inline-block; margin-top:8px; font-size:13px }
 </style>
 </head>
 <body>
@@ -73,6 +98,7 @@
 <div id="err" class="err"></div>
 <div id="toast"></div>
 
+<!-- 地図上：大きい回収ボタン / 未回収（黄化）ボタン -->
 <button id="btnFabCollect" class="fab">回収（選択 0）</button>
 <button id="btnFabSkip" class="fab-small">無回収（選択→黄）</button>
 
@@ -84,7 +110,7 @@
 
 <div class="panel" id="panel">
   <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
-  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver73</div>
+  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver74</div>
 
   <div class="controls">
     <div class="row">
@@ -141,6 +167,25 @@
     </div>
 
     <div class="footer">Leaflet + Vanilla JS</div>
+  </div>
+</div>
+
+<!-- === Ver74: CSVプレビュー用モーダル（別タブを使わない） === -->
+<div id="csvOverlay" aria-modal="true" role="dialog">
+  <div id="csvPanel">
+    <div id="csvHead">
+      <h1>CSVプレビュー</h1>
+      <div class="row">
+        <button id="csvBtnDownload" class="btn btn-primary">このCSVをダウンロード</button>
+        <button id="csvBtnShare" class="btn btn-share">“ファイル”に保存 / 共有</button>
+        <button id="csvBtnClose" class="btn btn-ghost">閉じる</button>
+      </div>
+      <div class="hint">
+        iPhone の「ダウンロード」フォルダに保存されます。<br>
+        共有が開かない場合は、<a id="csvLongpress" class="save-link" href="#" download="collection_log.csv">このリンクを長押しして“ファイルに保存”</a> をお試しください。
+      </div>
+    </div>
+    <div id="csvBody"><pre id="csvPre"></pre></div>
   </div>
 </div>
 
@@ -573,106 +618,56 @@
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 800);
   }
 
-// --- ここから Ver73: CSVプレビュー（保存強化版） ---
-function previewCSV(){
-  const csvText = makeCSVText();               // 既存の関数を利用
-  const bom = '\uFEFF';
-  const blob = new Blob([bom + csvText], { type: 'text/csv;charset=utf-8' });
-  const blobUrl = URL.createObjectURL(blob);
-  const fileName = 'collection_log.csv';
+  // === Ver74: ページ内モーダル版 CSVプレビュー（保存強化） ===
+  function previewCSV(){
+    const csvText = makeCSVText();
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csvText], { type: 'text/csv;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(blob);
+    const fileName = 'collection_log.csv';
 
-  const w = window.open('', '_blank', 'noopener');
-  if(!w){ alert('ポップアップがブロックされました。設定で許可してください。'); return; }
+    const overlay = document.getElementById('csvOverlay');
+    const pre = document.getElementById('csvPre');
+    pre.textContent = csvText;
+    const longpress = document.getElementById('csvLongpress');
+    longpress.href = blobUrl;
+    longpress.setAttribute('download', fileName);
+    overlay.style.display = 'flex';
 
-  const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-
-  w.document.open();
-  w.document.write(`<!doctype html>
-<html lang="ja">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CSVプレビュー</title>
-<style>
-  :root{--fg:#111;--sub:#555;--bg:#fff;--btn:#2563eb;--btn2:#10b981}
-  body{margin:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif}
-  header{position:sticky;top:0;background:#f7f7f8;border-bottom:1px solid #e5e7eb;padding:10px;z-index:10}
-  h1{font-size:16px;margin:0 0 6px}
-  .row{display:flex;gap:8px;flex-wrap:wrap}
-  .btn{appearance:none;border:0;border-radius:10px;padding:10px 14px;font-size:14px}
-  .btn-primary{background:var(--btn);color:#fff}
-  .btn-share{background:var(--btn2);color:#fff}
-  .btn-ghost{background:#fff;border:1px solid #d1d5db;color:#111}
-  .hint{font-size:12px;color:var(--sub);margin-top:6px}
-  pre{white-space:pre;overflow:auto;margin:0;padding:12px;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace}
-  a.save-link{display:inline-block;margin-top:8px;font-size:13px}
-</style>
-</head>
-<body>
-<header>
-  <h1>CSVプレビュー</h1>
-  <div class="row">
-    <button id="btnDownload" class="btn btn-primary">このCSVをダウンロード</button>
-    <button id="btnShare" class="btn btn-share">“ファイル”に保存 / 共有</button>
-    <button id="btnClose" class="btn btn-ghost">閉じる</button>
-  </div>
-  <div class="hint">
-    iPhoneの「ダウンロード」フォルダに保存されます。<br>
-    共有が開かない場合は、<a id="longpress" class="save-link" href="${blobUrl}" download="${fileName}">このリンクを長押しして“ファイルに保存”</a> をお試しください。
-  </div>
-</header>
-<pre>${esc(csvText)}</pre>
-
-<script>
-(function(){
-  const fileName = ${JSON.stringify(fileName)};
-  const blobUrl = ${JSON.stringify(blobUrl)};
-
-  function downloadFallback(){
-    // a[download] → iOS で確実に実行させるため setTimeout でクリック
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = fileName;
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    setTimeout(()=>{ a.click(); a.remove(); }, 0);
-    // ユーザーに保存場所のヒント
-    setTimeout(()=>alert('保存しました：”ファイル”アプリ → ダウンロード → ' + fileName), 200);
-  }
-
-  async function shareWithFallback(){
-    try{
-      // Web Share Level 2（ファイル共有）
-      const resp = await fetch(blobUrl);
-      const blob = await resp.blob();
-      const file = new File([blob], fileName, {type: blob.type || 'text/csv'});
-      if(navigator.canShare && navigator.canShare({ files:[file] })){
-        await navigator.share({ files:[file], title:'collection_log.csv', text:'回収ログCSV' });
-        return;
-      }
-      // URL共有のみ
-      if(navigator.share){
-        await navigator.share({ title:'collection_log.csv', url: blobUrl });
-        return;
-      }
-      // どちらも不可 → ダウンロードにフォールバック
-      downloadFallback();
-    }catch(e){
-      // キャンセル含むすべての例外時もフォールバック
-      downloadFallback();
+    function close(){
+      overlay.style.display = 'none';
+      URL.revokeObjectURL(blobUrl);
     }
-  }
+    document.getElementById('csvBtnClose').onclick = close;
 
-  document.getElementById('btnDownload').addEventListener('click', downloadFallback, {once:false});
-  document.getElementById('btnShare').addEventListener('click', shareWithFallback, {once:false});
-  document.getElementById('btnClose').addEventListener('click', ()=>window.close());
-})();
-<\/script>
-</body>
-</html>`);
-  w.document.close();
-}
-// --- ここまで Ver73 ---
+    document.getElementById('csvBtnDownload').onclick = ()=>{
+      const a = document.createElement('a');
+      a.href = blobUrl; a.download = fileName; a.rel = 'noopener';
+      document.body.appendChild(a);
+      setTimeout(()=>{ a.click(); a.remove(); }, 0);
+      setTimeout(()=>alert('保存しました：設定 > Safari > ダウンロード の保存先に保存されています。\n“ファイル”アプリ → ダウンロード で確認できます。'), 250);
+    };
+
+    document.getElementById('csvBtnShare').onclick = async ()=>{
+      try{
+        const resp = await fetch(blobUrl);
+        const b = await resp.blob();
+        const f = new File([b], fileName, {type: b.type || 'text/csv'});
+        if(navigator.canShare && navigator.canShare({files:[f]})){
+          await navigator.share({ files:[f], title:fileName, text:'回収ログCSV' });
+          return;
+        }
+        if(navigator.share){
+          await navigator.share({ title:fileName, url: blobUrl });
+          return;
+        }
+      }catch(_e){}
+      document.getElementById('csvBtnDownload').click();
+    };
+
+    // オーバーレイ外クリックで閉じる（誤タップ防止のため外側のみ）
+    overlay.onclick = (e)=>{ if(e.target === overlay) close(); };
+  }
 
   document.getElementById('btnDownload').addEventListener('click',()=>{ blurActiveInput(); downloadCSV(); });
   document.getElementById('btnPreview').addEventListener('click', ()=>{ previewCSV(); });
@@ -841,7 +836,7 @@ function previewCSV(){
 
     autoCollectIfArrived(lat,lon,cur);
 
-    // 回収前だけ「近くにあります」を発話（=currentPoint.status==='normal'）
+    // 回収前だけ「近くにあります」を発話（= currentPoint.status==='normal'）
     if(currentPoint.status==='normal' && d<=nav.thresholdM && nav.lastAnnounceTarget !== (cur+'-near')){
       speakJa(currentPoint.name+' が近くにあります');
       nav.lastAnnounceTarget = (cur+'-near');
