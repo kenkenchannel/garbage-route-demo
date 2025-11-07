@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 手動回収 + 基本回収ルート）leafletVer85実車無SV版</title>
+<title>回収選択デモ（Leaflet + 手動回収 + Description鎖）leafletVer86 実車無SV版</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -65,28 +65,6 @@
   .file-wrap{background:#f0e68c;border:1px solid #ccc;border-radius:8px;padding:6px}
   .file-wrap input[type="file"]{width:100%;border:none;background:#fff;border-radius:6px;padding:8px;box-sizing:border-box;outline:none;-webkit-appearance:auto}
 
-  /* CSVプレビュー：ページ内モーダル */
-  #csvOverlay{
-    position:fixed; inset:0; background:rgba(0,0,0,.55);
-    z-index:3000; display:none; align-items:center; justify-content:center;
-  }
-  #csvPanel{
-    width:min(920px, 94vw); height:min(80vh, 720px);
-    background:#fff; color:#111; border-radius:12px; overflow:hidden;
-    box-shadow:0 10px 30px rgba(0,0,0,.35); display:flex; flex-direction:column;
-  }
-  #csvHead{ padding:10px; border-bottom:1px solid #e5e7eb; background:#f7f7f8; }
-  #csvHead .row{ display:flex; gap:8px; flex-wrap:wrap }
-  #csvHead h1{ font-size:16px; margin:0 0 6px }
-  #csvHead .btn{ appearance:none; border:0; border-radius:10px; padding:10px 14px; font-size:14px }
-  #csvHead .btn-primary{ background:#2563eb; color:#fff }
-  #csvHead .btn-share{ background:#10b981; color:#fff }
-  #csvHead .btn-ghost{ background:#fff; border:1px solid #d1d5db; color:#111 }
-  #csvHead .hint{ font-size:12px; color:#555; margin-top:6px }
-  #csvBody{ flex:1; overflow:auto; }
-  #csvBody pre{ margin:0; padding:12px; white-space:pre; font:12px/1.5 ui-monospace,Menlo,Consolas,monospace }
-
-  /* SVリンクボタン */
   .link-sv{
     display:inline-block;margin-top:6px;background:#10b981;color:#fff;
     padding:6px 10px;border-radius:8px;text-decoration:none;font-size:12px
@@ -105,9 +83,9 @@
 <button id="btnPanel" title="設定の表示/非表示">設定</button>
 
 <div class="panel" id="panel">
-  <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span></h2>
+  <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
   <div class="small" style="color:#c00;margin:4px 0 8px;">
-    地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」 <b>leafletVer85実車無SV版</b>
+    地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」 <b>Ver86 実車無SV版</b>
   </div>
 
   <div class="controls">
@@ -140,14 +118,17 @@
       </label>
     </div>
 
-    <!-- 「遠距離オートズーム(m)」の右側に全クリア -->
     <div class="row">
       <label>遠距離オートズーム(m)
         <input type="text" id="farZoom" value="100" inputmode="numeric" autocomplete="off">
       </label>
-      <div style="display:flex;align-items:end;">
-        <button id="btnClearAll" class="ghost" style="width:100%;">回収地点全クリア</button>
-      </div>
+      <div></div>
+    </div>
+
+    <!-- ★ ナビ開始 / 一時停止 を復活 -->
+    <div class="row">
+      <button id="btnNavStart" class="primary">ナビ開始（Description順のみ）</button>
+      <button id="btnNavStop" class="ghost">一時停止</button>
     </div>
 
     <div class="row">
@@ -155,571 +136,493 @@
       <button id="btnPreview" class="ghost">CSV表示</button>
     </div>
 
-    <div class="footer">Leaflet + Vanilla JS（No actual car：位置取得オフ／SVリンク対応）</div>
-  </div>
-</div>
-
-<!-- CSVプレビュー用モーダル -->
-<div id="csvOverlay" aria-modal="true" role="dialog">
-  <div id="csvPanel">
-    <div id="csvHead">
-      <h1>CSVプレビュー</h1>
-      <div class="row">
-        <button id="csvBtnDownload" class="btn btn-primary">このCSVをダウンロード</button>
-        <button id="csvBtnShare" class="btn btn-share">“ファイル”に保存 / 共有</button>
-        <button id="csvBtnClose" class="btn btn-ghost">閉じる</button>
-      </div>
-      <div class="hint">
-        iPhone の「ダウンロード」フォルダに保存されます。<br>
-        共有が開かない場合は、<a id="csvLongpress" class="save-link" href="#" download="collection_log.csv">このリンクを長押しして“ファイルに保存”</a> をお試しください。
-      </div>
-    </div>
-    <div id="csvBody"><pre id="csvPre"></pre></div>
+    <div class="footer">Leaflet + Vanilla JS（No actual car：位置取得オフ / ポップアップにSVリンク）</div>
   </div>
 </div>
 
 <script>
 (function(){
-  // 常に DOMContentLoaded 後に初期化
-  document.addEventListener('DOMContentLoaded', init, { once: true });
+  // 安全な初期化
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once:true });
+  } else {
+    init();
+  }
 
   function init(){
-  /* ========= ユーティリティ ========= */
-  const SUPPRESS_MS = 2000;
+    /* ========= ユーティリティ ========= */
+    const errEl = document.getElementById('err');
+    const toastEl = document.getElementById('toast');
 
-  const $ = (id)=> document.getElementById(id);
-  const on = (id, ev, fn)=>{
-    const el = $(id);
-    if(el && el.addEventListener) el.addEventListener(ev, fn);
-    else console.warn('[warn] element not found for', id);
-    return el;
-  };
-
-  function showErr(e){
-    const el=$('err');
-    if(el){
-      el.textContent='Error: '+(e&&e.message?e.message:e);
-      el.style.display='block';
+    function showErr(e){
+      errEl.textContent='Error: '+(e && e.message ? e.message : e);
+      errEl.style.display='block';
+      console.error(e);
     }
-    console.error(e);
-  }
-  function speakJa(t){
-    try{ const u=new SpeechSynthesisUtterance(t); u.lang='ja-JP'; u.rate=1.0; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(_e){}
-  }
-  function showToast(msg, seconds=2){
-    const t=$('toast'); if(!t) return;
-    t.textContent=msg; t.style.display='block';
-    clearTimeout(showToast._timer);
-    showToast._timer=setTimeout(()=>{ t.style.display='none'; }, seconds*1000);
-  }
-  window.addEventListener('error',ev=>showErr(ev.error||ev.message||'unknown'));
-
-  /* パネル開閉 */
-  const panel=$('panel');
-  const btnPanel=$('btnPanel');
-  let panelVisible=true, suppressFollowUntil=0;
-  function suppressFollow(ms = SUPPRESS_MS){ suppressFollowUntil = Math.max(suppressFollowUntil, Date.now() + ms); }
-  function togglePanel(force){
-    if(!panel) return;
-    if(typeof force==='boolean'){ panelVisible=force; } else { panelVisible=!panelVisible; }
-    panel.style.display=panelVisible?'block':'none';
-    if(!panelVisible){ blurAllInputs(); }
-  }
-  on('btnPanel','click',()=>{ suppressFollow(); togglePanel(); });
-
-  function blurActiveInput(){ const el=document.activeElement; if(!el) return; const tg=el.tagName; if(tg==='INPUT'||tg==='SELECT'||tg==='TEXTAREA'){ try{el.blur();}catch(_e){} } }
-  function blurAllInputs(){ blurActiveInput(); document.querySelectorAll('input,select,textarea').forEach(el=>{ if(el===document.activeElement) try{el.blur();}catch(_e){} }); }
-
-  /* 車両/運転者 */
-  const FLEET={"1772":["神山","大川","江田"],"5836":["熊坂","田端","藤田","平野","大川"],"8792":["熊坂","八田","平野","田端","大川"],"1771":["永浦","菊池","嶋田","田端","八田","藤田","大川"]};
-  const vehicleSel=$('vehicle');
-  const driverSel =$('driver');
-  function populateVehicles(){
-    if(!vehicleSel) return;
-    vehicleSel.innerHTML='';
-    Object.keys(FLEET).forEach(id=>{ const o=document.createElement('option'); o.value=id; o.textContent=id; vehicleSel.appendChild(o); });
-    vehicleSel.value=localStorage.getItem('vehicle')||Object.keys(FLEET)[0];
-    populateDrivers();
-  }
-  function populateDrivers(){
-    if(!driverSel || !vehicleSel) return;
-    const list=FLEET[vehicleSel.value]||[];
-    driverSel.innerHTML='';
-    list.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; driverSel.appendChild(o); });
-    const saved=localStorage.getItem('driver'); if(saved && list.includes(saved)) driverSel.value=saved;
-  }
-  on('vehicle','change', ()=>{ if(vehicleSel){ localStorage.setItem('vehicle',vehicleSel.value); populateDrivers(); } });
-  on('driver' ,'change', ()=>{ if(driverSel ){ localStorage.setItem('driver' ,driverSel.value ); } });
-  populateVehicles();
-
-  /* ===== 地図：衛星ハイブリッド（Esri衛星＋GSI注記） ===== */
-  const map=L.map('map',{zoomControl:false});
-  const osmStd = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'© OpenStreetMap'});
-  const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
-    maxZoom:20, attribution:'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
-  });
-  const gsiAnno = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/annotation/{z}/{x}/{y}.png',{
-    maxZoom:20, maxNativeZoom:18, opacity:0.9,
-    attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>'
-  });
-  esriSat.addTo(map); gsiAnno.addTo(map);
-  L.control.layers({"OSM標準": osmStd, "Esri衛星(推奨)": esriSat}, {"GSI注記(ラベル)": gsiAnno},{position:'bottomright', collapsed:true}).addTo(map);
-  map.setView([35.841,139.34],14);
-  L.control.zoom({position:'bottomleft'}).addTo(map);
-  ['movestart','dragstart','zoomstart','mousedown','touchstart','wheel'].forEach(ev=>{
-    map.on(ev, ()=>{ suppressFollow(2200); blurActiveInput(); });
-  });
-
-  /* ===== 回収地点（Name厳密一意） ===== */
-  const points=[]; const nameIndex=new Map(); let firstLoadedName=null;
-
-  const blueIcon=L.icon({
-    iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
-    shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
-  });
-  const yellowIcon=L.icon({
-    iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
-    iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
-    shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
-  });
-  const redIcon=L.icon({
-    iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-    iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
-    shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
-  });
-
-  function popupHtmlFor(p){
-    const badge = (typeof p.seq==='number') ? ` <span class="pill">#${p.seq}</span>` : '';
-    const sv = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${p.lat},${p.lon}`;
-    return `<b>${p.name}</b>${badge}<br><a class="link-sv" href="${sv}" target="_blank" rel="noopener">SV（ストリートビュー）</a>`;
-  }
-  function setPopupContent(p){ p.marker.bindPopup(popupHtmlFor(p)); }
-
-  const selected = new Set();
-  const btnFabCollect = $('btnFabCollect');
-  const btnFabSkip    = $('btnFabSkip');
-
-  function refreshFab(){
-    const n = selected.size;
-    if(btnFabCollect){ btnFabCollect.textContent = `回収（選択 ${n}）`; btnFabCollect.style.display = n>0 ? 'inline-block' : 'none'; }
-    if(btnFabSkip){    btnFabSkip.style.display    = n>0 ? 'inline-block' : 'none'; }
-  }
-
-  function onMarkerClick(rec){
-    if(rec.status==='normal'){ toggleSelect(rec); return; }
-    if(rec.status==='collected'){
-      if(confirm('アイコン色を赤から黄(無回収)に変更しますか？')){
-        rec.status='skipped';
-        rec.marker.setIcon(yellowIcon);
-        if(rec.selRing){ try{ map.removeLayer(rec.selRing); }catch(_e){} rec.selRing=null; }
-        updatePointCount();
-        showToast(`「${rec.name}」を無回収（黄）に変更しました`,2);
-      }
-      return;
+    function speakJa(t){
+      try{ const u=new SpeechSynthesisUtterance(t); u.lang='ja-JP'; u.rate=1.0; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(_e){}
     }
-    if(rec.status==='skipped'){
-      if(confirm('アイコン色を黄から赤(回収済)に変更しますか？')){
-        rec.status='collected';
-        rec.marker.setIcon(redIcon);
-        if(rec.selRing){ try{ map.removeLayer(rec.selRing); }catch(_e){} rec.selRing=null; }
-        updatePointCount();
-        showToast(`「${rec.name}」を回収済（赤）に戻しました`,2);
-      }
-      return;
+    function showToast(msg, seconds=2){
+      toastEl.textContent=msg; toastEl.style.display='block';
+      clearTimeout(showToast._timer);
+      showToast._timer=setTimeout(()=>{ toastEl.style.display='none'; }, seconds*1000);
     }
-  }
+    window.addEventListener('error',ev=>showErr(ev.error||ev.message||'unknown'));
 
-  function toggleSelect(rec){
-    if(rec.status!=='normal') return;
-    if(selected.has(rec.name)){
-      selected.delete(rec.name);
-      if(rec.selRing){ map.removeLayer(rec.selRing); rec.selRing=null; }
-      rec.marker.setZIndexOffset(0);
-    }else{
-      selected.add(rec.name);
-      rec.selRing = L.circleMarker([rec.lat,rec.lon],{
-        radius:18,color:'#06b6d4',weight:4,fill:false,opacity:0.8
-      }).addTo(map);
-      rec.marker.setZIndexOffset(500);
+    const $ = (id)=>document.getElementById(id);
+    const on = (id,ev,fn)=>{ const el=$(id); if(el) el.addEventListener(ev,fn); else console.warn('missing:',id); };
+
+    /* パネル開閉 */
+    const panel=$('panel');
+    let panelVisible=true;
+    function togglePanel(force){
+      if(typeof force==='boolean'){ panelVisible=force; } else { panelVisible=!panelVisible; }
+      panel.style.display=panelVisible?'block':'none';
+      if(!panelVisible){ blurAllInputs(); }
     }
-    refreshFab();
-  }
+    on('btnPanel','click',()=> togglePanel());
 
-  function addPoint(name,lat,lon,desc){
-    if(firstLoadedName===null) firstLoadedName=name;
-    const m=L.marker([lat,lon],{icon:blueIcon}).addTo(map);
-    const rec={name,lat,lon,desc:(desc||'').trim(),marker:m,status:'normal',selRing:null,seq:undefined};
-    setPopupContent(rec);
-    m.on('click', ()=> onMarkerClick(rec));
-    points.push(rec);
-    nameIndex.set(name,rec);
-  }
+    function blurActiveInput(){ const el=document.activeElement; if(!el) return; const tg=el.tagName; if(tg==='INPUT'||tg==='SELECT'||tg==='TEXTAREA'){ try{el.blur();}catch(_e){} } }
+    function blurAllInputs(){ blurActiveInput(); document.querySelectorAll('input,select,textarea').forEach(el=>{ if(el===document.activeElement) try{el.blur();}catch(_e){} }); }
 
-  function updatePointCount(){
-    const nRed=points.filter(p=>p.status==='collected').length;
-    const nYellow=points.filter(p=>p.status==='skipped').length;
-    const pc=$('pointCount'); if(pc) pc.textContent = `${points.length} 箇所(赤${nRed}/黄${nYellow})`;
-  }
-
-  function clearSelection(){
-    for(const nm of Array.from(selected)){
-      const p=nameIndex.get(nm);
-      if(p && p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
-      selected.delete(nm);
+    /* 車両/運転者 */
+    const FLEET={"1772":["神山","大川","江田"],"5836":["熊坂","田端","藤田","平野","大川"],"8792":["熊坂","八田","平野","田端","大川"],"1771":["永浦","菊池","嶋田","田端","八田","藤田","大川"]};
+    const vehicleSel=$('vehicle');
+    const driverSel =$('driver');
+    function populateVehicles(){
+      vehicleSel.innerHTML='';
+      Object.keys(FLEET).forEach(id=>{ const o=document.createElement('option'); o.value=id; o.textContent=id; vehicleSel.appendChild(o); });
+      vehicleSel.value=localStorage.getItem('vehicle')||Object.keys(FLEET)[0];
+      populateDrivers();
     }
-    refreshFab();
-  }
-
-  let strictOrder=[];
-  const nextDistByName = new Map();
-  function meters(a,b){
-    const dy=(a[0]-b[0])*111320;
-    const dx=(a[1]-b[1])*111320*Math.cos((a[0]+b[0])*Math.PI/360);
-    return Math.hypot(dx,dy);
-  }
-
-  function buildStrictOrderFromFirst(){
-    strictOrder=[];
-    nextDistByName.clear();
-    if(!firstLoadedName || !nameIndex.has(firstLoadedName)){
-      alert('先頭行の Name が正しく読み込めていません。');
-      return;
+    function populateDrivers(){
+      const list=FLEET[vehicleSel.value]||[];
+      driverSel.innerHTML='';
+      list.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; driverSel.appendChild(o); });
+      const saved=localStorage.getItem('driver'); if(saved && list.includes(saved)) driverSel.value=saved;
     }
-    const visited=new Set();
-    let cur = firstLoadedName;
-    while(cur && !visited.has(cur)){
-      const p = nameIndex.get(cur);
-      if(!p){ alert('存在しない地点が参照されました: '+cur); break; }
-      strictOrder.push(cur);
-      visited.add(cur);
-      if(!p.desc) break;
-      if(!nameIndex.has(p.desc)){
-        alert('Description が未定義の地点を参照しています: '+p.name+' → '+p.desc);
-        break;
-      }
-      const nx = p.desc;
-      const q = nameIndex.get(nx);
-      nextDistByName.set(p.name, meters([p.lat,p.lon],[q.lat,q.lon]));
-      cur = nx;
-    }
-    points.forEach(p=>{ p.seq=undefined; setPopupContent(p); });
-    strictOrder.forEach((nm,i)=>{ const p=nameIndex.get(nm); if(p){ p.seq=i+1; setPopupContent(p); }});
-  }
+    vehicleSel.addEventListener('change', ()=>{ localStorage.setItem('vehicle',vehicleSel.value); populateDrivers(); });
+    driverSel .addEventListener('change', ()=>{ localStorage.setItem('driver' ,driverSel.value ); });
+    populateVehicles();
 
-  /* ===== 手動回収（即時コミット／位置ログは空欄） ===== */
-  let logRows=JSON.parse(localStorage.getItem('collectionLog')||'[]');
-  function pushLogRow(row){ logRows.push(row); localStorage.setItem('collectionLog',JSON.stringify(logRows)); }
-  function nowStamp(){
-    const dt=new Date(); const pad=n=>String(n).padStart(2,'0');
-    return `${dt.getFullYear()}/${pad(dt.getMonth()+1)}/${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
-  }
+    /* 地図（OSM） */
+    const map=L.map('map',{zoomControl:true});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'OpenStreetMap'}).addTo(map);
+    map.setView([35.841,139.34],14);
 
-  async function collectSelected(){
-    if(!confirm('本当に回収しますか？')){ clearSelection(); refreshFab(); return; }
-    if(selected.size===0) return;
-    let done=0;
-    const picked = Array.from(selected);
-    for(const nm of picked){
-      const p=nameIndex.get(nm);
-      if(!p || p.status!=='normal') continue;
-      const vehicle=vehicleSel?vehicleSel.value:''; const driver=driverSel?driverSel.value:'';
-      pushLogRow([nowStamp(), p.name, '', '', vehicle, driver]);
-      p.status='collected';
-      p.marker.setIcon(redIcon);
-      if(p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
-      selected.delete(nm);
-      done++;
-    }
-    if(done>0){ showToast(`${done} 件（回収）を記録しました`,2); updatePointCount(); }
-    refreshFab();
-    if(done===1 && picked.length===1){ guideNextAfter(picked[0]); }
-  }
+    /* ===== 回収地点（Name厳密一意） ===== */
+    const points=[];
+    const nameIndex=new Map();
+    let firstLoadedName=null;
 
-  function skipSelected(){
-    if(selected.size===0) return;
-    let done=0;
-    const picked = Array.from(selected);
-    for(const nm of picked){
-      const p=nameIndex.get(nm);
-      if(!p || p.status!=='normal') continue;
-      p.status='skipped';
-      p.marker.setIcon(yellowIcon);
-      if(p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
-      selected.delete(nm);
-      done++;
-    }
-    if(done>0){ showToast(`${done} 件を「無回収」にしました`,2); updatePointCount(); }
-    refreshFab();
-    if(done===1 && picked.length===1){ guideNextAfter(picked[0]); }
-  }
-  on('btnFabCollect','click', collectSelected);
-  on('btnFabSkip','click',    skipSelected);
-
-  function clearAllPoints(){
-    const ok = confirm('回収地点のデータを消去しますか？'); if(!ok) return;
-    points.forEach(p=>{ if(p.selRing) map.removeLayer(p.selRing); map.removeLayer(p.marker); });
-    points.length=0; nameIndex.clear(); strictOrder=[]; firstLoadedName=null; nextDistByName.clear();
-    clearSelection();
-    const f=$('file'); if(f) f.value='';
-    updatePointCount();
-    alert('回収地点のデータを全て消去しました。');
-  }
-  on('btnClearAll','click', clearAllPoints);
-
-  /* CSV入出力（Name 重複チェック付） */
-  function importCSV(file){
-    points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[]; nextDistByName.clear();
-    Papa.parse(file,{
-      header:true,skipEmptyLines:true,
-      complete:(res)=>{
-        try{
-          const rows=res.data||[];
-          const seen=new Set(), dups=new Set();
-          for(const r of rows){
-            const nm=(r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||'').toString().trim();
-            if(!nm) continue;
-            if(seen.has(nm)) dups.add(nm); else seen.add(nm);
-          }
-          if(dups.size>0){ alert('地点の名称に重複があります。処理を中止します。\n重複: '+Array.from(dups).join(', ')); return; }
-
-          let added=0;
-          for(const r of rows){
-            const name=(r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||'').toString().trim();
-            const lat =parseFloat(r.Latitude||r.lat||r.Lat||r['緯度']);
-            const lon =parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r['経度']);
-            const desc=(r.Description||r.desc||r['説明']||'').toString().trim();
-            if(name && Number.isFinite(lat)&&Number.isFinite(lon)){ addPoint(name,lat,lon,desc); added++; }
-          }
-          if(added>0){
-            buildStrictOrderFromFirst();
-            map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
-            updatePointCount();
-            showToast(`${added} 点読み込み`,2);
-          }else{
-            alert('有効な列(Name,Latitude,Longitude)が見つかりません');
-          }
-        }catch(e){ showErr(e); }
-      },
-      error:(e)=>showErr(e)
+    const blueIcon=L.icon({
+      iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
+      shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
     });
-  }
-  async function importOther(file){
-    try{
-      points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[]; nextDistByName.clear();
-      const text=await file.text();
-      if(file.name.toLowerCase().endsWith('.kml')){
-        const nameRegex=/<name>([\s\S]*?)<\/name>/gi;
-        const coordRegex=/<coordinates>([-0-9.]+),([-0-9.]+)/gi;
-        const names=[]; let m;
-        while((m=nameRegex.exec(text))){ names.push(m[1].trim()); }
-        let i=0; while((m=coordRegex.exec(text))){
-          const lon=parseFloat(m[1]); const lat=parseFloat(m[2]);
-          const nm=(names[i]||'').toString().trim(); i++;
-          if(nm && Number.isFinite(lat)&&Number.isFinite(lon)) addPoint(nm,lat,lon,'');
+    const yellowIcon=L.icon({
+      iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
+      iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
+      shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+    });
+    const redIcon=L.icon({
+      iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+      iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
+      shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+    });
+
+    function popupHtmlFor(p){
+      const badge = (typeof p.seq==='number') ? ` <span class="pill">#${p.seq}</span>` : '';
+      const svUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${p.lat},${p.lon}`;
+      return `<b>${p.name}</b>${badge}<br>
+              <a class="link-sv" href="${svUrl}" target="_blank" rel="noopener">SV（ストリートビュー）</a>`;
+    }
+    function setPopupContent(p){ p.marker.bindPopup(popupHtmlFor(p)); }
+
+    const selected = new Set();
+    const btnFabCollect = $('btnFabCollect');
+    const btnFabSkip    = $('btnFabSkip');
+    function refreshFab(){
+      const n = selected.size;
+      btnFabCollect.textContent = `回収（選択 ${n}）`;
+      btnFabCollect.style.display = n>0 ? 'inline-block' : 'none';
+      btnFabSkip.style.display    = n>0 ? 'inline-block' : 'none';
+    }
+    function toggleSelect(rec){
+      if(rec.status!=='normal') return;
+      if(selected.has(rec.name)){
+        selected.delete(rec.name);
+        if(rec.selRing){ map.removeLayer(rec.selRing); rec.selRing=null; }
+        rec.marker.setZIndexOffset(0);
+      }else{
+        selected.add(rec.name);
+        rec.selRing = L.circleMarker([rec.lat,rec.lon],{
+          radius:18,color:'#06b6d4',weight:4,fill:false,opacity:0.8
+        }).addTo(map);
+        rec.marker.setZIndexOffset(500);
+      }
+      refreshFab();
+    }
+
+    function addPoint(name,lat,lon,desc){
+      if(firstLoadedName===null) firstLoadedName=name;
+      const m=L.marker([lat,lon],{icon:blueIcon}).addTo(map);
+      const rec={name,lat,lon,desc:(desc||'').trim(),marker:m,status:'normal',selRing:null,seq:undefined};
+      setPopupContent(rec);
+      m.on('click', ()=> toggleSelect(rec));
+      points.push(rec);
+      nameIndex.set(name,rec);
+    }
+
+    function updatePointCount(){
+      const nRed=points.filter(p=>p.status==='collected').length;
+      const nYellow=points.filter(p=>p.status==='skipped').length;
+      $('pointCount').textContent = `${points.length} 箇所(赤${nRed}/黄${nYellow})`;
+    }
+
+    function clearSelection(){
+      for(const nm of Array.from(selected)){
+        const p=nameIndex.get(nm);
+        if(p && p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
+        selected.delete(nm);
+      }
+      refreshFab();
+    }
+
+    let strictOrder=[];
+    function buildStrictOrderFromFirst(){
+      strictOrder=[];
+      if(!firstLoadedName || !nameIndex.has(firstLoadedName)){
+        alert('先頭行の Name が正しく読み込めていません。');
+        return;
+      }
+      const visited=new Set();
+      let cur = firstLoadedName;
+      while(cur && !visited.has(cur)){
+        const p = nameIndex.get(cur);
+        if(!p){ alert('存在しない地点が参照されました: '+cur); break; }
+        strictOrder.push(cur);
+        visited.add(cur);
+        if(!p.desc) break;
+        if(!nameIndex.has(p.desc)){
+          alert('Description が未定義の地点を参照しています: '+p.name+' → '+p.desc);
+          break;
         }
-      }else if(file.name.toLowerCase().endsWith('.geojson')||file.name.toLowerCase().endsWith('.json')){
-        const gj=JSON.parse(text);
-        const feats=gj.type==='FeatureCollection'?gj.features:[];
-        feats.forEach(f=>{
-          if(f.geometry && f.geometry.type==='Point' && Array.isArray(f.geometry.coordinates)){
-            const lon=f.geometry.coordinates[0], lat=f.geometry.coordinates[1];
-            const nm=((f.properties&&(f.properties.Name||f.properties.name))||'').toString().trim();
-            if(nm) addPoint(nm,lat,lon,'');
-          }
-        });
+        cur = p.desc;
       }
-      if(points.length){
-        buildStrictOrderFromFirst();
-        map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
-        updatePointCount();
+      points.forEach(p=>{ p.seq=undefined; setPopupContent(p); });
+      strictOrder.forEach((nm,i)=>{ const p=nameIndex.get(nm); if(p){ p.seq=i+1; setPopupContent(p); }});
+    }
+
+    /* 手動回収（No actual car）*/
+    function pushLogRow(row){
+      const key='collectionLog';
+      const logRows=JSON.parse(localStorage.getItem(key)||'[]');
+      logRows.push(row);
+      localStorage.setItem(key, JSON.stringify(logRows));
+    }
+    function nowStamp(){
+      const dt=new Date(); const pad=n=>String(n).padStart(2,'0');
+      return `${dt.getFullYear()}/${pad(dt.getMonth()+1)}/${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+    }
+
+    function collectSelected(){
+      if(!confirm('本当に回収しますか？')){ clearSelection(); refreshFab(); return; }
+      if(selected.size===0) return;
+      let done=0;
+      const selectedNow = Array.from(selected);
+      for(const nm of selectedNow){
+        const p=nameIndex.get(nm);
+        if(!p || p.status!=='normal') continue;
+        const vehicle=vehicleSel.value; const driver=driverSel.value;
+        pushLogRow([nowStamp(), p.name, '', '', vehicle, driver]);
+        p.status='collected';
+        p.marker.setIcon(redIcon);
+        if(p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
+        selected.delete(nm);
+        done++;
       }
-    }catch(e){ showErr(e); }
-  }
-  on('file','change',(e)=>{
-    const f=e.target.files[0]; if(!f) return;
-    blurAllInputs();
-    if(/\.csv$/i.test(f.name)) importCSV(f); else importOther(f);
-  });
-
-  /* 記録CSV（モーダルUI） */
-  function makeCSVText(){
-    const header=['Datetime','Place','DeviceLat','DeviceLon','Vehicle','Driver'];
-    const lines=[header].concat(logRows).map(r=>r.map(x=>String(x).replace(/"/g,'""')).join(','));
-    return lines.join('\n');
-  }
-  function previewCSV(){
-    const csvText = makeCSVText();
-    const bom = '\uFEFF';
-    const blob = new Blob([bom + csvText], { type: 'text/csv;charset=utf-8' });
-    const blobUrl = URL.createObjectURL(blob);
-    const fileName = 'collection_log.csv';
-
-    const overlay = $('csvOverlay');
-    const pre = $('csvPre');
-    if(pre) pre.textContent = csvText;
-    const longpress = $('csvLongpress');
-    if(longpress){
-      longpress.href = blobUrl;
-      longpress.setAttribute('download', fileName);
+      if(done>0){ showToast(`${done} 件（回収）を記録しました`,2); updatePointCount(); }
+      refreshFab();
+      if(done===1 && selectedNow.length===1){ guideNextAfter(selectedNow[0]); }
     }
-    if(overlay) overlay.style.display = 'flex';
 
-    function close(){
-      if(overlay) overlay.style.display = 'none';
-      URL.revokeObjectURL(blobUrl);
+    function skipSelected(){
+      if(selected.size===0) return;
+      let done=0;
+      const selectedNow = Array.from(selected);
+      for(const nm of selectedNow){
+        const p=nameIndex.get(nm);
+        if(!p || p.status!=='normal') continue;
+        p.status='skipped';
+        p.marker.setIcon(yellowIcon);
+        if(p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
+        selected.delete(nm);
+        done++;
+      }
+      if(done>0){ showToast(`${done} 件を「無回収」にしました`,2); updatePointCount(); }
+      refreshFab();
+      if(done===1 && selectedNow.length===1){ guideNextAfter(selectedNow[0]); }
     }
-    on('csvBtnClose','click', close);
+    on('btnFabCollect','click', collectSelected);
+    on('btnFabSkip','click',    skipSelected);
 
-    on('csvBtnDownload','click', ()=>{
-      const a = document.createElement('a');
-      a.href = blobUrl; a.download = fileName; a.rel = 'noopener';
-      document.body.appendChild(a);
-      setTimeout(()=>{ a.click(); a.remove(); }, 0);
-      setTimeout(()=>alert('保存しました：設定 > Safari > ダウンロード の保存先に保存されています。\n“ファイル”アプリ → ダウンロード で確認できます。'), 250);
-    });
+    function clearAllPoints(){
+      const ok = confirm('回収地点のデータを消去しますか？'); if(!ok) return;
+      points.forEach(p=>{ if(p.selRing) map.removeLayer(p.selRing); map.removeLayer(p.marker); });
+      points.length=0; nameIndex.clear(); strictOrder=[]; firstLoadedName=null;
+      clearSelection();
+      $('file').value='';
+      updatePointCount();
+      alert('回収地点のデータを全て消去しました。');
+    }
+    on('btnClearAll','click', clearAllPoints);
 
-    on('csvBtnShare','click', async ()=>{
+    /* CSV入出力（Name 重複チェック付） */
+    function importCSV(file){
+      points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[];
+      Papa.parse(file,{
+        header:true,skipEmptyLines:true,
+        complete:(res)=>{
+          try{
+            const rows=res.data||[];
+            const seen=new Set(), dups=new Set();
+            for(const r of rows){
+              const nm=(r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||'').toString().trim();
+              if(!nm) continue;
+              if(seen.has(nm)) dups.add(nm); else seen.add(nm);
+            }
+            if(dups.size>0){
+              alert('地点の名称に重複があります。処理を中止します。\n重複: '+Array.from(dups).join(', '));
+              return;
+            }
+            let added=0;
+            for(const r of rows){
+              const name=(r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||'').toString().trim();
+              const lat =parseFloat(r.Latitude||r.lat||r.Lat||r['緯度']);
+              const lon =parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r['経度']);
+              const desc=(r.Description||r.desc||r['説明']||'').toString().trim();
+              if(name && Number.isFinite(lat)&&Number.isFinite(lon)){ addPoint(name,lat,lon,desc); added++; }
+            }
+            if(added>0){
+              buildStrictOrderFromFirst();
+              map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
+              updatePointCount();
+              showToast(`${added} 点読み込み`,2);
+            }else{
+              alert('有効な列(Name,Latitude,Longitude)が見つかりません');
+            }
+          }catch(e){ showErr(e); }
+        },
+        error:(e)=>showErr(e)
+      });
+    }
+    async function importOther(file){
       try{
-        const resp = await fetch(blobUrl);
-        const b = await resp.blob();
-        const f = new File([b], fileName, {type: b.type || 'text/csv'});
-        if(navigator.canShare && navigator.canShare({files:[f]})){
-          await navigator.share({ files:[f], title:fileName, text:'回収ログCSV' });
-          return;
+        points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[];
+        const text=await file.text();
+        if(file.name.toLowerCase().endsWith('.kml')){
+          const nameRegex=/<name>([\s\S]*?)<\/name>/gi;
+          const coordRegex=/<coordinates>([-0-9.]+),([-0-9.]+)/gi;
+          const names=[]; let m;
+          while((m=nameRegex.exec(text))){ names.push(m[1].trim()); }
+          let i=0; while((m=coordRegex.exec(text))){
+            const lon=parseFloat(m[1]); const lat=parseFloat(m[2]);
+            const nm=(names[i]||'').toString().trim(); i++;
+            if(nm && Number.isFinite(lat)&&Number.isFinite(lon)) addPoint(nm,lat,lon,'');
+          }
+        }else if(file.name.toLowerCase().endsWith('.geojson')||file.name.toLowerCase().endsWith('.json')){
+          const gj=JSON.parse(text);
+          const feats=gj.type==='FeatureCollection'?gj.features:[];
+          feats.forEach(f=>{
+            if(f.geometry && f.geometry.type==='Point' && Array.isArray(f.geometry.coordinates)){
+              const lon=f.geometry.coordinates[0], lat=f.geometry.coordinates[1];
+              const nm=((f.properties&&(f.properties.Name||f.properties.name))||'').toString().trim();
+              if(nm) addPoint(nm,lat,lon,'');
+            }
+          });
         }
-        if(navigator.share){ await navigator.share({ title:fileName, url: blobUrl }); return; }
-      }catch(_e){}
-      const dl=$('csvBtnDownload'); if(dl) dl.click();
+        if(points.length){
+          buildStrictOrderFromFirst();
+          map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
+          updatePointCount();
+        }
+      }catch(e){ showErr(e); }
+    }
+    on('file','change',(e)=>{
+      const f=e.target.files[0]; if(!f) return;
+      blurAllInputs();
+      if(/\.csv$/i.test(f.name)) importCSV(f); else importOther(f);
     });
 
-    // 背景タップで閉じる
-    if(overlay){
-      overlay.onclick = (e)=>{ if(e.target === overlay) close(); };
+    /* ルート（線） */
+    let routeLayer=null, routeLatLngs=[];
+    function setRouteLatLngs(latlngs){
+      routeLatLngs=latlngs||[];
+      if(routeLayer){ map.removeLayer(routeLayer); routeLayer=null; }
+      if(routeLatLngs.length>=2){
+        routeLayer=L.polyline(routeLatLngs,{color:'#ff2d2d',weight:4,opacity:0.9}).addTo(map);
+      }
     }
-  }
-  on('btnDownload','click',()=>{ blurAllInputs();
-    // ダウンロードはモーダルを使わず即保存
-    const csvText = makeCSVText();
-    const bom = '\uFEFF';
-    const blob = new Blob([bom + csvText], { type: 'text/csv;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'collection_log.csv'; a.rel='noopener';
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 800);
-  });
-  on('btnPreview','click', ()=>{ previewCSV(); });
-
-  /* ===== ナビ（Description鎖のみ。自車位置は使わない） ===== */
-  const nav={order:[],idx:0,active:false,thresholdM:25,arriveM:15,farZoomM:100,lastAnnounceTarget:null};
-  function rebuildOrderFromStrictChain(){ nav.order = strictOrder.slice(); }
-  function focusTarget(uniqueName){
-    const p=nameIndex.get(uniqueName); if(!p) return;
-    map.setView([p.lat,p.lon], Math.max(map.getZoom(),16));
-    p.marker.openPopup();
-  }
-  function nextByDescription(name){
-    const p=nameIndex.get(name);
-    if(!p || !p.desc) return null;
-    return nameIndex.has(p.desc) ? p.desc : null;
-  }
-  on('btnNavStart','click', ()=>{
-    blurAllInputs();
-    if(points.length===0){ alert('地点がありません'); return; }
-    const v=parseFloat(($('thres')||{}).value); if(Number.isFinite(v)) nav.thresholdM=v;
-    const a=parseFloat(($('arrive')||{}).value); if(Number.isFinite(a)) nav.arriveM=a;
-    const fz=parseFloat(($('farZoom')||{}).value); if(Number.isFinite(fz)) nav.farZoomM=fz;
-
-    if(strictOrder.length===0){
-      alert('Description による鎖が見つかりません（先頭行から辿れませんでした）');
-      return;
+    function fitRoute(){
+      if(routeLatLngs.length>=2){ map.fitBounds(L.latLngBounds(routeLatLngs),{padding:[30,30]}); }
+      else { alert('ルートが未読込です'); }
     }
-    rebuildOrderFromStrictChain();
+    on('btnRouteZoom','click',()=>{
+      togglePanel(false);
+      blurAllInputs();
+      setTimeout(fitRoute,50);
+    });
 
-    let startIdx = -1;
-    for(let i=0;i<nav.order.length;i++){
-      const p=nameIndex.get(nav.order[i]);
-      if(p && p.status!=='collected'){ startIdx=i; break; }
-    }
-    if(startIdx<0){ alert('未回収の地点がありません'); return; }
-
-    nav.idx=startIdx; nav.active=true; togglePanel(false);
-    const cur=nav.order[nav.idx];
-    speakJa('ナビを開始します。まずは '+nameIndex.get(cur).name+' へ向かってください。');
-    nav.lastAnnounceTarget = cur;
-    focusTarget(cur);
-  });
-  on('btnNavStop','click',  ()=>{ nav.active=false; speakJa('ナビを停止しました。'); });
-
-  function maybeFitToTarget(targetName){
-    try{ const p=nameIndex.get(targetName); if(!p) return; map.setView([p.lat,p.lon], 16); }catch(_e){}
-  }
-  function guideNextAfter(doneName){
-    const nx = nextByDescription(doneName);
-    if(nx){
-      nav.active=true;
-      nav.lastAnnounceTarget = nx;
-      speakJa(nameIndex.get(nx).name+' へ向かってください');
-      focusTarget(nx);
-      maybeFitToTarget(nx);
-      const j = strictOrder.indexOf(nx);
-      if(j>=0){ nav.order = strictOrder.slice(); nav.idx = j; }
-    }else{
-      if(nav.active){ speakJa('このルートは完了しました'); nav.active=false; }
-    }
-  }
-
-  /* ルート（線） */
-  let routeLayer=null, routeLatLngs=[];
-  function setRouteLatLngs(latlngs){
-    routeLatLngs=latlngs||[];
-    if(routeLayer){ map.removeLayer(routeLayer); routeLayer=null; }
-    if(routeLatLngs.length>=2){
-      routeLayer=L.polyline(routeLatLngs,{color:'#ff2d2d',weight:4,opacity:0.9}).addTo(map);
-    }
-  }
-  function fitRoute(){
-    if(routeLatLngs.length>=2){ map.fitBounds(L.latLngBounds(routeLatLngs),{padding:[30,30]}); }
-    else { alert('ルートが未読込です'); }
-  }
-  on('btnRouteZoom','click',()=>{ togglePanel(false); blurAllInputs(); setTimeout(fitRoute,50); });
-
-  on('fileRoute','change', async (e)=>{
-    const f=e.target.files[0]; if(!f) return;
-    blurAllInputs();
-    try{
-      if(/\.gpx$/i.test(f.name)){
-        const text=await f.text();
-        const xml=new DOMParser().parseFromString(text,'application/xml');
-        const pts=[...xml.querySelectorAll('trkpt, rtept')];
-        const latlngs=pts.map(el=>[parseFloat(el.getAttribute('lat')), parseFloat(el.getAttribute('lon'))]).filter(v=>Number.isFinite(v[0])&&Number.isFinite(v[1]));
-        if(latlngs.length<2) throw new Error('GPX内にtrkpt/rteptが見つかりません');
-        setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
-      }else if(/\.(geojson|json)$/i.test(f.name)){
-        const gj=JSON.parse(await f.text()); const latlngs=[];
-        if(gj.type==='FeatureCollection'){ gj.features.forEach(feat=>{ if(feat.geometry&&feat.geometry.type==='LineString'){ feat.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); } }); }
-        else if(gj.type==='Feature'&&gj.geometry&&gj.geometry.type==='LineString'){ gj.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
-        else if(gj.type==='LineString'){ gj.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
-        if(latlngs.length<2) throw new Error('GeoJSON内にLineStringがありません');
-        setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
-      }else if(/\.csv$/i.test(f.name)){
-        Papa.parse(f,{header:true,skipEmptyLines:true,complete:(res)=>{
-          const latlngs=[]; res.data.forEach(r=>{ const la=parseFloat(r.Latitude||r['緯度']); const lo=parseFloat(r.Longitude||r['経度']); if(Number.isFinite(la)&&Number.isFinite(lo)) latlngs.push([la,lo]); });
-          if(latlngs.length<2){ showErr('CSVの行が少ない/列名不一致'); return; }
+    on('fileRoute','change', async (e)=>{
+      const f=e.target.files[0]; if(!f) return;
+      blurAllInputs();
+      try{
+        if(/\.gpx$/i.test(f.name)){
+          const text=await f.text();
+          const xml=new DOMParser().parseFromString(text,'application/xml');
+          const pts=[...xml.querySelectorAll('trkpt, rtept')];
+          const latlngs=pts.map(el=>[parseFloat(el.getAttribute('lat')), parseFloat(el.getAttribute('lon'))]).filter(v=>Number.isFinite(v[0])&&Number.isFinite(v[1]));
+          if(latlngs.length<2) throw new Error('GPX内にtrkpt/rteptが見つかりません');
           setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
-        }});
-      }else{ alert('対応外：.gpx/.geojson/.json/.csv を選択'); }
-    }catch(err){ showErr(err); }
-  });
+        }else if(/\.(geojson|json)$/i.test(f.name)){
+          const gj=JSON.parse(await f.text()); const latlngs=[];
+          if(gj.type==='FeatureCollection'){ gj.features.forEach(feat=>{ if(feat.geometry&&feat.geometry.type==='LineString'){ feat.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); } }); }
+          else if(gj.type==='Feature'&&gj.geometry&&gj.geometry.type==='LineString'){ gj.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
+          else if(gj.type==='LineString'){ gj.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
+          if(latlngs.length<2) throw new Error('GeoJSON内にLineStringがありません');
+          setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
+        }else if(/\.csv$/i.test(f.name)){
+          Papa.parse(f,{header:true,skipEmptyLines:true,complete:(res)=>{
+            const latlngs=[]; res.data.forEach(r=>{ const la=parseFloat(r.Latitude||r['緯度']); const lo=parseFloat(r.Longitude||r['経度']); if(Number.isFinite(la)&&Number.isFinite(lo)) latlngs.push([la,lo]); });
+            if(latlngs.length<2){ showErr('CSVの行が少ない/列名不一致'); return; }
+            setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
+          }});
+        }else{ alert('対応外：.gpx/.geojson/.json/.csv を選択'); }
+      }catch(err){ showErr(err); }
+    });
 
-  // 地点ファイル入力
-  on('file','change',(e)=>{
-    const f=e.target.files[0]; if(!f) return;
-    blurAllInputs();
-    if(/\.csv$/i.test(f.name)) importCSV(f); else importOther(f);
-  });
+    // 記録CSV（No actual car）
+    function makeCSVText(){
+      const key='collectionLog';
+      const rows=JSON.parse(localStorage.getItem(key)||'[]');
+      const header=['Datetime','Place','DeviceLat','DeviceLon','Vehicle','Driver'];
+      const lines=[header].concat(rows).map(r=>r.map(x=>String(x).replace(/"/g,'""')).join(','));
+      return lines.join('\n');
+    }
+    function downloadCSV(){
+      const csvText = makeCSVText();
+      const bom = '\uFEFF';
+      const blob = new Blob([bom + csvText], { type: 'text/csv;charset=utf-8' });
+      const url  = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'collection_log.csv'; a.rel='noopener';
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 800);
+    }
+    function previewCSV(){
+      const csvText = makeCSVText();
+      const w = window.open('', '_blank', 'noopener');
+      if(!w){ alert('ポップアップがブロックされました。設定で許可してください。'); return; }
+      const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+      w.document.open();
+      w.document.write(`<!doctype html><meta charset="utf-8"><title>CSVプレビュー</title>
+        <style>body{font-family:ui-monospace,monospace;margin:0}
+        header{padding:10px;background:#f7f7f8;border-bottom:1px solid #e5e7eb;position:sticky;top:0}
+        .btn{padding:8px 12px;border-radius:8px;border:1px solid #d1d5db;margin-right:8px}
+        pre{white-space:pre;overflow:auto;margin:0;padding:12px;font:12px/1.5 ui-monospace,monospace}</style>
+        <header>
+          <button class="btn" id="dl">このCSVをダウンロード</button>
+          <button class="btn" onclick="window.close()">閉じる</button>
+        </header>
+        <pre>${esc(csvText)}</pre>
+        <script>
+          document.getElementById('dl').addEventListener('click',()=>{
+            const bom='\\uFEFF';
+            const blob=new Blob([bom+${JSON.stringify(csvText)}],{type:'text/csv;charset=utf-8'});
+            const url=URL.createObjectURL(blob);
+            const a=document.createElement('a'); a.href=url; a.download='collection_log.csv';
+            document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},800);
+          });
+        <\/script>`);
+      w.document.close();
+    }
+    on('btnDownload','click',()=>{ blurAllInputs(); downloadCSV(); });
+    on('btnPreview','click', ()=>{ previewCSV(); });
 
-  } // init end
+    /* ナビ（Description鎖／No actual car） */
+    const nav={order:[],idx:0,active:false,thresholdM:25,arriveM:15,farZoomM:100,lastAnnounceTarget:null};
+    function rebuildOrderFromStrictChain(){ nav.order = strictOrder.slice(); }
+    function focusTarget(uniqueName){
+      const p=nameIndex.get(uniqueName); if(!p) return;
+      map.setView([p.lat,p.lon], Math.max(map.getZoom(),16));
+      p.marker.openPopup();
+    }
+    function nextByDescription(name){
+      const p=nameIndex.get(name);
+      if(!p || !p.desc) return null;
+      return nameIndex.has(p.desc) ? p.desc : null;
+    }
+    function startGuidance(){
+      blurAllInputs();
+      if(points.length===0){ alert('地点がありません'); return; }
+      const v=parseFloat($('thres').value); if(Number.isFinite(v)) nav.thresholdM=v;
+      const a=parseFloat($('arrive').value); if(Number.isFinite(a)) nav.arriveM=a;
+      const fz=parseFloat($('farZoom').value); if(Number.isFinite(fz)) nav.farZoomM=fz;
+
+      if(strictOrder.length===0){
+        alert('Description による鎖が見つかりません（先頭行から辿れませんでした）');
+        return;
+      }
+      rebuildOrderFromStrictChain();
+
+      let startIdx = -1;
+      for(let i=0;i<nav.order.length;i++){
+        const p=nameIndex.get(nav.order[i]);
+        if(p && p.status!=='collected'){ startIdx=i; break; }
+      }
+      if(startIdx<0){ alert('未回収の地点がありません'); return; }
+
+      nav.idx=startIdx; nav.active=true; togglePanel(false);
+      const cur=nav.order[nav.idx];
+      speakJa('ナビを開始します。まずは '+nameIndex.get(cur).name+' へ向かってください。');
+      nav.lastAnnounceTarget = cur;
+      focusTarget(cur);
+    }
+    function stopGuidance(){
+      nav.active=false;
+      speakJa('ナビを停止しました。');
+    }
+    on('btnNavStart','click', startGuidance);
+    on('btnNavStop','click',  stopGuidance);
+
+    function maybeFitToTarget(targetName){
+      try{
+        const p=nameIndex.get(targetName); if(!p) return;
+        map.setView([p.lat,p.lon], 16);
+      }catch(_e){}
+    }
+    function guideNextAfter(collectedName){
+      const nx = nextByDescription(collectedName);
+      if(nx){
+        nav.active=true;
+        nav.lastAnnounceTarget = nx;
+        speakJa(nameIndex.get(nx).name+' へ向かってください');
+        focusTarget(nx);
+        maybeFitToTarget(nx);
+        const j = strictOrder.indexOf(nx);
+        if(j>=0){ nav.order = strictOrder.slice(); nav.idx = j; }
+      }else{
+        if(nav.active){ speakJa('このルートは完了しました'); stopGuidance(); }
+      }
+    }
+
+    // 地点ファイル入力ハンドラ（重複で捕捉）
+    on('file','change',(e)=>{
+      const f=e.target.files[0]; if(!f) return;
+      if(/\.csv$/i.test(f.name)) importCSV(f); else importOther(f);
+    });
+
+  } // init
 })();
 </script>
 </body>
