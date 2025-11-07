@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 自動回収 + 基本回収ルート）leafletVer82実車版</title>
+<title>回収選択デモ（Leaflet + 自動回収 + 基本回収ルート）leafletVer83実車版</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -113,7 +113,7 @@
 
 <div class="panel" id="panel">
   <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
-  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver82実車版</div>
+  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver83実車版</div>
 
   <div class="controls">
     <div class="row">
@@ -358,14 +358,13 @@
     btnFabSkip.style.display    = n>0 ? 'inline-block' : 'none';
   }
 
-  // ▼ クリック時の挙動を一元化（normal:選択トグル / collected:赤→黄の確認ダイアログ）
+  // ▼ クリック時の挙動（normal:選択 / collected:赤→黄確認 / skipped:黄→赤確認）
   function onMarkerClick(rec){
     if(rec.status==='normal'){
       toggleSelect(rec);
       return;
     }
     if(rec.status==='collected'){
-      // 赤→黄に変更の確認
       if(confirm('アイコン色を赤から黄(無回収)に変更しますか？')){
         rec.status='skipped';
         rec.marker.setIcon(yellowIcon);
@@ -375,7 +374,16 @@
       }
       return;
     }
-    // skipped はそのまま（必要ならここに別動作を追加可能）
+    if(rec.status==='skipped'){
+      if(confirm('アイコン色を黄から赤(回収済)に変更しますか？')){
+        rec.status='collected';
+        rec.marker.setIcon(redIcon);
+        if(rec.selRing){ try{ map.removeLayer(rec.selRing); }catch(_e){} rec.selRing=null; }
+        updatePointCount();
+        showToast(`「${rec.name}」を回収済（赤）に戻しました`,2);
+      }
+      return;
+    }
   }
 
   function toggleSelect(rec){
