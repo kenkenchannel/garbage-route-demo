@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 手動回収 + Description鎖）leafletVer86 実車無SV版</title>
+<title>回収選択デモ（Leaflet + 手動回収 + Description鎖）leafletVer87 実車無SV版</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -41,6 +41,10 @@
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
     display:inline-block;width:auto
   }
+  .volbox{
+    position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px
+  }
+  .volbox button{background:#fff;border:1px solid #ccc;border-radius:8px;padding:6px 8px;font-size:14px}
 
   .fab{
     position:fixed;right:16px;bottom:84px;z-index:1500;
@@ -80,12 +84,17 @@
 <button id="btnFabCollect" class="fab">回収（選択 0）</button>
 <button id="btnFabSkip" class="fab-small">無回収（選択→黄）</button>
 
+<!-- 音量ボックス（設定の左） -->
+<div class="volbox">
+  <button id="volDown">音量-</button>
+  <button id="volUp">音量+</button>
+</div>
 <button id="btnPanel" title="設定の表示/非表示">設定</button>
 
 <div class="panel" id="panel">
-  <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
+  <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span></h2>
   <div class="small" style="color:#c00;margin:4px 0 8px;">
-    地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」 <b>Ver86 実車無SV版</b>
+    地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」 <b>Ver87 実車無SV版</b>
   </div>
 
   <div class="controls">
@@ -109,6 +118,12 @@
       </div>
     </div>
 
+    <div>
+      <label>例外到着CSV読込（Place,DeviceLat,DeviceLon）</label>
+      <div class="file-wrap"><input type="file" id="fileException" accept=".csv"></div>
+      <div class="small">※実車無では自動到着判定に使いません（将来互換のため保持）。</div>
+    </div>
+
     <div class="row">
       <label>近接しきい値(m)
         <input type="text" id="thres" value="25" inputmode="numeric" autocomplete="off">
@@ -122,10 +137,10 @@
       <label>遠距離オートズーム(m)
         <input type="text" id="farZoom" value="100" inputmode="numeric" autocomplete="off">
       </label>
-      <div></div>
+      <!-- ★ iPhoneでの重なり回避：ここに移動 -->
+      <button id="btnClearAll" class="ghost">回収地点全クリア</button>
     </div>
 
-    <!-- ★ ナビ開始 / 一時停止 を復活 -->
     <div class="row">
       <button id="btnNavStart" class="primary">ナビ開始（Description順のみ）</button>
       <button id="btnNavStop" class="ghost">一時停止</button>
@@ -136,13 +151,12 @@
       <button id="btnPreview" class="ghost">CSV表示</button>
     </div>
 
-    <div class="footer">Leaflet + Vanilla JS（No actual car：位置取得オフ / ポップアップにSVリンク）</div>
+    <div class="footer">Leaflet + Vanilla JS（No actual car：位置取得オフ / SVリンク）</div>
   </div>
 </div>
 
 <script>
 (function(){
-  // 安全な初期化
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, { once:true });
   } else {
@@ -159,8 +173,13 @@
       errEl.style.display='block';
       console.error(e);
     }
+    let speechVol = parseFloat(localStorage.getItem('speechVol')||'0.9');
     function speakJa(t){
-      try{ const u=new SpeechSynthesisUtterance(t); u.lang='ja-JP'; u.rate=1.0; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(_e){}
+      try{
+        const u=new SpeechSynthesisUtterance(t);
+        u.lang='ja-JP'; u.rate=1.0; u.volume = Math.max(0, Math.min(1, speechVol));
+        speechSynthesis.cancel(); speechSynthesis.speak(u);
+      }catch(_e){}
     }
     function showToast(msg, seconds=2){
       toastEl.textContent=msg; toastEl.style.display='block';
@@ -184,6 +203,10 @@
 
     function blurActiveInput(){ const el=document.activeElement; if(!el) return; const tg=el.tagName; if(tg==='INPUT'||tg==='SELECT'||tg==='TEXTAREA'){ try{el.blur();}catch(_e){} } }
     function blurAllInputs(){ blurActiveInput(); document.querySelectorAll('input,select,textarea').forEach(el=>{ if(el===document.activeElement) try{el.blur();}catch(_e){} }); }
+
+    // 音量 ± （TTSボリューム）
+    on('volDown','click', ()=>{ speechVol=Math.max(0, speechVol-0.1); localStorage.setItem('speechVol', speechVol.toFixed(2)); showToast('読み上げ音量: '+Math.round(speechVol*100)+'%'); });
+    on('volUp','click',   ()=>{ speechVol=Math.min(1, speechVol+0.1); localStorage.setItem('speechVol', speechVol.toFixed(2)); showToast('読み上げ音量: '+Math.round(speechVol*100)+'%'); });
 
     /* 車両/運転者 */
     const FLEET={"1772":["神山","大川","江田"],"5836":["熊坂","田端","藤田","平野","大川"],"8792":["熊坂","八田","平野","田端","大川"],"1771":["永浦","菊池","嶋田","田端","八田","藤田","大川"]};
@@ -217,6 +240,11 @@
 
     const blueIcon=L.icon({
       iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
+      shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+    });
+    const whiteIcon=L.icon({
+      iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png',
       iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
       shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
     });
@@ -313,6 +341,29 @@
       points.forEach(p=>{ p.seq=undefined; setPopupContent(p); });
       strictOrder.forEach((nm,i)=>{ const p=nameIndex.get(nm); if(p){ p.seq=i+1; setPopupContent(p); }});
     }
+
+    /* 例外到着CSV（保持のみ） */
+    const exceptions = new Map();
+    function importExceptionCSV(file){
+      exceptions.clear();
+      Papa.parse(file,{
+        header:true,skipEmptyLines:true,
+        complete:(res)=>{
+          let added=0;
+          (res.data||[]).forEach(r=>{
+            const name=(r.Place||r.place||r['名称']||r['Place']||'').toString().trim();
+            const la=parseFloat(r.DeviceLat||r.deviceLat||r['緯度']);
+            const lo=parseFloat(r.DeviceLon||r.deviceLon||r['経度']);
+            if(name && Number.isFinite(la) && Number.isFinite(lo)){
+              exceptions.set(String(name), {lat:la, lon:lo});
+              added++;
+            }
+          });
+          showToast(`例外地点 ${added} 件を読み込みました（実車無：自動到着では未使用）`,3);
+        }
+      });
+    }
+    on('fileException','change',(e)=>{ const f=e.target.files[0]; if(f) importExceptionCSV(f); });
 
     /* 手動回収（No actual car）*/
     function pushLogRow(row){
@@ -549,7 +600,7 @@
     on('btnDownload','click',()=>{ blurAllInputs(); downloadCSV(); });
     on('btnPreview','click', ()=>{ previewCSV(); });
 
-    /* ナビ（Description鎖／No actual car） */
+    /* ナビ（Description鎖／No actual car） + ★点滅実装 */
     const nav={order:[],idx:0,active:false,thresholdM:25,arriveM:15,farZoomM:100,lastAnnounceTarget:null};
     function rebuildOrderFromStrictChain(){ nav.order = strictOrder.slice(); }
     function focusTarget(uniqueName){
@@ -562,6 +613,30 @@
       if(!p || !p.desc) return null;
       return nameIndex.has(p.desc) ? p.desc : null;
     }
+
+    // ★ 点滅管理
+    let blinkTimer=null, blinkState=false, blinkTargetName=null;
+    function stopBlink(){
+      if(blinkTimer){ clearInterval(blinkTimer); blinkTimer=null; }
+      if(blinkTargetName){
+        const p=nameIndex.get(blinkTargetName);
+        if(p && p.status==='normal'){ p.marker.setIcon(blueIcon); }
+      }
+      blinkTargetName=null; blinkState=false;
+    }
+    function startBlink(targetName){
+      stopBlink();
+      const p=nameIndex.get(targetName); if(!p) return;
+      blinkTargetName=targetName; blinkState=false;
+      blinkTimer=setInterval(()=>{
+        if(!blinkTargetName) return;
+        const q=nameIndex.get(blinkTargetName);
+        if(!q || q.status!=='normal'){ stopBlink(); return; }
+        blinkState=!blinkState;
+        q.marker.setIcon(blinkState ? whiteIcon : blueIcon);
+      }, 100); // 0.1秒ごと
+    }
+
     function startGuidance(){
       blurAllInputs();
       if(points.length===0){ alert('地点がありません'); return; }
@@ -587,9 +662,11 @@
       speakJa('ナビを開始します。まずは '+nameIndex.get(cur).name+' へ向かってください。');
       nav.lastAnnounceTarget = cur;
       focusTarget(cur);
+      startBlink(cur); // ★最初のターゲットを点滅
     }
     function stopGuidance(){
       nav.active=false;
+      stopBlink(); // ★停止時に点滅解除
       speakJa('ナビを停止しました。');
     }
     on('btnNavStart','click', startGuidance);
@@ -601,14 +678,15 @@
         map.setView([p.lat,p.lon], 16);
       }catch(_e){}
     }
-    function guideNextAfter(collectedName){
-      const nx = nextByDescription(collectedName);
+    function guideNextAfter(doneName){
+      const nx = nextByDescription(doneName);
       if(nx){
         nav.active=true;
         nav.lastAnnounceTarget = nx;
         speakJa(nameIndex.get(nx).name+' へ向かってください');
         focusTarget(nx);
         maybeFitToTarget(nx);
+        startBlink(nx); // ★次ターゲットへ点滅移行
         const j = strictOrder.indexOf(nx);
         if(j>=0){ nav.order = strictOrder.slice(); nav.idx = j; }
       }else{
