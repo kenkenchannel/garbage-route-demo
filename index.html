@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 手動回収 + SV + Description鎖）leafletVer92 実車無SV版</title>
+<title>回収選択デモ（Leaflet + 手動回収 + SV + Description鎖）leafletVer93 実車無SV版</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -19,20 +19,33 @@
     position:absolute;left:8px;top:8px;z-index:1000;
     background:rgba(255,255,255,.95);
     border:1px solid #ddd;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08);
-    padding:10px;max-width:96vw;width:min(380px,96vw);
+    padding:10px;max-width:96vw;width:min(400px,96vw);
     font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
     box-sizing:border-box; overflow:visible;
   }
   .panel h2{font-size:16px;margin:0 0 6px}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
-  .row>*{width:100%}
+  .row{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:8px;margin:6px 0
+  }
+  .row>*{width:100%;min-width:0}
   .controls{display:grid;gap:6px}
   label{font-size:12px;color:#333;display:block}
   select,input[type="text"],input[type="file"],button{
-    padding:8px;border-radius:8px;border:1px solid #ccc;font-size:16px; /* iOSの拡大防止 */
+    padding:8px;border-radius:8px;border:1px solid #ccc;font-size:16px;
     box-sizing:border-box; max-width:100%;
   }
-  input[type="file"]{display:block;width:100%;max-width:100%}
+  .file-wrap{
+    background:#f0e68c;border:1px solid #ccc;border-radius:8px;padding:6px;
+    box-sizing:border-box
+  }
+  .file-wrap input[type="file"]{
+    display:block;width:100%;max-width:100%;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    border:none;background:#fff;border-radius:6px;padding:8px;outline:none;
+    -webkit-appearance:auto
+  }
   button.primary{background:#2563eb;color:#fff;border:none}
   button.warn{background:#f59e0b;color:#111;border:none}
   button.ghost{background:#fff}
@@ -46,9 +59,7 @@
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
     display:inline-block;width:auto
   }
-  .volbox{
-    position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px
-  }
+  .volbox{position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px}
   .volbox button{background:#fff;border:1px solid #ccc;border-radius:8px;padding:6px 8px;font-size:14px}
 
   .fab{
@@ -71,15 +82,12 @@
   .leaflet-control-zoom{font-size:28px}
   .leaflet-control-zoom a{width:52px;height:52px;line-height:52px;font-size:28px}
 
-  .file-wrap{background:#f0e68c;border:1px solid #ccc;border-radius:8px;padding:6px;box-sizing:border-box}
-  .file-wrap input[type="file"]{width:100%;max-width:100%;border:none;background:#fff;border-radius:6px;padding:8px;box-sizing:border-box;outline:none;-webkit-appearance:auto}
-
   .link-sv{
     display:inline-block;margin-top:6px;background:#10b981;color:#fff;
     padding:6px 10px;border-radius:8px;text-decoration:none;font-size:12px
   }
 
-  /* ▼▼▼ 次ターゲット点滅（青→白） ▼▼▼ */
+  /* 次ターゲット点滅（青→白） */
   .blink-white{
     filter: brightness(210%) saturate(0%) contrast(220%);
     will-change: filter;
@@ -92,7 +100,6 @@
 <div id="err" class="err"></div>
 <div id="toast"></div>
 
-<!-- 手動回収用のフローティングボタン -->
 <button id="btnFabCollect" class="fab">回収（選択 0）</button>
 <button id="btnFabSkip" class="fab-small">無回収（選択→黄）</button>
 
@@ -105,7 +112,7 @@
 <div class="panel" id="panel">
   <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
   <div class="small" style="color:#c00;margin:4px 0 8px;">
-    地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」 <b>Ver92 実車無SV版</b>
+    地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」 <b>Ver93 実車無SV版</b>
   </div>
 
   <div class="controls">
@@ -123,13 +130,12 @@
     <div>
       <label>基本回収ルート読込（.gpx / .geojson / .json / .csv）</label>
       <div class="file-wrap"><input type="file" id="fileRoute" accept=".gpx,.geojson,.json,.csv"></div>
-      <div class="row" style="grid-template-columns:1fr 1fr">
+      <div class="row" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
         <button id="btnRouteZoom" class="ghost" style="font-size:12px">ルートへズームアウト</button>
         <button id="btnHeading" class="ghost" style="font-size:12px" disabled>ヘディング：無効（No actual car）</button>
       </div>
     </div>
 
-    <!-- 例外到着CSV -->
     <div>
       <label>例外到着CSV読込（Place,DeviceLat,DeviceLon）</label>
       <div class="file-wrap"><input type="file" id="fileException" accept=".csv"></div>
@@ -274,26 +280,21 @@
 
     function onMarkerClick(rec){
       if(rec.status==='normal'){
-        toggleSelect(rec);
-        return;
+        toggleSelect(rec); return;
       }
       if(rec.status==='collected'){
-        if(confirm('アイコン色を赤から黄(無回収)に変更しますか？')){
-          rec.status='skipped';
-          rec.marker.setIcon(yellowIcon);
+        if(confirm('赤→黄（無回収）に変更しますか？')){
+          rec.status='skipped'; rec.marker.setIcon(yellowIcon);
           if(rec.selRing){ try{ map.removeLayer(rec.selRing); }catch(_e){} rec.selRing=null; }
-          updatePointCount();
-          showToast(`「${rec.name}」を無回収（黄）に変更しました`,2);
+          updatePointCount(); showToast(`「${rec.name}」を無回収（黄）にしました`,2);
         }
         return;
       }
       if(rec.status==='skipped'){
-        if(confirm('アイコン色を黄から赤(回収済)に変更しますか？')){
-          rec.status='collected';
-          rec.marker.setIcon(redIcon);
+        if(confirm('黄→赤（回収済）に戻しますか？')){
+          rec.status='collected'; rec.marker.setIcon(redIcon);
           if(rec.selRing){ try{ map.removeLayer(rec.selRing); }catch(_e){} rec.selRing=null; }
-          updatePointCount();
-          showToast(`「${rec.name}」を回収済（赤）に戻しました`,2);
+          updatePointCount(); showToast(`「${rec.name}」を回収済（赤）に戻しました`,2);
         }
         return;
       }
@@ -356,7 +357,7 @@
         visited.add(cur);
         if(!p.desc) break;
         if(!nameIndex.has(p.desc)){
-          alert('Description が未定義の地点を参照しています: '+p.name+' → '+p.desc);
+          alert('Description が未定義: '+p.name+' → '+p.desc);
           break;
         }
         cur = p.desc;
@@ -365,9 +366,8 @@
       strictOrder.forEach((nm,i)=>{ const p=nameIndex.get(nm); if(p){ p.seq=i+1; setPopupContent(p); }});
     }
 
-    /* ====== 次案内 点滅 ====== */
-    let blinkTimer = null;
-    let blinkTargetName = null;
+    /* 次案内 点滅（Ver82相当のテンポ） */
+    let blinkTimer = null, blinkTargetName = null;
     function stopBlink(){
       if(blinkTimer){ clearInterval(blinkTimer); blinkTimer=null; }
       if(blinkTargetName){
@@ -384,14 +384,12 @@
       blinkTargetName = name;
       let on = false;
       blinkTimer = setInterval(()=>{
-        try{
-          const iconEl = p.marker && p.marker._icon ? p.marker._icon : null;
-          if(!iconEl) return;
-          on = !on;
-          if(on){ iconEl.classList.add('blink-white'); }
-          else  { iconEl.classList.remove('blink-white'); }
-        }catch(_e){}
-      }, 100);
+        const iconEl = p.marker && p.marker._icon ? p.marker._icon : null;
+        if(!iconEl) return;
+        on = !on;
+        if(on){ iconEl.classList.add('blink-white'); }
+        else  { iconEl.classList.remove('blink-white'); }
+      }, 100); // 0.1秒間隔（Ver82相当）
     }
 
     /* 手動回収 */
@@ -615,22 +613,18 @@
 
     /* ナビ（Description鎖のみ：No actual car） */
     const nav={order:[],idx:0,active:false,thresholdM:25,arriveM:15,farZoomM:100,lastAnnounceTarget:null};
-
     function rebuildOrderFromStrictChain(){ nav.order = strictOrder.slice(); }
-
-    function focusTarget(uniqueName){
-      const p=nameIndex.get(uniqueName); if(!p) return;
+    function focusTarget(name){
+      const p=nameIndex.get(name); if(!p) return;
       map.setView([p.lat,p.lon], Math.max(map.getZoom(),16));
       p.marker.openPopup();
-      startBlinkFor(uniqueName);
+      startBlinkFor(name);
     }
-
     function nextByDescription(name){
       const p=nameIndex.get(name);
       if(!p || !p.desc) return null;
       return nameIndex.has(p.desc) ? p.desc : null;
     }
-
     function startGuidance(){
       blurAllInputs();
       if(points.length===0){ alert('地点がありません'); return; }
@@ -638,13 +632,10 @@
       const a=parseFloat(document.getElementById('arrive').value); if(Number.isFinite(a)) nav.arriveM=a;
       const fz=parseFloat(document.getElementById('farZoom').value); if(Number.isFinite(fz)) nav.farZoomM=fz;
 
-      if(strictOrder.length===0){
-        alert('Description による鎖が見つかりません（先頭行から辿れませんでした）');
-        return;
-      }
+      if(strictOrder.length===0){ alert('Description による鎖が見つかりません'); return; }
       rebuildOrderFromStrictChain();
 
-      let startIdx = -1;
+      let startIdx=-1;
       for(let i=0;i<nav.order.length;i++){
         const p=nameIndex.get(nav.order[i]);
         if(p && p.status!=='collected'){ startIdx=i; break; }
@@ -666,20 +657,14 @@
     document.getElementById('btnNavStop').addEventListener('click',  stopGuidance);
 
     function maybeFitToTarget(targetName){
-      try{
-        const p=nameIndex.get(targetName); if(!p) return;
-        map.setView([p.lat,p.lon], 16);
-      }catch(_e){}
+      try{ const p=nameIndex.get(targetName); if(!p) return; map.setView([p.lat,p.lon], 16); }catch(_e){}
     }
-
     function guideNextAfter(doneName){
       const nx = nextByDescription(doneName);
       if(nx){
-        nav.active=true;
-        nav.lastAnnounceTarget = nx;
+        nav.active=true; nav.lastAnnounceTarget = nx;
         speakJa(nameIndex.get(nx).name+' へ向かってください');
-        focusTarget(nx);
-        maybeFitToTarget(nx);
+        focusTarget(nx); maybeFitToTarget(nx);
         const j = strictOrder.indexOf(nx);
         if(j>=0){ nav.order = strictOrder.slice(); nav.idx = j; }
       }else{
@@ -687,130 +672,81 @@
       }
     }
 
-    /* ルート（線） + 最強GPXパーサ */
-    let routeLayer=null, routeLatLngs=[];
-    function setRouteLatLngs(latlngs){
+    /* ルート（線 or 単一点） + GPXパーサ */
+    let routeLayer=null, routeLatLngs=[], routePointMarker=null;
+    function clearRouteLayers(){
       if(routeLayer){ map.removeLayer(routeLayer); routeLayer=null; }
+      if(routePointMarker){ map.removeLayer(routePointMarker); routePointMarker=null; }
+    }
+    function setRouteLatLngs(latlngs){
+      clearRouteLayers();
       routeLatLngs=latlngs||[];
       if(routeLatLngs.length>=2){
         routeLayer=L.polyline(routeLatLngs,{color:'#ff2d2d',weight:4,opacity:0.9}).addTo(map);
+      }else if(routeLatLngs.length===1){
+        routePointMarker = L.circleMarker(routeLatLngs[0], {radius:8, color:'#ff2d2d', weight:3, fillOpacity:0.6}).addTo(map)
+          .bindTooltip('GPX: 1点（線は引けません）',{permanent:false});
       }
     }
     function fitRoute(){
       if(routeLatLngs.length>=2){ map.fitBounds(L.latLngBounds(routeLatLngs),{padding:[30,30]}); }
+      else if(routePointMarker){ map.setView(routePointMarker.getLatLng(), 16); }
       else { alert('ルートが未読込です'); }
     }
-    document.getElementById('btnRouteZoom').addEventListener('click',()=>{
-      togglePanel(false);
-      blurAllInputs();
-      setTimeout(fitRoute,50);
-    });
 
-    // 小数点にカンマを使っている場合の補正
-    function normalizeNumStr(s){
-      if(typeof s!=='string') s=String(s??'');
-      s=s.trim();
-      if(s.includes(',') && !s.includes('.')) s=s.replace(',', '.');
-      return s;
-    }
+    // 小数点のカンマ対応
+    function normalizeNumStr(s){ s=String(s??'').trim(); if(s.includes(',')&&!s.includes('.')) s=s.replace(',', '.'); return s; }
 
-    // iOS Safari含む多様なGPXに対応：
-    // - trkpt/rtept/wpt/pt（prefix付きOK）
-    // - lat/lon が属性 or 子要素 (<lat>,<lon>)
-    // - ' または "、改行含む、大小文字、namespace混在、decimal comma
-    // - 最後に正規表現フォールバック
+    // 多様なGPXに対応（属性/子要素・名前空間可・wpt/trkpt/rtept/pt）
     function parseGPXToLatLngs(gpxText){
       try{
         const xml=new DOMParser().parseFromString(gpxText,'application/xml');
-
-        // まずはDOMで候補ノード取得
         let nodes=[...xml.getElementsByTagName('*')].filter(el=>{
           const ln=(el.localName||'').toLowerCase();
           return ln==='trkpt'||ln==='rtept'||ln==='wpt'||ln==='pt';
         });
-
         const latlngs=[];
-
         nodes.forEach(el=>{
           let latRaw = el.getAttribute('lat') || el.getAttribute('LAT') || el.getAttribute('Lat');
           let lonRaw = el.getAttribute('lon') || el.getAttribute('LON') || el.getAttribute('Lon');
-
-          // 子要素 <lat>, <lon> に入っているパターン
           if(!latRaw || !lonRaw){
-            const kids = [...el.children];
-            const latEl = kids.find(k=> (k.localName||'').toLowerCase()==='lat');
-            const lonEl = kids.find(k=> (k.localName||'').toLowerCase()==='lon');
-            if(latEl && lonEl){
-              latRaw = latEl.textContent;
-              lonRaw = lonEl.textContent;
-            }
+            const kids=[...el.children];
+            const latEl = kids.find(k=>(k.localName||'').toLowerCase()==='lat');
+            const lonEl = kids.find(k=>(k.localName||'').toLowerCase()==='lon');
+            if(latEl && lonEl){ latRaw=latEl.textContent; lonRaw=lonEl.textContent; }
           }
-
           if(latRaw!=null && lonRaw!=null){
-            const lat=parseFloat(normalizeNumStr(String(latRaw)));
-            const lon=parseFloat(normalizeNumStr(String(lonRaw)));
+            const lat=parseFloat(normalizeNumStr(latRaw));
+            const lon=parseFloat(normalizeNumStr(lonRaw));
             if(Number.isFinite(lat)&&Number.isFinite(lon)) latlngs.push([lat,lon]);
           }
         });
 
-        // フォールバック：正規表現（属性版）
-        if(latlngs.length<2){
-          const out=[];
-          const tag = '(?:[\\w-]+:)?(?:trkpt|rtept|wpt|pt)';
-          const re1=new RegExp('<'+tag+'[^>]*?\\blat=(["\\\'])(-?\\d+(?:[\\.,]\\d+)?)\\1[^>]*?\\blon=(["\\\'])(-?\\d+(?:[\\.,]\\d+)?)\\3','gi');
-          const re2=new RegExp('<'+tag+'[^>]*?\\blon=(["\\\'])(-?\\d+(?:[\\.,]\\d+)?)\\1[^>]*?\\blat=(["\\\'])(-?\\d+(?:[\\.,]\\d+)?)\\3','gi');
-          let m;
-          while((m=re1.exec(gpxText))){
-            const la=parseFloat(normalizeNumStr(m[2])), lo=parseFloat(normalizeNumStr(m[4]));
-            if(Number.isFinite(la)&&Number.isFinite(lo)) out.push([la,lo]);
-          }
-          while((m=re2.exec(gpxText))){
-            const lo=parseFloat(normalizeNumStr(m[2])), la=parseFloat(normalizeNumStr(m[4]));
-            if(Number.isFinite(la)&&Number.isFinite(lo)) out.push([la,lo]);
-          }
-          if(out.length>=2) return out;
-        }
+        if(latlngs.length>0) return latlngs;
 
-        // さらにフォールバック：子要素版 <lat>..</lat><lon>..</lon>
-        if(latlngs.length<2){
-          const out2=[];
-          const tag = '(?:[\\w-]+:)?(?:trkpt|rtept|wpt|pt)';
-          const re3=new RegExp('<'+tag+'[\\s\\S]*?<lat>(-?\\d+(?:[\\.,]\\d+)?)<\\/lat>[\\s\\S]*?<lon>(-?\\d+(?:[\\.,]\\d+)?)<\\/lon>[\\s\\S]*?<\\/'+tag+'>','gi');
-          let m3;
-          while((m3=re3.exec(gpxText))){
-            const la=parseFloat(normalizeNumStr(m3[1])), lo=parseFloat(normalizeNumStr(m3[2]));
-            if(Number.isFinite(la)&&Number.isFinite(lo)) out2.push([la,lo]);
-          }
-          if(out2.length>=2) return out2;
-        }
-
-        return latlngs;
-      }catch(_e){
-        // DOM失敗時：正規表現のみ
+        // フォールバック（正規表現）
         const out=[];
-        const tag = '(?:[\\w-]+:)?(?:trkpt|rtept|wpt|pt)';
+        const tag='(?:[\\w-]+:)?(?:trkpt|rtept|wpt|pt)';
         const re1=new RegExp('<'+tag+'[^>]*?\\blat=(["\\\'])(-?\\d+(?:[\\.,]\\d+)?)\\1[^>]*?\\blon=(["\\\'])(-?\\d+(?:[\\.,]\\d+)?)\\3','gi');
         const re2=new RegExp('<'+tag+'[^>]*?\\blon=(["\\\'])(-?\\d+(?:[\\.,]\\d+)?)\\1[^>]*?\\blat=(["\\\'])(-?\\d+(?:[\\.,]\\d+)?)\\3','gi');
         let m;
-        while((m=re1.exec(gpxText))){
-          const la=parseFloat(m[2].replace(',','.')), lo=parseFloat(m[4].replace(',','.'));
-          if(Number.isFinite(la)&&Number.isFinite(lo)) out.push([la,lo]);
-        }
-        while((m=re2.exec(gpxText))){
-          const lo=parseFloat(m[2].replace(',','.')), la=parseFloat(m[4].replace(',','.'));
-          if(Number.isFinite(la)&&Number.isFinite(lo)) out.push([la,lo]);
-        }
-        // 子要素
-        if(out.length<2){
-          const re3=new RegExp('<'+tag+'[\\s\\S]*?<lat>(-?\\d+(?:[\\.,]\\d+)?)<\\/lat>[\\s\\S]*?<lon>(-?\\d+(?:[\\.,]\\d+)?)<\\/lon>[\\s\\S]*?<\\/'+tag+'>','gi');
-          let m3; while((m3=re3.exec(gpxText))){
-            const la=parseFloat(m3[1].replace(',','.')), lo=parseFloat(m3[2].replace(',','.'));
-            if(Number.isFinite(la)&&Number.isFinite(lo)) out.push([la,lo]);
-          }
-        }
-        return out;
+        while((m=re1.exec(gpxText))){ const la=parseFloat(normalizeNumStr(m[2])), lo=parseFloat(normalizeNumStr(m[4])); if(Number.isFinite(la)&&Number.isFinite(lo)) out.push([la,lo]); }
+        while((m=re2.exec(gpxText))){ const lo=parseFloat(normalizeNumStr(m[2])), la=parseFloat(normalizeNumStr(m[4])); if(Number.isFinite(la)&&Number.isFinite(lo)) out.push([la,lo]); }
+        if(out.length>0) return out;
+
+        // 子要素版
+        const out2=[];
+        const re3=new RegExp('<'+tag+'[\\s\\S]*?<lat>(-?\\d+(?:[\\.,]\\d+)?)<\\/lat>[\\s\\S]*?<lon>(-?\\d+(?:[\\.,]\\d+)?)<\\/lon>[\\s\\S]*?<\\/'+tag+'>','gi');
+        let m3; while((m3=re3.exec(gpxText))){ const la=parseFloat(normalizeNumStr(m3[1])), lo=parseFloat(normalizeNumStr(m3[2])); if(Number.isFinite(la)&&Number.isFinite(lo)) out2.push([la,lo]); }
+        return out2;
+      }catch(_e){
+        return [];
       }
     }
+
+    document.getElementById('btnRouteZoom').addEventListener('click',()=>{
+      togglePanel(false); blurAllInputs(); setTimeout(fitRoute,50);
+    });
 
     document.getElementById('fileRoute').addEventListener('change', async (e)=>{
       const f=e.target.files[0]; if(!f) return;
@@ -819,24 +755,24 @@
         if(/\.gpx$/i.test(f.name)){
           const text=await f.text();
           const latlngs=parseGPXToLatLngs(text);
-          if(latlngs.length<2){
-            showErr('GPX内にtrkpt/rteptが見つかりません');
+          if(latlngs.length===0){
+            showErr('GPX内に有効な座標が見つかりません');
           }else{
             setRouteLatLngs(latlngs);
             togglePanel(false); setTimeout(fitRoute,50);
-            showToast(`GPXルート ${latlngs.length} 点`,2);
+            showToast(`GPX 読込: ${latlngs.length} 点`,2);
           }
         }else if(/\.(geojson|json)$/i.test(f.name)){
           const gj=JSON.parse(await f.text()); const latlngs=[];
           if(gj.type==='FeatureCollection'){ gj.features.forEach(feat=>{ if(feat.geometry&&feat.geometry.type==='LineString'){ feat.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); } }); }
           else if(gj.type==='Feature'&&gj.geometry&&gj.geometry.type==='LineString'){ gj.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
           else if(gj.type==='LineString'){ gj.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
-          if(latlngs.length<2){ showErr('GeoJSON内にLineStringがありません'); }
+          if(latlngs.length===0){ showErr('GeoJSON内にLineStringがありません'); }
           else { setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50); showToast(`ルート ${latlngs.length} 点`,2); }
         }else if(/\.csv$/i.test(f.name)){
           Papa.parse(f,{header:true,skipEmptyLines:true,complete:(res)=>{
             const latlngs=[]; res.data.forEach(r=>{ const la=parseFloat(r.Latitude||r['緯度']); const lo=parseFloat(r.Longitude||r['経度']); if(Number.isFinite(la)&&Number.isFinite(lo)) latlngs.push([la,lo]); });
-            if(latlngs.length<2){ showErr('CSVの行が少ない/列名不一致'); return; }
+            if(latlngs.length===0){ showErr('CSVの行が少ない/列名不一致'); return; }
             setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50); showToast(`ルート ${latlngs.length} 点`,2);
           }});
         }else{
