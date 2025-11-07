@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 手動回収 + Description鎖）leafletVer88 実車無SV版</title>
+<title>回収選択デモ（Leaflet + 手動回収 + Description鎖）leafletVer89 実車無SV版</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -84,7 +84,7 @@
 <button id="btnFabCollect" class="fab">回収（選択 0）</button>
 <button id="btnFabSkip" class="fab-small">無回収（選択→黄）</button>
 
-<!-- 音量ボックス（設定の左） -->
+<!-- 音量（TTS） -->
 <div class="volbox">
   <button id="volDown">音量-</button>
   <button id="volUp">音量+</button>
@@ -94,7 +94,7 @@
 <div class="panel" id="panel">
   <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span></h2>
   <div class="small" style="color:#c00;margin:4px 0 8px;">
-    地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」 <b>Ver88 実車無SV版</b>
+    地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」 <b>Ver89 実車無SV版</b>
   </div>
 
   <div class="controls">
@@ -243,7 +243,7 @@
       iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
       shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
     });
-    // 便宜上「白」に近い代替として grey を使用（視認性のため）
+    // 白っぽい代替（視認性のため grey）
     const whiteIcon=L.icon({
       iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png',
       iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
@@ -521,49 +521,64 @@
       else { alert('ルートが未読込です'); }
     }
 
-    // ★ iOS Safari 向け：名前空間/大文字混在/正規表現フォールバック
+    // ★ iOS Safari 対策：wpt対応／シングルクォート／lat・lon順不同／名前空間
     function parseGPXToLatLngs(gpxText){
       try{
         const xml=new DOMParser().parseFromString(gpxText,'application/xml');
 
-        // 1) 通常タグ名で拾う
-        let nodes=[...xml.getElementsByTagName('trkpt'), ...xml.getElementsByTagName('rtept')];
+        // 1) タグ名で拾う（trkpt / rtept / wpt）
+        let nodes=[...xml.getElementsByTagName('trkpt'),
+                   ...xml.getElementsByTagName('rtept'),
+                   ...xml.getElementsByTagName('wpt')];
 
         // 2) 0件なら localName フィルタ
         if(nodes.length===0){
           const all=[...xml.getElementsByTagName('*')];
           nodes = all.filter(el=>{
             const ln = (el.localName||'').toLowerCase();
-            return ln==='trkpt' || ln==='rtept';
+            return ln==='trkpt' || ln==='rtept' || ln==='wpt' || ln==='pt';
           });
         }
 
-        // 3) まだ 0 件なら正規表現フォールバック
-        if(nodes.length===0){
-          const out=[];
-          const re=/<(?:trkpt|rtept)[^>]*?\blat="([-0-9.]+)"[^>]*?\blon="([-0-9.]+)"/gi;
-          let m;
-          while((m=re.exec(gpxText))){
-            const la=parseFloat(m[1]), lo=parseFloat(m[2]);
-            if(Number.isFinite(la)&&Number.isFinite(lo)) out.push([la,lo]);
-          }
-          return out;
-        }
-
+        // 3) ノードから lat/lon 抽出（大文字属性にも配慮）
         const latlngs=[];
         nodes.forEach(el=>{
-          const lat=parseFloat(el.getAttribute('lat')||el.getAttribute('LAT')||el.getAttribute('Lat'));
-          const lon=parseFloat(el.getAttribute('lon')||el.getAttribute('LON')||el.getAttribute('Lon'));
+          const latRaw = el.getAttribute('lat') || el.getAttribute('LAT') || el.getAttribute('Lat');
+          const lonRaw = el.getAttribute('lon') || el.getAttribute('LON') || el.getAttribute('Lon');
+          const lat=parseFloat(latRaw); const lon=parseFloat(lonRaw);
           if(Number.isFinite(lat)&&Number.isFinite(lon)) latlngs.push([lat,lon]);
         });
+
+        // 4) まだ不足なら正規表現フォールバック（" または '、順不同）
+        if(latlngs.length<2){
+          const out=[];
+          const re1=/<(?:trkpt|rtept|wpt|pt)[^>]*?\blat=(["'])(-?\d+(?:\.\d+)?)\1[^>]*?\blon=(["'])(-?\d+(?:\.\d+)?)\3/gi;
+          const re2=/<(?:trkpt|rtept|wpt|pt)[^>]*?\blon=(["'])(-?\d+(?:\.\d+)?)\1[^>]*?\blat=(["'])(-?\d+(?:\.\d+)?)\3/gi;
+          let m;
+          while((m=re1.exec(gpxText))){
+            const la=parseFloat(m[2]), lo=parseFloat(m[4]);
+            if(Number.isFinite(la)&&Number.isFinite(lo)) out.push([la,lo]);
+          }
+          while((m=re2.exec(gpxText))){
+            const lo=parseFloat(m[2]), la=parseFloat(m[4]);
+            if(Number.isFinite(la)&&Number.isFinite(lo)) out.push([la,lo]);
+          }
+          if(out.length) return out;
+        }
+
         return latlngs;
       }catch(_e){
-        // 最後の手段：正規表現
+        // 失敗時：正規表現のみ
         const out=[];
-        const re=/<(?:trkpt|rtept)[^>]*?\blat="([-0-9.]+)"[^>]*?\blon="([-0-9.]+)"/gi;
+        const re1=/<(?:trkpt|rtept|wpt|pt)[^>]*?\blat=(["'])(-?\d+(?:\.\d+)?)\1[^>]*?\blon=(["'])(-?\d+(?:\.\d+)?)\3/gi;
+        const re2=/<(?:trkpt|rtept|wpt|pt)[^>]*?\blon=(["'])(-?\d+(?:\.\d+)?)\1[^>]*?\blat=(["'])(-?\d+(?:\.\d+)?)\3/gi;
         let m;
-        while((m=re.exec(gpxText))){
-          const la=parseFloat(m[1]), lo=parseFloat(m[2]);
+        while((m=re1.exec(gpxText))){
+          const la=parseFloat(m[2]), lo=parseFloat(m[4]);
+          if(Number.isFinite(la)&&Number.isFinite(lo)) out.push([la,lo]);
+        }
+        while((m=re2.exec(gpxText))){
+          const lo=parseFloat(m[2]), la=parseFloat(m[4]);
           if(Number.isFinite(la)&&Number.isFinite(lo)) out.push([la,lo]);
         }
         return out;
@@ -645,7 +660,7 @@
     on('btnDownload','click',()=>{ blurAllInputs(); downloadCSV(); });
     on('btnPreview','click', ()=>{ previewCSV(); });
 
-    /* ナビ（Description鎖／No actual car） + ★Ver82準拠の点滅 */
+    /* ナビ（Description鎖／No actual car） + ★Ver82準拠の連続点滅 */
     const nav={order:[],idx:0,active:false,thresholdM:25,arriveM:15,farZoomM:100,lastAnnounceTarget:null};
     function rebuildOrderFromStrictChain(){ nav.order = strictOrder.slice(); }
     function focusTarget(uniqueName){
@@ -659,51 +674,27 @@
       return nameIndex.has(p.desc) ? p.desc : null;
     }
 
-    // ★ 点滅（Ver82風：バースト→休止→繰り返し）
-    const BLINK_INTERVAL_MS = 100;  // 0.1s
-    const BLINK_BURST_TOGGLES = 20; // 20回トグル≒2秒
-    const BLINK_REST_MS = 800;      // 0.8秒休止
-
-    let blinkTimer=null, blinkState=false, blinkTargetName=null, blinkCount=0, blinkRestTimer=null;
-    function clearBlinkTimers(){
-      if(blinkTimer){ clearInterval(blinkTimer); blinkTimer=null; }
-      if(blinkRestTimer){ clearTimeout(blinkRestTimer); blinkRestTimer=null; }
-    }
+    // ★ 連続点滅（0.1sトグル、休止なし／Ver82実車版準拠）
+    let blinkTimer=null, blinkOn=false, blinkTargetName=null;
     function stopBlink(){
-      clearBlinkTimers();
+      if(blinkTimer){ clearInterval(blinkTimer); blinkTimer=null; }
       if(blinkTargetName){
         const p=nameIndex.get(blinkTargetName);
         if(p && p.status==='normal'){ p.marker.setIcon(blueIcon); }
       }
-      blinkTargetName=null; blinkState=false; blinkCount=0;
-    }
-    function startBlinkBurst(){
-      clearBlinkTimers();
-      blinkCount = 0;
-      blinkTimer = setInterval(()=>{
-        const q = nameIndex.get(blinkTargetName);
-        if(!blinkTargetName || !q || q.status!=='normal'){
-          stopBlink(); return;
-        }
-        blinkState = !blinkState;
-        q.marker.setIcon(blinkState ? whiteIcon : blueIcon);
-        blinkCount++;
-        if(blinkCount >= BLINK_BURST_TOGGLES){
-          // バースト終了 → 青に戻して休止 → 再度バースト
-          q.marker.setIcon(blueIcon);
-          clearBlinkTimers();
-          blinkRestTimer = setTimeout(()=>{
-            startBlinkBurst();
-          }, BLINK_REST_MS);
-        }
-      }, BLINK_INTERVAL_MS);
+      blinkTargetName=null; blinkOn=false;
     }
     function startBlink(targetName){
-      if(blinkTargetName === targetName) return; // 同一ターゲットならそのまま
+      if(blinkTargetName === targetName) return; // 同一ターゲット
       stopBlink();
       const p=nameIndex.get(targetName); if(!p) return;
       blinkTargetName = targetName;
-      startBlinkBurst();
+      blinkTimer = setInterval(()=>{
+        const q=nameIndex.get(blinkTargetName);
+        if(!q || q.status!=='normal'){ stopBlink(); return; }
+        blinkOn = !blinkOn;
+        q.marker.setIcon(blinkOn ? whiteIcon : blueIcon);
+      }, 100); // 0.1秒
     }
 
     function startGuidance(){
@@ -731,7 +722,7 @@
       speakJa('ナビを開始します。まずは '+nameIndex.get(cur).name+' へ向かってください。');
       nav.lastAnnounceTarget = cur;
       focusTarget(cur);
-      startBlink(cur); // ★ターゲット点滅（Ver82風）
+      startBlink(cur); // ★ターゲットを点滅
     }
     function stopGuidance(){
       nav.active=false;
@@ -755,7 +746,7 @@
         speakJa(nameIndex.get(nx).name+' へ向かってください');
         focusTarget(nx);
         maybeFitToTarget(nx);
-        startBlink(nx); // ★次ターゲットへ点滅移行
+        startBlink(nx); // ★次ターゲットへ点滅を移行
         const j = strictOrder.indexOf(nx);
         if(j>=0){ nav.order = strictOrder.slice(); nav.idx = j; }
       }else{
@@ -763,7 +754,7 @@
       }
     }
 
-    // 地点ファイル入力ハンドラ（二重定義防止のため最後にもう一度だけ安全化）
+    // 地点ファイル入力ハンドラ（二重定義防止のため最後にもう一度）
     on('file','change',(e)=>{
       const f=e.target.files[0]; if(!f) return;
       if(/\.csv$/i.test(f.name)) importCSV(f); else importOther(f);
