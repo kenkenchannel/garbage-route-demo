@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 自動回収 + 基本回収ルート）leafletVer84実車版</title>
+<title>回収選択デモ（Leaflet + 自動回収 + 基本回収ルート）leafletVer84実車無SV対応版</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -114,7 +114,7 @@
 
 <div class="panel" id="panel">
   <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span></h2>
-  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver84実車版</div>
+  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver84実車無SV対応版</div>
 
   <div class="controls">
     <div class="row">
@@ -158,7 +158,7 @@
       </label>
     </div>
 
-    <!-- ★ ここで「遠距離オートズーム(m)」の右側に全クリアを移設 -->
+    <!-- ★ 「遠距離オートズーム(m)」の右側に全クリアを配置（iPhoneでの重なり回避） -->
     <div class="row">
       <label>遠距離オートズーム(m)
         <input type="text" id="farZoom" value="100" style="width:100%" inputmode="numeric" autocomplete="off">
@@ -278,9 +278,37 @@
   driverSel .addEventListener('change', ()=>{ localStorage.setItem('driver' ,driverSel.value ); });
   populateVehicles();
 
-  /* 地図 */
+  /* ===== 地図（無SV：衛星ハイブリッドをデフォルト） ===== */
   const map=L.map('map',{zoomControl:false});
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:'OpenStreetMap'}).addTo(map);
+  // ベース：OSM 標準
+  const osmStd = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:20,
+    attribution:'© OpenStreetMap'
+  });
+  // ベース：Esri 衛星（World Imagery）
+  const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
+    maxZoom:20,
+    attribution:'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+  });
+  // オーバーレイ：GSI 注記（ラベル）
+  const gsiAnno = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/annotation/{z}/{x}/{y}.png',{
+    maxZoom:20,
+    maxNativeZoom:18,
+    opacity:0.9,
+    attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>'
+  });
+
+  // デフォルトは Esri 衛星 + GSI 注記 ON（＝無SVハイブリッド）
+  esriSat.addTo(map);
+  gsiAnno.addTo(map);
+
+  // レイヤ切替（右下）
+  L.control.layers(
+    {"OSM標準": osmStd, "Esri衛星(推奨)": esriSat},
+    {"GSI注記(ラベル)": gsiAnno},
+    {position:'bottomright', collapsed:true}
+  ).addTo(map);
+
   map.setView([35.841,139.34],14);
 
   map.createPane('vehiclePane'); map.getPane('vehiclePane').style.zIndex=500;
@@ -362,7 +390,6 @@
     btnFabSkip.style.display    = n>0 ? 'inline-block' : 'none';
   }
 
-  // ▼ クリック時の挙動（normal:選択 / collected:赤→黄確認 / skipped:黄→赤確認）
   function onMarkerClick(rec){
     if(rec.status==='normal'){
       toggleSelect(rec);
