@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 自動回収 + 基本ルート）leafletVer81 実車版（即時コミット修正版）</title>
+<title>回収選択デモ（Leaflet + 自動回収 + 基本回収ルート）leafletVer82実車版</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -76,7 +76,6 @@
     width:min(920px, 94vw); height:min(80vh, 720px);
     background:#fff; color:#111; border-radius:12px; overflow:hidden;
     box-shadow:0 10px 30px rgba(0,0,0,.35); display:flex; flex-direction:column;
-    font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
   }
   #csvHead{ padding:10px; border-bottom:1px solid #e5e7eb; background:#f7f7f8; }
   #csvHead .row{ display:flex; gap:8px; flex-wrap:wrap }
@@ -89,7 +88,7 @@
   #csvBody{ flex:1; overflow:auto; }
   #csvBody pre{ margin:0; padding:12px; white-space:pre; font:12px/1.5 ui-monospace,Menlo,Consolas,monospace }
 
-  /* ▼▼▼ 点滅（青⇄白）。<img> 自体にクラスを付ける前提に修正 ▼▼▼ */
+  /* ▼▼▼ 次ターゲット点滅（青⇄白） ▼▼▼ */
   .blink-white{
     filter: brightness(210%) saturate(0%) contrast(220%);
     will-change: filter;
@@ -114,7 +113,7 @@
 
 <div class="panel" id="panel">
   <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
-  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver81 実車版（即時コミット修正版）</div>
+  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver82実車版</div>
 
   <div class="controls">
     <div class="row">
@@ -359,6 +358,26 @@
     btnFabSkip.style.display    = n>0 ? 'inline-block' : 'none';
   }
 
+  // ▼ クリック時の挙動を一元化（normal:選択トグル / collected:赤→黄の確認ダイアログ）
+  function onMarkerClick(rec){
+    if(rec.status==='normal'){
+      toggleSelect(rec);
+      return;
+    }
+    if(rec.status==='collected'){
+      // 赤→黄に変更の確認
+      if(confirm('アイコン色を赤から黄(無回収)に変更しますか？')){
+        rec.status='skipped';
+        rec.marker.setIcon(yellowIcon);
+        if(rec.selRing){ try{ map.removeLayer(rec.selRing); }catch(_e){} rec.selRing=null; }
+        updatePointCount();
+        showToast(`「${rec.name}」を無回収（黄）に変更しました`,2);
+      }
+      return;
+    }
+    // skipped はそのまま（必要ならここに別動作を追加可能）
+  }
+
   function toggleSelect(rec){
     if(rec.status!=='normal') return;
     if(selected.has(rec.name)){
@@ -380,7 +399,7 @@
     const m=L.marker([lat,lon],{icon:blueIcon,pane:'markerPane'}).addTo(map);
     const rec={name,lat,lon,desc:(desc||'').trim(),marker:m,status:'normal',selRing:null,seq:undefined};
     setPopupContent(rec);
-    m.on('click', ()=> toggleSelect(rec));
+    m.on('click', ()=> onMarkerClick(rec));
     points.push(rec);
     nameIndex.set(name,rec);
   }
@@ -456,14 +475,13 @@
     let on = false;
     blinkTimer = setInterval(()=>{
       try{
-        // DOM が差し替わっても毎回参照し直す
         const iconEl = p.marker && p.marker._icon ? p.marker._icon : null;
         if(!iconEl) return;
         on = !on;
         if(on){ iconEl.classList.add('blink-white'); }
         else  { iconEl.classList.remove('blink-white'); }
       }catch(_e){}
-    }, 100); // 0.1s
+    }, 100);
   }
 
   /* ===== 手動回収（即時コミット） ===== */
@@ -742,7 +760,7 @@
   document.getElementById('btnDownload').addEventListener('click',()=>{ blurActiveInput(); downloadCSV(); });
   document.getElementById('btnPreview').addEventListener('click', ()=>{ previewCSV(); });
 
-  /* 位置取得（厳格版：必要なら差し替え） */
+  /* 位置取得（厳格版：必要時用） */
   async function getCurrentLatLngStrict(){
     return new Promise((resolve,reject)=>{
       if(!navigator.geolocation) return reject(new Error('Geolocation unsupported'));
@@ -763,7 +781,7 @@
     const p=nameIndex.get(uniqueName); if(!p) return;
     map.setView([p.lat,p.lon], Math.max(map.getZoom(),16));
     p.marker.openPopup();
-    startBlinkFor(uniqueName); // ★ 点滅開始
+    startBlinkFor(uniqueName);
   }
 
   function nextByDescription(name){
@@ -902,7 +920,7 @@
         if(currentPoint){
           speakJa(currentPoint.name+' へ向かってください');
           nav.lastAnnounceTarget=cur;
-          focusTarget(cur);           // 点滅更新
+          focusTarget(cur);
           autoZoomForNext(prev, cur);
         }
       }else{
