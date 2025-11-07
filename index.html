@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 自動回収 + 基本回収ルート）leafletVer83実車版</title>
+<title>回収選択デモ（Leaflet + 自動回収 + 基本回収ルート）leafletVer84実車版</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -36,6 +36,7 @@
   .footer{font-size:11px;color:#555;margin-top:6px}
   .err{position:absolute;top:0;left:0;right:0;background:#fee;color:#900;padding:8px 10px;font-size:12px;z-index:2000;border-bottom:1px solid #f99;display:none}
 
+  /* 右上のフローティング系 */
   #btnPanel{
     position:absolute;right:10px;top:10px;z-index:1100;
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
@@ -112,8 +113,8 @@
 </div>
 
 <div class="panel" id="panel">
-  <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span> <button id="btnClearAll" class="ghost">回収地点全クリア</button></h2>
-  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver83実車版</div>
+  <h2>回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span></h2>
+  <div class="small" style="color:#c00;margin:4px 0 8px;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」Ver84実車版</div>
 
   <div class="controls">
     <div class="row">
@@ -157,11 +158,14 @@
       </label>
     </div>
 
+    <!-- ★ ここで「遠距離オートズーム(m)」の右側に全クリアを移設 -->
     <div class="row">
       <label>遠距離オートズーム(m)
         <input type="text" id="farZoom" value="100" style="width:100%" inputmode="numeric" autocomplete="off">
       </label>
-      <div></div>
+      <div style="display:flex;align-items:end;">
+        <button id="btnClearAll" class="ghost" style="width:100%;">回収地点全クリア</button>
+      </div>
     </div>
 
     <div class="row">
