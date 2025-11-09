@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 自動/手動回収 + SVリンク + 例外CSV）Ver98 統合+修正</title>
+<title>回収選択デモ（Leaflet + 自動/手動回収 + SVリンク + 例外CSV）Ver102</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -130,9 +130,6 @@
     回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span>
   </h2>
 
-  <!-- ★ 追加：起動モード表示（回収結果数の次行 / 赤文字） -->
-  <div id="modeLine" class="small" style="color:#c00;margin:4px 0 8px;"></div>
-
   <div class="controls">
     <div class="row">
       <div><label>車両ID<select id="vehicle"></select></label></div>
@@ -195,12 +192,12 @@
       <button id="btnLabelToggle" class="ghost" title="地理院『標準地図の注記』重ね合わせのON/OFF">注記：ON</button>
     </div>
 
-    <!-- ★ ここへ移動：地図上回収場所の色の説明（黒文字のまま） -->
-    <div class="small" id="legendLine" style="margin-top:2px;">
-      地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」 Ver98 統合
+    <!-- ===== ここから説明テキスト（ご指定の文言＆配色） ===== -->
+    <div class="small" style="margin-top:6px;color:#000;">
+      <span>地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」 </span>
+      <span style="color:#c00;">Ver98+修正 統合</span>
     </div>
-
-    <div class="small">
+    <div class="small" style="margin-top:6px;">
       ・Esri衛星写真の上に、地理院「標準地図（注記）」を半透明で重ねています（ONが初期）。<br>
       ・実車「有効」では自車アイコン表示＆自動回収、SVリンクは非表示。<br>
       ・実車「無効」では自車なし＆自動回収なし、SVリンクをポップアップに表示。
@@ -338,37 +335,18 @@
   });
   updateLabelButton();
 
-  /* ===== 回収地点（先行定義：他から参照されるため） ===== */
-  const points=[];                // ← 初期化前参照エラー回避のため先行定義
-  const nameIndex=new Map();
-  let firstLoadedName=null;
-
   /* 実車 有効/無効 */
   const btnRealToggle = document.getElementById('btnRealToggle');
   let realMode = false;  // false=実車無（デフォルト）
-
-  // ★ 追加：起動モード行の表示更新
-  function updateModeLine(){
-    const el = document.getElementById('modeLine');
-    el.textContent = realMode
-      ? '起動モード：実車 有効（自動回収/GPS追従）'
-      : '起動モード：実車 無効（手動回収・SVリンク表示）';
-  }
-
   function updateRealBtn(){ btnRealToggle.textContent = '実車：' + (realMode ? '有効' : '無効'); }
   btnRealToggle.addEventListener('click', ()=>{
     realMode = !realMode;
     updateRealBtn();
-    updateModeLine(); // ★ 実車切替時にモード行も更新
-
-    // 実車の有効/無効変更に応じて見た目・機能更新
     if(realMode){ startGpsWatch(); btnHeading.disabled=false; }
     else{ stopGpsWatch(); removeLoc(); btnHeading.disabled=true; }
-    // ポップアップのSVリンク表示/非表示を更新
     points.forEach(p=> setPopupContent(p));
   });
   updateRealBtn();
-  updateModeLine(); // ★ 初期表示
 
   /* 現在地表示（実車有効時） */
   map.createPane('vehiclePane'); map.getPane('vehiclePane').style.zIndex=500;
@@ -424,7 +402,11 @@
     gpsWatchId=null;
   }
 
-  /* ===== マーカー/ポップアップ ===== */
+  /* ===== 回収地点 ===== */
+  const points=[];                // 先に定義
+  const nameIndex=new Map();
+  let firstLoadedName=null;
+
   const blueIcon=L.icon({
     iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
     iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
@@ -604,7 +586,7 @@
       navigator.geolocation.getCurrentPosition(
         pos=>resolve([pos.coords.latitude,pos.coords.longitude,pos.coords.accuracy]),
         err=>reject(err),
-        {enableHighAccuracy:true,timeout:timeoutMs}
+      {enableHighAccuracy:true,timeout:timeoutMs}
       );
     });
   }
@@ -1090,7 +1072,7 @@
     }catch(err){ showErr(err); }
   });
 
-  // 地点ファイル入力ハンドラ（重複防止で1箇所に集約）
+  // 地点ファイル入力ハンドラ
   document.getElementById('file').addEventListener('change',(e)=>{
     const f=e.target.files[0]; if(!f) return;
     blurAllInputs();
