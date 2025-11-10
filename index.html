@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver110</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver111</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -142,7 +142,7 @@
     </div>
 
     <div>
-      <label>基本回収ルート読込（.gpx / .geojson / .json / .csv）</label>
+      <label>基本回収ルート読込（.gpx / .geojson / .json / .csv / .xml）</label>
       <div class="file-wrap">
         <input type="file" id="fileRoute"
           accept=".gpx,.xml,.geojson,.json,.csv,application/gpx+xml,application/xml,text/xml,text/plain,*/*">
@@ -194,10 +194,10 @@
       <button id="btnLabelToggle" class="ghost" title="地理院『標準地図の注記』重ね合わせのON/OFF">注記：ON</button>
     </div>
 
-    <!-- 凡例（指定通りパネル最下部・配色ルール + バージョン） -->
+    <!-- 凡例（Ver表記は赤、説明は黒）。位置は最下部のまま -->
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver110</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver111</span>
     </div>
   </div>
 </div>
@@ -222,7 +222,7 @@
 
 <script>
 (function(){
-  const VERSION = 'Ver110';
+  const VERSION = 'Ver111';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -251,150 +251,103 @@
   }
   window.addEventListener('error',ev=>showErr(ev.error||ev.message||'unknown'));
 
-  /* ======== 音声（TTS） & オーディオ“解錠”強化 ======== */
-  let audioVol=parseFloat(localStorage.getItem('chimeVol')||'0.7');
+  /* ===== 音声まわり（Android対策含む） ===== */
   let audioUnlocked=false;
-  let ttsUnlocked=false;
-  let ttsReady=false;
-  let jaVoice=null;
+  let ttsReady=false, cachedJaVoice=null, ttsUnlockTried=false;
 
-  // 音量ボタン
-  document.getElementById('volDown').addEventListener('click', ()=>{ blurActiveInput(); audioVol=Math.max(0,audioVol-0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('音量: '+Math.round(audioVol*100)+'%'); });
-  document.getElementById('volUp').addEventListener('click',   ()=>{ blurActiveInput(); audioVol=Math.min(1,audioVol+0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('音量: '+Math.round(audioVol*100)+'%'); });
-
+  // 端末の一度のタップでWebAudio+TTSの“解錠”を行う
   function unlockAudio(){
     if(audioUnlocked) return;
-    try{
-      const a=new Audio();
-      a.muted=true;
-      const p=a.play();
-      if(p && p.catch) p.catch(()=>{}).finally(()=>{ audioUnlocked=true; });
-      else audioUnlocked=true;
-    }catch(_e){ audioUnlocked=true; }
+    const a=new Audio();
+    a.muted=true;
+    a.play().catch(()=>{}).finally(()=>{
+      audioUnlocked=true;
+    });
   }
 
-  function pickJaVoice(){
-    const vs = speechSynthesis.getVoices() || [];
-    // 日本語優先
-    const cand = vs.find(v => /ja/i.test(v.lang)) || vs.find(v=>/jp|japan/i.test(v.name||'')) || vs[0] || null;
-    jaVoice = cand;
-  }
-
-  function waitVoicesReady(timeout=3000){
+  // Android Chrome で voices が空のことがある → voiceschanged を待つ
+  function ensureVoicesLoaded(timeoutMs=1500){
     return new Promise(resolve=>{
-      let done=false;
-      function finish(){ if(!done){ done=true; resolve(); } }
-      const vs = speechSynthesis.getVoices();
-      if(vs && vs.length){ pickJaVoice(); ttsReady=true; return finish(); }
-      const timer=setTimeout(()=>{ pickJaVoice(); ttsReady=true; finish(); }, timeout);
-      function onChanged(){
-        try{
-          pickJaVoice();
-          ttsReady=true;
-          finish();
-        }finally{
-          clearTimeout(timer);
-          speechSynthesis.removeEventListener('voiceschanged', onChanged);
-        }
-      }
-      speechSynthesis.addEventListener('voiceschanged', onChanged);
-      // 一部端末で voiceschanged が来ない対策
-      try{ speechSynthesis.getVoices(); }catch(_e){}
+      const voices = speechSynthesis.getVoices();
+      if(voices && voices.length){ return resolve(voices); }
+      const timer=setTimeout(()=>{
+        resolve(speechSynthesis.getVoices()||[]);
+        speechSynthesis.onvoiceschanged=null;
+      }, timeoutMs);
+      speechSynthesis.onvoiceschanged=()=>{
+        clearTimeout(timer);
+        const vs=speechSynthesis.getVoices()||[];
+        speechSynthesis.onvoiceschanged=null;
+        resolve(vs);
+      };
+      // 一部端末でイベントを促すため、空発話を試す
+      try{ speechSynthesis.speak(new SpeechSynthesisUtterance(' ')); speechSynthesis.cancel(); }catch(_e){}
     });
   }
 
   async function unlockTTS(){
-    if(ttsUnlocked) return;
+    if(ttsReady || ttsUnlockTried===true) return;
+    ttsUnlockTried=true;
     try{
-      await waitVoicesReady(3000);
-      // Android Chrome 対策：resume を複数回呼ぶと復帰するケースがある
-      for(let i=0;i<3;i++) speechSynthesis.resume();
-      // ほぼ無音の短い発話で“解錠”
-      const u = new SpeechSynthesisUtterance('。'); // 句点1つ（最短）
-      if(jaVoice) u.voice = jaVoice;
-      u.lang = (jaVoice && jaVoice.lang) || 'ja-JP';
-      u.rate = 1.0; u.pitch = 1.0; u.volume = 0.01;
-      const once = new Promise((res)=>{ u.onend=()=>res(); u.onerror=()=>res(); });
-      speechSynthesis.speak(u);
-      await once;
-      ttsUnlocked = true;
+      const vs=await ensureVoicesLoaded(1800);
+      cachedJaVoice = vs.find(v=>/^ja/i.test(v.lang)) || vs.find(v=>/日本語/.test(v.name||'')) || null;
+
+      // いきなり本発話をかけると失敗する端末があるため、無音の短い発話→キャンセル→少し待って準備完了
+      const u = new SpeechSynthesisUtterance(' ');
+      if(cachedJaVoice) u.voice=cachedJaVoice;
+      u.lang = (cachedJaVoice && cachedJaVoice.lang) || 'ja-JP';
+      u.volume = 0.0; u.rate=1.0; u.pitch=1.0;
+      let settled=false;
+      u.onend = ()=>{ if(!settled){ settled=true; setTimeout(()=>{ ttsReady=true; }, 60); } };
+      u.onerror= ()=>{ ttsReady=true; };
+      try{
+        speechSynthesis.cancel();
+        speechSynthesis.speak(u);
+      }catch(_e){ ttsReady=true; }
     }catch(_e){
-      // 失敗しても次の speakJa で再試行
-      ttsUnlocked = false;
+      ttsReady=true;
     }
   }
 
-  // 画面の最初のタップで同時解錠
-  function firstGestureUnlock(){
-    unlockAudio();
-    unlockTTS();
-    document.removeEventListener('pointerdown', firstGestureUnlock, true);
-    document.removeEventListener('touchstart', firstGestureUnlock, true);
-  }
-  document.addEventListener('pointerdown', firstGestureUnlock, true);
-  document.addEventListener('touchstart',  firstGestureUnlock, true);
-
-  // タブ復帰で TTS を復活させる
-  document.addEventListener('visibilitychange', ()=>{
-    if(document.visibilityState === 'visible'){
-      try{ speechSynthesis.resume(); }catch(_e){}
-    }
-  });
-
-  async function speakJa(text, retry=1){
+  // 音声再生（安全版）：必要なら解錠を行い、わずかに遅延して発話
+  async function speakJa(text){
     try{
-      await waitVoicesReady(2000);
-      if(!ttsUnlocked) await unlockTTS();
-
-      // resume を念のため
-      for(let i=0;i<2;i++) speechSynthesis.resume();
-
-      const u = new SpeechSynthesisUtterance(text);
-      if(jaVoice) u.voice = jaVoice;
-      u.lang = (jaVoice && jaVoice.lang) || 'ja-JP';
-      u.rate = 1.0; u.pitch = 1.0; u.volume = Math.max(0.2, audioVol);
-      return new Promise((resolve)=>{
-        let done=false;
-        u.onend = ()=>{ if(!done){ done=true; resolve(true); } };
-        u.onerror = ()=>{ if(!done){ done=true; resolve(false); } };
+      await unlockTTS(); // 初回タップのハンドラから呼ばれる想定
+      // 端末差異回避のため、少し遅延してから発話
+      setTimeout(()=>{
         try{
+          const u=new SpeechSynthesisUtterance(text);
+          u.lang = (cachedJaVoice && cachedJaVoice.lang) || 'ja-JP';
+          if(cachedJaVoice) u.voice=cachedJaVoice;
+          u.volume=1.0; u.rate=1.0; u.pitch=1.0;
+          try{ speechSynthesis.cancel(); }catch(_e){}
           speechSynthesis.speak(u);
-        }catch(_e){
-          resolve(false);
-        }
-      }).then(async ok=>{
-        if(!ok && retry>0){
-          // 再試行（解錠や resume をもう一度）
-          await unlockTTS();
-          for(let i=0;i<3;i++) speechSynthesis.resume();
-          return speakJa(text, retry-1);
-        }
-        if(!ok){
-          // フォールバック：チャイム＋トースト
-          await chime();
-          showToast('（端末のTTSが無効のためチャイムで代替しました）',3);
-        }
-        return ok;
-      });
-    }catch(_e){
-      await chime();
-      showToast('音声合成が利用できません（端末側の設定/TTSエンジンをご確認ください）',3);
-      return false;
-    }
+        }catch(_e){}
+      }, 90);
+    }catch(_e){}
   }
+
+  // どのユーザー操作でも解錠＆TTS準備を走らせる（ボタン無反応化はしない）
+  document.addEventListener('pointerdown', ()=>{ unlockAudio(); unlockTTS(); }, {capture:true, passive:true});
+  document.addEventListener('touchstart',  ()=>{ unlockAudio(); unlockTTS(); }, {capture:true, passive:true});
+  document.addEventListener('click',       ()=>{ unlockAudio(); unlockTTS(); }, {capture:true, passive:true});
+
+  // 成功率を上げるため、ページ表示後にも一応“声帯起動”を試みる（制限下でも害なし）
+  setTimeout(()=>{ try{ unlockTTS(); }catch(_e){} }, 600);
+
+  /* 音量UI */
+  let audioVol=parseFloat(localStorage.getItem('chimeVol')||'0.7');
+  document.getElementById('volDown').addEventListener('click', ()=>{ blurActiveInput(); audioVol=Math.max(0,audioVol-0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('音量: '+Math.round(audioVol*100)+'%'); });
+  document.getElementById('volUp').addEventListener('click',   ()=>{ blurActiveInput(); audioVol=Math.min(1,audioVol+0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('音量: '+Math.round(audioVol*100)+'%'); });
 
   async function chime(){
     const candidates = ['./quiz-correct3.mp3','./クイズ・正解3.mp3'];
-    for(const src of candidates){
-      try{
-        const a=new Audio(src);
-        a.volume=audioVol;
-        await a.play();
-        return true;
-      }catch(_e){}
-    }
+    for(const src of candidates){ try{ const a=new Audio(src); a.volume=audioVol; await a.play(); return true; }catch(_e){} }
     return false;
   }
+
+  function blurActiveInput(){ const el=document.activeElement; if(!el) return; const tg=el.tagName; if(tg==='INPUT'||tg==='SELECT'||tg==='TEXTAREA'){ try{el.blur();}catch(_e){} } }
+  function blurAllInputs(){ blurActiveInput(); document.querySelectorAll('input,select,textarea').forEach(el=>{ if(el===document.activeElement) try{el.blur();}catch(_e){} }); }
 
   /* パネル開閉 */
   const panel=document.getElementById('panel');
@@ -410,9 +363,6 @@
     if(!panelVisible){ blurAllInputs(); }
   }
   btnPanel.addEventListener('click',()=>{ suppressFollow(); togglePanel(); });
-
-  function blurActiveInput(){ const el=document.activeElement; if(!el) return; const tg=el.tagName; if(tg==='INPUT'||tg==='SELECT'||tg==='TEXTAREA'){ try{el.blur();}catch(_e){} } }
-  function blurAllInputs(){ blurActiveInput(); document.querySelectorAll('input,select,textarea').forEach(el=>{ if(el===document.activeElement) try{el.blur();}catch(_e){} }); }
 
   /* 車両/運転者 */
   const FLEET={"1772":["神山","大川","江田"],"5836":["熊坂","田端","藤田","平野","大川","江田"],"8792":["熊坂","八田","平野","田端","大川","江田"],"1771":["永浦","菊池","嶋田","田端","八田","藤田","千葉","大川","江田"]};
@@ -529,7 +479,7 @@
   }
 
   /* ===== 回収地点 ===== */
-  const points=[];                // 先に定義
+  const points=[];                // ← 先に定義
   const nameIndex=new Map();
   let firstLoadedName=null;
 
@@ -725,7 +675,7 @@
   }
 
   /* ログ */
-  let logRows=JSON.parse(localStorage.getItem('collectionLog')||'[]);
+  let logRows=JSON.parse(localStorage.getItem('collectionLog')||'[]');
   function pushLogRow(row){ logRows.push(row); localStorage.setItem('collectionLog',JSON.stringify(logRows)); }
   function nowStamp(){
     const dt=new Date(); const pad=n=>String(n).padStart(2,'0');
@@ -847,7 +797,23 @@
       points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[]; nextDistByName.clear();
       const text=await file.text();
       const lower=file.name.toLowerCase();
-      if(lower.endsWith('.kml')){
+
+      if(lower.endsWith('.gpx')||lower.endsWith('.xml')){
+        const xml=new DOMParser().parseFromString(text,'application/xml');
+        let pts=[...xml.querySelectorAll('trkpt, rtept')];
+        let latlngs=pts.map(el=>[parseFloat(el.getAttribute('lat')), parseFloat(el.getAttribute('lon'))])
+                       .filter(v=>Number.isFinite(v[0])&&Number.isFinite(v[1]));
+        if(latlngs.length<2){
+          const wpts=[...xml.querySelectorAll('wpt')].map(el=>[parseFloat(el.getAttribute('lat')), parseFloat(el.getAttribute('lon'))])
+                                                     .filter(v=>Number.isFinite(v[0])&&Number.isFinite(v[1]));
+          if(wpts.length>=2){ latlngs = wpts; }
+        }
+        setRouteLatLngs(latlngs);
+        if(points.length){
+          buildStrictOrderFromFirst();
+          map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
+        }
+      }else if(lower.endsWith('.kml')){
         const nameRegex=/<name>([\s\S]*?)<\/name>/gi;
         const coordRegex=/<coordinates>([-0-9.]+),([-0-9.]+)/gi;
         const names=[]; let m;
@@ -856,6 +822,11 @@
           const lon=parseFloat(m[1]); const lat=parseFloat(m[2]);
           const nm=(names[i]||'').toString().trim(); i++;
           if(nm && Number.isFinite(lat)&&Number.isFinite(lon)) addPoint(nm,lat,lon,'');
+        }
+        if(points.length){
+          buildStrictOrderFromFirst();
+          map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
+          updatePointCount();
         }
       }else if(lower.endsWith('.geojson')||lower.endsWith('.json')){
         const gj=JSON.parse(text);
@@ -867,11 +838,11 @@
             if(nm) addPoint(nm,lat,lon,'');
           }
         });
-      }
-      if(points.length){
-        buildStrictOrderFromFirst();
-        map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
-        updatePointCount();
+        if(points.length){
+          buildStrictOrderFromFirst();
+          map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
+          updatePointCount();
+        }
       }
     }catch(e){ showErr(e); }
   }
@@ -990,8 +961,11 @@
     return nameIndex.has(p.desc) ? p.desc : null;
   }
 
-  async function startGuidance(){
+  function startGuidance(){
     blurAllInputs();
+    // 発話の成功率向上：ナビ開始押下時点でもう一度解錠＆ボイス取得
+    unlockAudio(); unlockTTS();
+
     if(points.length===0){ alert('地点がありません'); return; }
     const v=parseFloat(document.getElementById('thres').value); if(Number.isFinite(v)) nav.thresholdM=v;
     const a=parseFloat(document.getElementById('arrive').value); if(Number.isFinite(a)) nav.arriveM=a;
@@ -1013,11 +987,7 @@
     nav.idx=startIdx; nav.active=true; togglePanel(false);
 
     const cur=nav.order[nav.idx];
-    // ====== 音声案内（強化版） ======
-    const spoken = await speakJa('ナビを開始します。まずは ' + nameIndex.get(cur).name + ' へ向かってください。');
-    if(!spoken){
-      // ここまでで失敗したら次の発話も通らない可能性があるため、以降の案内はチャイム＋トーストのみにフォールバック
-    }
+    speakJa('ナビを開始します。まずは ' + nameIndex.get(cur).name + ' に向かってください。');
     nav.lastAnnounceTarget = cur;
     focusTarget(cur);
 
@@ -1061,20 +1031,19 @@
     }catch(_e){}
   }
 
-  async function guideNextAfter(doneName){
+  function guideNextAfter(doneName){
     const nx = nextByDescription(doneName);
     if(nx){
       nav.active=true;
       nav.lastAnnounceTarget = nx;
-      const spoken = await speakJa(nameIndex.get(nx).name+' へ向かってください');
-      if(!spoken){ await chime(); }
+      speakJa(nameIndex.get(nx).name+' に向かってください。');
       focusTarget(nx);
       autoZoomForNext(doneName, nx);
 
       const j = strictOrder.indexOf(nx);
       if(j>=0){ nav.order = strictOrder.slice(); nav.idx = j; }
     }else{
-      if(nav.active){ await speakJa('このルートは完了しました'); stopGuidance(); }
+      if(nav.active){ speakJa('このルートは完了しました'); stopGuidance(); }
     }
   }
 
@@ -1124,7 +1093,7 @@
         nav.idx = k+1; cur = nav.order[nav.idx] = strictOrder[nav.idx];
         currentPoint = nameIndex.get(cur);
         if(currentPoint){
-          speakJa(currentPoint.name+' へ向かってください');
+          speakJa(currentPoint.name+' に向かってください。');
           nav.lastAnnounceTarget=cur;
           focusTarget(cur);
           autoZoomForNext(prev, cur);
@@ -1153,6 +1122,7 @@
     if(routeLayer){ map.removeLayer(routeLayer); routeLayer=null; }
     if(routeLatLngs.length>=2){
       routeLayer=L.polyline(routeLatLngs,{color:'#ff2d2d',weight:4,opacity:0.9,pane:'markerPane'}).addTo(map);
+      togglePanel(false); setTimeout(fitRoute,50);
     }
   }
   function fitRoute(){
@@ -1170,8 +1140,8 @@
     const f=e.target.files[0]; if(!f) return;
     blurAllInputs();
     try{
-      const nameLower = f.name.toLowerCase();
-      if(/\.gpx$|\.xml$/.test(nameLower) || f.type==='application/gpx+xml' || f.type==='application/xml' || f.type==='text/xml'){
+      const name=f.name||'';
+      if(/\.(gpx|xml)$/i.test(name)){
         const text=await f.text();
         const xml=new DOMParser().parseFromString(text,'application/xml');
         let pts=[...xml.querySelectorAll('trkpt, rtept')];
@@ -1183,22 +1153,22 @@
           if(wpts.length>=2){ latlngs = wpts; }
         }
         if(latlngs.length>=2){
-          setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
+          setRouteLatLngs(latlngs);
         }else{
           setRouteLatLngs([]); showToast('GPXは読み込みました（線を引く点が不足）',3);
         }
-      }else if(/\.(geojson|json)$/i.test(nameLower)){
+      }else if(/\.(geojson|json)$/i.test(name)){
         const gj=JSON.parse(await f.text()); const latlngs=[];
         if(gj.type==='FeatureCollection'){ gj.features.forEach(feat=>{ if(feat.geometry&&feat.geometry.type==='LineString'){ feat.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); } }); }
         else if(gj.type==='Feature'&&gj.geometry&&gj.geometry.type==='LineString'){ gj.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
         else if(gj.type==='LineString'){ gj.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
         if(latlngs.length<2){ showErr('GeoJSON内にLineStringがありません'); return; }
-        setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
-      }else if(/\.csv$/i.test(nameLower)){
+        setRouteLatLngs(latlngs);
+      }else if(/\.csv$/i.test(name)){
         Papa.parse(f,{header:true,skipEmptyLines:true,complete:(res)=>{
           const latlngs=[]; res.data.forEach(r=>{ const la=parseFloat(r.Latitude||r['緯度']); const lo=parseFloat(r.Longitude||r['経度']); if(Number.isFinite(la)&&Number.isFinite(lo)) latlngs.push([la,lo]); });
           if(latlngs.length<2){ showErr('CSVの行が少ない/列名不一致'); return; }
-          setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
+          setRouteLatLngs(latlngs);
         }});
       }else{
         alert('対応外：.gpx/.xml/.geojson/.json/.csv を選択');
