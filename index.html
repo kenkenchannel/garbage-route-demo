@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収選択デモ（Leaflet + 自動/手動回収 + SVリンク + 例外CSV）Ver102</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver104</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -41,7 +41,6 @@
   button.ghost{background:#fff}
   .small{font-size:12px;color:#555}
   .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#eee;font-size:12px;margin-left:6px}
-  .footer{font-size:11px;color:#555;margin-top:6px}
   .err{position:absolute;top:0;left:0;right:0;background:#fee;color:#900;padding:8px 10px;font-size:12px;z-index:2000;border-bottom:1px solid #f99;display:none}
 
   /* 右上フローティング */
@@ -129,6 +128,7 @@
   <h2>
     回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span>
   </h2>
+  <!-- ※Ver102以降、凡例は最下部へ移動するため、この位置からは削除 -->
 
   <div class="controls">
     <div class="row">
@@ -192,18 +192,13 @@
       <button id="btnLabelToggle" class="ghost" title="地理院『標準地図の注記』重ね合わせのON/OFF">注記：ON</button>
     </div>
 
-    <!-- ===== ここから説明テキスト（ご指定の文言＆配色） ===== -->
-    <div class="small" style="margin-top:6px;color:#000;">
-      <span>地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」 </span>
-      <span style="color:#c00;">Ver98+修正 統合</span>
-    </div>
-    <div class="small" style="margin-top:6px;">
-      ・Esri衛星写真の上に、地理院「標準地図（注記）」を半透明で重ねています（ONが初期）。<br>
-      ・実車「有効」では自車アイコン表示＆自動回収、SVリンクは非表示。<br>
-      ・実車「無効」では自車なし＆自動回収なし、SVリンクをポップアップに表示。
+    <!-- 仕様説明（縦長回避のため削除）、代わりに凡例のみ最下部に表示 -->
+    <div id="legendLine" class="small" style="margin-top:6px;">
+      <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver104</span>
     </div>
 
-    <div class="footer">Leaflet + Vanilla JS（統合版）</div>
+    <!-- 以前のフッター「Leaflet + Vanilla JS（統合版）」は非表示ではなく完全削除 -->
   </div>
 </div>
 
@@ -227,6 +222,12 @@
 
 <script>
 (function(){
+  const VERSION = 'Ver104'; // ← ここを更新するだけで凡例のVer表記とタイトルを同期可能
+  // タイトルも同期（ユーザー意図に合わせて固定文言で先頭は維持）
+  document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
+  const legendVerEl = document.getElementById('legendVer');
+  if(legendVerEl) legendVerEl.textContent = VERSION;
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
@@ -311,7 +312,7 @@
   const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
     maxZoom:20, attribution:'Tiles c Esri'
   }).addTo(map);
-  // 注記（標準地図）※注記用レイヤの代替として std を薄く重ねる
+  // 注記（標準地図）
   const gsiLabel = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',{
     maxZoom:20, opacity:0.45, attribution:'c GSI'
   }).addTo(map);
@@ -403,7 +404,7 @@
   }
 
   /* ===== 回収地点 ===== */
-  const points=[];                // 先に定義
+  const points=[];                // ← 先に定義
   const nameIndex=new Map();
   let firstLoadedName=null;
 
@@ -586,7 +587,7 @@
       navigator.geolocation.getCurrentPosition(
         pos=>resolve([pos.coords.latitude,pos.coords.longitude,pos.coords.accuracy]),
         err=>reject(err),
-      {enableHighAccuracy:true,timeout:timeoutMs}
+        {enableHighAccuracy:true,timeout:timeoutMs}
       );
     });
   }
@@ -1072,7 +1073,7 @@
     }catch(err){ showErr(err); }
   });
 
-  // 地点ファイル入力ハンドラ
+  // 地点ファイル入力ハンドラ（重複登録を避けるため1度だけ）
   document.getElementById('file').addEventListener('change',(e)=>{
     const f=e.target.files[0]; if(!f) return;
     blurAllInputs();
