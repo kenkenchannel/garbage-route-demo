@@ -146,16 +146,11 @@
     <div>
       <label>基本回収ルート読込（GPX / GeoJSON / JSON / CSV / XML）</label>
       <div class="file-wrap">
-        <input type="file" id="fileRoute"
-          accept="
-            .gpx,.GPX,
-            application/gpx+xml,
-            .xml,.XML,
-            application/xml,text/xml,
-            .geojson,.GEOJSON,.json,.JSON,
-            .csv,.CSV,
-            application/octet-stream,
-            */*">
+
+	<input type="file" id="fileRoute"
+       accept=".gpx,.xml,.geojson,.json,.csv,application/gpx+xml,application/xml,text/xml,text/plain,*/*">
+
+	
       </div>
       <div class="row" style="grid-template-columns:1fr 1fr">
         <button id="btnRouteZoom" class="ghost" style="font-size:12px">ルートへズームアウト</button>
