@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver104</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver105</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -143,8 +143,13 @@
     </div>
 
     <div>
-      <label>基本回収ルート読込（.gpx / .geojson / .json / .csv）</label>
-      <div class="file-wrap"><input type="file" id="fileRoute" accept=".gpx,.geojson,.json,.csv"></div>
+      <label>基本回収ルート読込（.gpx / .xml / .geojson / .json / .csv）</label>
+      <div class="file-wrap">
+        <input
+          type="file"
+          id="fileRoute"
+          accept=".gpx,.xml,.geojson,.json,.csv,application/gpx+xml,application/xml,text/xml,application/octet-stream">
+      </div>
       <div class="row" style="grid-template-columns:1fr 1fr">
         <button id="btnRouteZoom" class="ghost" style="font-size:12px">ルートへズームアウト</button>
         <button id="btnHeading" class="ghost" style="font-size:12px">ヘディング：OFF</button>
@@ -192,13 +197,13 @@
       <button id="btnLabelToggle" class="ghost" title="地理院『標準地図の注記』重ね合わせのON/OFF">注記：ON</button>
     </div>
 
-    <!-- 仕様説明（縦長回避のため削除）、代わりに凡例のみ最下部に表示 -->
+    <!-- 凡例行（最下部） -->
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver104</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver105</span>
     </div>
 
-    <!-- 以前のフッター「Leaflet + Vanilla JS（統合版）」は非表示ではなく完全削除 -->
+    <!-- フッターは削除 -->
   </div>
 </div>
 
@@ -222,8 +227,7 @@
 
 <script>
 (function(){
-  const VERSION = 'Ver104'; // ← ここを更新するだけで凡例のVer表記とタイトルを同期可能
-  // タイトルも同期（ユーザー意図に合わせて固定文言で先頭は維持）
+  const VERSION = 'Ver105'; // ← ここを書き換えるだけで凡例のVer表記とタイトルを同期
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -308,17 +312,14 @@
 
   /* 地図・レイヤ（Esri + GSI注記） */
   const map=L.map('map',{zoomControl:false});
-  // 衛星ベース
   const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
     maxZoom:20, attribution:'Tiles c Esri'
   }).addTo(map);
-  // 注記（標準地図）
   const gsiLabel = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',{
     maxZoom:20, opacity:0.45, attribution:'c GSI'
   }).addTo(map);
   map.setView([35.841,139.34],14);
 
-  // ズームを左下に
   L.control.zoom({position:'bottomleft'}).addTo(map);
 
   ['movestart','dragstart','zoomstart','mousedown','touchstart','wheel'].forEach(ev=>{
@@ -1039,7 +1040,7 @@
     const f=e.target.files[0]; if(!f) return;
     blurAllInputs();
     try{
-      if(/\.gpx$/i.test(f.name)){
+      if(/\.(gpx|xml)$/i.test(f.name)){
         const text=await f.text();
         const xml=new DOMParser().parseFromString(text,'application/xml');
         // trkpt / rtept / wpt の順で抽出
@@ -1054,7 +1055,7 @@
         if(latlngs.length>=2){
           setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
         }else{
-          setRouteLatLngs([]); showToast('GPXは読み込みました（線を引く点が不足）',3);
+          setRouteLatLngs([]); showToast('GPX/XMLは読み込みました（線を引く点が不足）',3);
         }
       }else if(/\.(geojson|json)$/i.test(f.name)){
         const gj=JSON.parse(await f.text()); const latlngs=[];
@@ -1069,7 +1070,7 @@
           if(latlngs.length<2){ showErr('CSVの行が少ない/列名不一致'); return; }
           setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
         }});
-      }else{ alert('対応外：.gpx/.geojson/.json/.csv を選択'); }
+      }else{ alert('対応外：.gpx/.xml/.geojson/.json/.csv を選択'); }
     }catch(err){ showErr(err); }
   });
 
