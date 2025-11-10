@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver106</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver107</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -138,19 +138,17 @@
     <div>
       <label>地点CSV読込（Name,Latitude,Longitude[,Description]）</label>
       <div class="file-wrap">
-        <input type="file" id="file" accept=".csv,.CSV,.kml,.KML,.geojson,.GEOJSON,.json,.JSON">
+        <input type="file" id="file" accept=".csv,.kml,.geojson,.json">
       </div>
       <div class="small">CSV推奨。KML/GeoJSONは簡易対応（ポイントのみ）。</div>
     </div>
 
     <div>
-      <label>基本回収ルート読込（GPX / GeoJSON / JSON / CSV / XML）</label>
+      <label>基本回収ルート読込（.gpx / .geojson / .json / .csv）</label>
       <div class="file-wrap">
-
-	<input type="file" id="fileRoute"
-       accept=".gpx,.xml,.geojson,.json,.csv,application/gpx+xml,application/xml,text/xml,text/plain,*/*">
-
-	
+        <!-- iOS 15 対応：受け入れ MIME を広げる -->
+        <input type="file" id="fileRoute"
+          accept=".gpx,.xml,.geojson,.json,.csv,application/gpx+xml,application/xml,text/xml,text/plain,*/*">
       </div>
       <div class="row" style="grid-template-columns:1fr 1fr">
         <button id="btnRouteZoom" class="ghost" style="font-size:12px">ルートへズームアウト</button>
@@ -160,7 +158,7 @@
 
     <div>
       <label>例外到着CSV読込（Place,DeviceLat,DeviceLon）</label>
-      <div class="file-wrap"><input type="file" id="fileException" accept=".csv,.CSV"></div>
+      <div class="file-wrap"><input type="file" id="fileException" accept=".csv"></div>
       <div class="small">例外地点は <b>20m以内</b> で回収済として扱います。</div>
     </div>
 
@@ -199,10 +197,10 @@
       <button id="btnLabelToggle" class="ghost" title="地理院『標準地図の注記』重ね合わせのON/OFF">注記：ON</button>
     </div>
 
-    <!-- 凡例（指定どおり最下部／黒＋Verは赤） -->
+    <!-- 凡例（黒＋赤の2トーン表記） -->
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver106</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver107</span>
     </div>
   </div>
 </div>
@@ -227,7 +225,7 @@
 
 <script>
 (function(){
-  const VERSION = 'Ver106';
+  const VERSION = 'Ver107'; // ← タイトルと凡例のVer表記を同期
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -321,12 +319,11 @@
   map.setView([35.841,139.34],14);
 
   L.control.zoom({position:'bottomleft'}).addTo(map);
-
   ['movestart','dragstart','zoomstart','mousedown','touchstart','wheel'].forEach(ev=>{
     map.on(ev, ()=>{ suppressFollow(2200); blurActiveInput(); });
   });
 
-  /* 注記トグル */
+  // 注記トグル
   const btnLabelToggle = document.getElementById('btnLabelToggle');
   let labelOn = true;
   function updateLabelButton(){ btnLabelToggle.textContent = '注記：' + (labelOn ? 'ON' : 'OFF'); }
@@ -405,7 +402,7 @@
   }
 
   /* ===== 回収地点 ===== */
-  const points=[];                // 先に定義
+  const points=[];
   const nameIndex=new Map();
   let firstLoadedName=null;
 
@@ -449,7 +446,10 @@
   }
 
   function onMarkerClick(rec){
-    if(rec.status==='normal'){ toggleSelect(rec); return; }
+    if(rec.status==='normal'){
+      toggleSelect(rec);
+      return;
+    }
     if(rec.status==='collected'){
       if(confirm('アイコン色を赤から黄(無回収)に変更しますか？')){
         rec.status='skipped';
@@ -845,13 +845,16 @@
 
   /* ナビ（Description鎖） */
   const nav={order:[],idx:0,active:false,watchId:null,thresholdM:25,arriveM:15,lastAnnounceTarget:null,farZoomM:100};
+
   function rebuildOrderFromStrictChain(){ nav.order = strictOrder.slice(); }
+
   function focusTarget(uniqueName){
     const p=nameIndex.get(uniqueName); if(!p) return;
     map.setView([p.lat,p.lon], Math.max(map.getZoom(),16));
     p.marker.openPopup();
     startBlinkFor(uniqueName);
   }
+
   function nextByDescription(name){
     const p=nameIndex.get(name);
     if(!p) return null;
@@ -1030,29 +1033,15 @@
     setTimeout(fitRoute,50);
   });
 
-  // —— ここを強化：拡張子だけに依存せず GPX/XML/MIME/中身を判定 ——
   document.getElementById('fileRoute').addEventListener('change', async (e)=>{
     const f=e.target.files[0]; if(!f) return;
     blurAllInputs();
     try{
-      const nameLower = (f.name||'').toLowerCase();
-      const typeLower = (f.type||'').toLowerCase();
-
-      // ファイル内容を最初に読み込んで sniff
-      const raw = await f.text();
-      const looksXml = /^\s*<\?xml[\s\S]*?>/i.test(raw) || /<gpx[\s>]/i.test(raw);
-      const looksGpx = /<gpx[\s>]/i.test(raw) || typeLower.includes('gpx');
-
-      const isGPX =
-        /\.gpx$/i.test(nameLower) ||
-        typeLower.includes('gpx') ||
-        (looksXml && looksGpx) ||
-        (/\.xml$/i.test(nameLower) && looksGpx) ||
-        // 拡張子なしでも GPX タグがあれば GPX とみなす
-        (nameLower && !/\.(geojson|json|csv|kml)$/i.test(nameLower) && looksGpx);
-
-      if(isGPX){
-        const xml=new DOMParser().parseFromString(raw,'application/xml');
+      // iOS などで MIME が空になる場合に備え、拡張子優先で判定
+      const name = (f.name||'').toLowerCase();
+      if(/\.(gpx|xml)$/i.test(name)){
+        const text=await f.text();
+        const xml=new DOMParser().parseFromString(text,'application/xml');
         let pts=[...xml.querySelectorAll('trkpt, rtept')];
         let latlngs=pts.map(el=>[parseFloat(el.getAttribute('lat')), parseFloat(el.getAttribute('lon'))])
                        .filter(v=>Number.isFinite(v[0])&&Number.isFinite(v[1]));
@@ -1064,48 +1053,24 @@
         if(latlngs.length>=2){
           setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
         }else{
-          setRouteLatLngs([]); showToast('GPX/XML を読み込みました（線を引く点が不足）',3);
+          setRouteLatLngs([]); showToast('GPX/XMLは読み込みました（線を引く点が不足）',3);
         }
-        return;
-      }
-
-      if(/\.(geojson|json)$/i.test(nameLower) || /json/.test(typeLower)){
-        const gj=JSON.parse(raw); const latlngs=[];
+      }else if(/\.(geojson|json)$/i.test(name)){
+        const gj=JSON.parse(await f.text()); const latlngs=[];
         if(gj.type==='FeatureCollection'){ gj.features.forEach(feat=>{ if(feat.geometry&&feat.geometry.type==='LineString'){ feat.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); } }); }
         else if(gj.type==='Feature'&&gj.geometry&&gj.geometry.type==='LineString'){ gj.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
         else if(gj.type==='LineString'){ gj.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
         if(latlngs.length<2){ showErr('GeoJSON内にLineStringがありません'); return; }
         setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
-        return;
-      }
-
-      if(/\.csv$/i.test(nameLower) || typeLower.includes('csv') || (!nameLower && raw.includes(','))){
-        Papa.parse(raw,{header:true,skipEmptyLines:true,complete:(res)=>{
+      }else if(/\.csv$/i.test(name)){
+        Papa.parse(f,{header:true,skipEmptyLines:true,complete:(res)=>{
           const latlngs=[]; res.data.forEach(r=>{ const la=parseFloat(r.Latitude||r['緯度']); const lo=parseFloat(r.Longitude||r['経度']); if(Number.isFinite(la)&&Number.isFinite(lo)) latlngs.push([la,lo]); });
           if(latlngs.length<2){ showErr('CSVの行が少ない/列名不一致'); return; }
           setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
         }});
-        return;
+      }else{
+        alert('対応外：.gpx/.xml/.geojson/.json/.csv を選択');
       }
-
-      if(/\.kml$/i.test(nameLower) || typeLower.includes('kml')){
-        const nameRegex=/<name>([\s\S]*?)<\/name>/gi;
-        const coordRegex=/<coordinates>([-0-9.]+),([-0-9.]+)/gi;
-        const names=[]; let m;
-        while((m=nameRegex.exec(raw))){ names.push(m[1].trim()); }
-        let i=0; const latlngs=[];
-        while((m=coordRegex.exec(raw))){
-          const lon=parseFloat(m[1]); const lat=parseFloat(m[2]);
-          const nm=(names[i]||'').toString().trim(); i++;
-          if(Number.isFinite(lat)&&Number.isFinite(lon)) latlngs.push([lat,lon]);
-        }
-        if(latlngs.length>=2){ setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50); }
-        else{ setRouteLatLngs([]); showToast('KMLは読み込みました（線を引く点が不足）',3); }
-        return;
-      }
-
-      // ここまでで判定できなければ汎用扱い
-      showErr('このファイル形式は判別できませんでした。GPX/GeoJSON/JSON/CSV/XML を選択してください。');
     }catch(err){ showErr(err); }
   });
 
