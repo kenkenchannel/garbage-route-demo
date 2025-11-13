@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>‰ñû“™—š—ğŠÇ—ƒVƒXƒeƒ€uæ‚è‚à‚ê`‚ÊvVer114</title>
+<title>å›åç­‰å±¥æ­´ç®¡ç†ã‚·ã‚¹ãƒ†ãƒ ã€Œå–ã‚Šã‚‚ã‚Œï½ã¬ã€Ver114</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -14,7 +14,7 @@
   html,body{height:100%;margin:0;-webkit-text-size-adjust:100%}
   body,button{touch-action:manipulation;}
   #map{position:absolute;inset:0;z-index:0}
-  /* È—ªiVer113‚Æ“¯ˆêj */
+  /* çœç•¥ï¼ˆVer113ã¨åŒä¸€ï¼‰ */
 </style>
 </head>
 <body>
@@ -22,53 +22,53 @@
 <div id="err" class="err"></div>
 <div id="toast"></div>
 
-<!-- FAB‚È‚Ç Ver113‚Æ“¯ˆê -->
-<button id="btnFabCollect" class="fab">‰ñûi‘I‘ğ 0j</button>
-<button id="btnFabSkip" class="fab-small">–³‰ñûi‘I‘ğ¨‰©j</button>
+<!-- FABãªã© Ver113ã¨åŒä¸€ -->
+<button id="btnFabCollect" class="fab">å›åï¼ˆé¸æŠ 0ï¼‰</button>
+<button id="btnFabSkip" class="fab-small">ç„¡å›åï¼ˆé¸æŠâ†’é»„ï¼‰</button>
 
 <script>
 (function(){
   const VERSION = 'Ver114';
-  const GAS_URL = 'https://script.google.com/macros/s/AKfycbx1234567890abcdEFGHijklm/exec';  // © WebƒAƒvƒŠURL‚ğİ’è
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbx1234567890abcdEFGHijklm/exec';  // â† Webã‚¢ãƒ—ãƒªURLã‚’è¨­å®š
 
-  document.title = `‰ñû“™—š—ğŠÇ—ƒVƒXƒeƒ€uæ‚è‚à‚ê`‚Êv${VERSION}`;
+  document.title = `å›åç­‰å±¥æ­´ç®¡ç†ã‚·ã‚¹ãƒ†ãƒ ã€Œå–ã‚Šã‚‚ã‚Œï½ã¬ã€${VERSION}`;
   if(document.getElementById('legendVer')) document.getElementById('legendVer').textContent = VERSION;
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
   function init(){
-    /* ========= Šî–{ƒ†[ƒeƒBƒŠƒeƒB ========= */
+    /* ========= åŸºæœ¬ãƒ¦ãƒ¼ãƒ†ã‚£ãƒªãƒ†ã‚£ ========= */
     function showToast(msg,sec=2){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.style.display='none',sec*1000);}
     function showErr(e){alert('Error:'+e);console.error(e);}
     function meters(a,b){const dy=(a[0]-b[0])*111320;const dx=(a[1]-b[1])*111320*Math.cos((a[0]+b[0])*Math.PI/360);return Math.hypot(dx,dy);}
     function nowStamp(){const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
 
-    /* ========= ƒXƒvƒŒƒbƒhƒV[ƒg‘—M ========= */
+    /* ========= ã‚¹ãƒ—ãƒ¬ãƒƒãƒ‰ã‚·ãƒ¼ãƒˆé€ä¿¡ ========= */
     async function sendToGAS(row){
       try{
         const body={datetime:row[0],place:row[1],lat:row[2],lon:row[3],vehicle:row[4],driver:row[5]};
         const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-        if(!res.ok) throw new Error('GAS‘—MƒGƒ‰[:'+res.status);
+        if(!res.ok) throw new Error('GASé€ä¿¡ã‚¨ãƒ©ãƒ¼:'+res.status);
       }catch(err){
-        console.warn('GAS‘—M¸”s:',err);
+        console.warn('GASé€ä¿¡å¤±æ•—:',err);
       }
     }
 
-    /* ========= ƒƒOŠÇ— ========= */
+    /* ========= ãƒ­ã‚°ç®¡ç† ========= */
     let logRows=JSON.parse(localStorage.getItem('collectionLog')||'[]');
     function pushLogRow(row){
       logRows.push(row);
       localStorage.setItem('collectionLog',JSON.stringify(logRows));
-      sendToGAS(row);  // © ƒXƒvƒŒƒbƒhƒV[ƒg‚É‚à‘—M
+      sendToGAS(row);  // â† ã‚¹ãƒ—ãƒ¬ãƒƒãƒ‰ã‚·ãƒ¼ãƒˆã«ã‚‚é€ä¿¡
     }
 
-    /* ========= ’n}‚âUIA‰¹º‚È‚ÇiVer113‚Æ“¯—lj ========= */
-    // ˆÈ‰ºAVer113‚Æ“¯—l‚Ì mapE‰¹ºEƒiƒrˆ—ƒR[ƒh
+    /* ========= åœ°å›³ã‚„UIã€éŸ³å£°ãªã©ï¼ˆVer113ã¨åŒæ§˜ï¼‰ ========= */
+    // ä»¥ä¸‹ã€Ver113ã¨åŒæ§˜ã® mapãƒ»éŸ³å£°ãƒ»ãƒŠãƒ“å‡¦ç†ã‚³ãƒ¼ãƒ‰
 
-    /* ========= ’n}‚âUIA‰¹º‚È‚ÇiVer113‚Æ“¯—lj ========= */
+    /* ========= åœ°å›³ã‚„UIã€éŸ³å£°ãªã©ï¼ˆVer113ã¨åŒæ§˜ï¼‰ ========= */
 
-    const FLEET={"1772":["_R","‘åì","]“c"],"5836":["ŒFâ","“c’[","“¡“c","•½–ì","‘åì","]“c"],"8792":["ŒFâ","”ª“c","•½–ì","“c’[","‘åì","]“c"],"1771":["‰i‰Y","‹e’r","“ˆ“c","“c’[","”ª“c","“¡“c","ç—t","‘åì","]“c"]};
+    const FLEET={"1772":["ç¥å±±","å¤§å·","æ±Ÿç”°"],"5836":["ç†Šå‚","ç”°ç«¯","è—¤ç”°","å¹³é‡","å¤§å·","æ±Ÿç”°"],"8792":["ç†Šå‚","å…«ç”°","å¹³é‡","ç”°ç«¯","å¤§å·","æ±Ÿç”°"],"1771":["æ°¸æµ¦","èŠæ± ","å¶‹ç”°","ç”°ç«¯","å…«ç”°","è—¤ç”°","åƒè‘‰","å¤§å·","æ±Ÿç”°"]};
     const map=L.map('map',{zoomControl:false}).setView([35.84,139.34],14);
     L.control.zoom({position:'bottomleft'}).addTo(map);
     const esri=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20}).addTo(map);
@@ -94,7 +94,7 @@
     driverSel.onchange=()=>{localStorage.setItem('driver',driverSel.value);};
     populateVehicles();
 
-    /* ========= ‰ñû’n“_ŠÇ—iÈ—ª‚¹‚¸j ========= */
+    /* ========= å›ååœ°ç‚¹ç®¡ç†ï¼ˆçœç•¥ã›ãšï¼‰ ========= */
     const points=[],nameIndex=new Map();
     const blueIcon=L.icon({iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',iconSize:[25,41],iconAnchor:[12,41]});
     const redIcon=L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',iconSize:[25,41],iconAnchor:[12,41]});
@@ -110,8 +110,8 @@
 
     function onMarkerClick(p){
       if(p.status==='normal'){toggleSelect(p);}
-      else if(p.status==='collected'){if(confirm('Ô¨‰©(–³‰ñû)‚É•ÏX‚µ‚Ü‚·‚©H')){p.status='skipped';p.marker.setIcon(yellowIcon);}}
-      else if(p.status==='skipped'){if(confirm('‰©¨Ô(‰ñûÏ)‚É–ß‚µ‚Ü‚·‚©H')){p.status='collected';p.marker.setIcon(redIcon);}}
+      else if(p.status==='collected'){if(confirm('èµ¤â†’é»„(ç„¡å›å)ã«å¤‰æ›´ã—ã¾ã™ã‹ï¼Ÿ')){p.status='skipped';p.marker.setIcon(yellowIcon);}}
+      else if(p.status==='skipped'){if(confirm('é»„â†’èµ¤(å›åæ¸ˆ)ã«æˆ»ã—ã¾ã™ã‹ï¼Ÿ')){p.status='collected';p.marker.setIcon(redIcon);}}
     }
 
     function toggleSelect(p){
@@ -120,12 +120,12 @@
     }
     function refreshFab(){
       const n=selected.size;
-      document.getElementById('btnFabCollect').textContent=`‰ñûi‘I‘ğ ${n}j`;
+      document.getElementById('btnFabCollect').textContent=`å›åï¼ˆé¸æŠ ${n}ï¼‰`;
       document.getElementById('btnFabCollect').style.display=n>0?'inline-block':'none';
       document.getElementById('btnFabSkip').style.display=n>0?'inline-block':'none';
     }
 
-    /* ========= CSVæ ========= */
+    /* ========= CSVå–è¾¼ ========= */
     function importCSV(file){
       Papa.parse(file,{header:true,skipEmptyLines:true,complete:(res)=>{
         const rows=res.data||[];
@@ -142,10 +142,10 @@
       if(/\.csv$/i.test(f.name))importCSV(f);
     });
 
-    /* ========= ‰ñûˆ— ========= */
+    /* ========= å›åå‡¦ç† ========= */
     async function collectSelected(){
       if(selected.size===0)return;
-      const ok=confirm('‰ñû‚µ‚Ü‚·‚©H');if(!ok)return;
+      const ok=confirm('å›åã—ã¾ã™ã‹ï¼Ÿ');if(!ok)return;
       let lat='',lon='';
       if(navigator.geolocation){
         try{
@@ -163,7 +163,7 @@
         selected.delete(nm);
         done++;
       }
-      if(done>0)showToast(`${done}Œi‰ñûj‚ğ‹L˜^‚µ‚Ü‚µ‚½`);
+      if(done>0)showToast(`${done}ä»¶ï¼ˆå›åï¼‰ã‚’è¨˜éŒ²ã—ã¾ã—ãŸ`);
       refreshFab();
     }
 
@@ -176,14 +176,14 @@
         p.status='skipped';p.marker.setIcon(yellowIcon);
         selected.delete(nm);done++;
       }
-      if(done>0)showToast(`${done}Œ‚ğu–³‰ñûv‚É‚µ‚Ü‚µ‚½`);
+      if(done>0)showToast(`${done}ä»¶ã‚’ã€Œç„¡å›åã€ã«ã—ã¾ã—ãŸ`);
       refreshFab();
     }
 
     document.getElementById('btnFabCollect').onclick=collectSelected;
     document.getElementById('btnFabSkip').onclick=skipSelected;
 
-    /* ========= CSVo—ÍEƒvƒŒƒrƒ…[ ========= */
+    /* ========= CSVå‡ºåŠ›ãƒ»ãƒ—ãƒ¬ãƒ“ãƒ¥ãƒ¼ ========= */
     function makeCSVText(){
       const header=['Datetime','Place','DeviceLat','DeviceLon','Vehicle','Driver'];
       const lines=[header].concat(logRows).map(r=>r.map(x=>String(x).replace(/"/g,'""')).join(','));
@@ -198,7 +198,7 @@
     }
     document.getElementById('btnDownload').onclick=downloadCSV;
 
-    /* ========= I—¹ ========= */
+    /* ========= çµ‚äº† ========= */
     showToast('Ver114 ready');
   }
 })();
