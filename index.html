@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver115</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver116</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -197,7 +197,7 @@
     <!-- 凡例（Ver は赤、凡例文は黒） -->
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver115</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver116</span>
     </div>
   </div>
 </div>
@@ -222,14 +222,29 @@
 
 <script>
 (function(){
-  const VERSION = 'Ver115';
+  const VERSION = 'Ver116';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
-  // ★★★ ここに Web アプリの URL を貼り付けてください ★★★
-  // 例: const GAS_ENDPOINT = 'https://script.google.com/macros/s/XXXX/exec';
-  const GAS_ENDPOINT = '';
+  // ★ここを、あなたがデプロイした Web アプリのURLに差し替えてください
+  // 例: 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXXXXXX/exec'
+  const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwYzIsXdyd3GiXwEq868xzOMfB-HMmis_kvAGW9_2-crmOObKTnnKKsRXNCKIn-j-9X/exec';
+
+  // スプレッドシートに1行送信
+  async function sendRowToServer(payload){
+    if(!GAS_ENDPOINT || GAS_ENDPOINT.indexOf('https://') !== 0) return;
+    try{
+      await fetch(GAS_ENDPOINT, {
+        method: 'POST',
+        mode: 'no-cors',  // CORS エラーを回避（レスポンスは見ない）
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    }catch(e){
+      console.warn('GAS送信に失敗しました:', e);
+    }
+  }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
@@ -357,10 +372,10 @@
   /* 地図・レイヤ（Esri + GSI注記） */
   const map=L.map('map',{zoomControl:false});
   const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
-    maxZoom:20, attribution:'Tiles © Esri'
+    maxZoom:20, attribution:'Tiles c Esri'
   }).addTo(map);
   const gsiLabel = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',{
-    maxZoom:20, opacity:0.45, attribution:'© GSI'
+    maxZoom:20, opacity:0.45, attribution:'c GSI'
   }).addTo(map);
   map.setView([35.841,139.34],14);
 
@@ -370,7 +385,6 @@
     map.on(ev, ()=>{ suppressFollow(2200); blurActiveInput(); });
   });
 
-  // 注記トグル
   const btnLabelToggle = document.getElementById('btnLabelToggle');
   let labelOn = true;
   function updateLabelButton(){ btnLabelToggle.textContent = '注記：' + (labelOn ? 'ON' : 'OFF'); }
@@ -557,8 +571,8 @@
       if(p && p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
       selected.delete(nm);
     }
-    refreshFab();
   }
+  refreshFab();
 
   let strictOrder=[];
   const nextDistByName = new Map();
@@ -644,40 +658,33 @@
     return null;
   }
 
-  /* ==== ログ（端末ローカル + シート送信） ==== */
+  /* ログ（ローカル保存 + GAS 送信） */
   let logRows=JSON.parse(localStorage.getItem('collectionLog')||'[]');
-
-  function sendLogRowToServer(row){
-    if(!GAS_ENDPOINT) return;   // URL 未設定なら何もしない
-    try{
-      const payload = {
-        datetime: row[0],
-        place:    row[1],
-        lat:      row[2],
-        lon:      row[3],
-        vehicle:  row[4],
-        driver:   row[5]
-      };
-      fetch(GAS_ENDPOINT,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(payload),
-        mode:'no-cors'
-      }).catch(()=>{ /* 失敗しても画面上は黙っておく */ });
-    }catch(e){
-      console.warn('シート送信に失敗:', e);
-    }
-  }
-
-  function pushLogRow(row){
-    logRows.push(row);
-    localStorage.setItem('collectionLog',JSON.stringify(logRows));
-    sendLogRowToServer(row);
-  }
 
   function nowStamp(){
     const dt=new Date(); const pad=n=>String(n).padStart(2,'0');
     return `${dt.getFullYear()}/${pad(dt.getMonth()+1)}/${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+  }
+
+  function pushLogRow(row){
+    // ローカル保存
+    logRows.push(row);
+    localStorage.setItem('collectionLog',JSON.stringify(logRows));
+
+    // GAS へも送信
+    try{
+      const payload = {
+        datetime: row[0] ?? '',
+        place:    row[1] ?? '',
+        lat:      row[2] ?? '',
+        lon:      row[3] ?? '',
+        vehicle:  row[4] ?? '',
+        driver:   row[5] ?? ''
+      };
+      sendRowToServer(payload);
+    }catch(e){
+      console.warn('GAS 送信用データ生成に失敗:', e);
+    }
   }
 
   async function collectSelected(){
@@ -1149,12 +1156,7 @@
     }catch(err){ showErr(err); }
   });
 
-  // 地点ファイル入力ハンドラ（二重登録回避）
-  document.getElementById('file').addEventListener('change',(e)=>{
-    const f=e.target.files[0]; if(!f) return;
-    blurAllInputs();
-    if(/\.csv$/i.test(f.name)) importCSV(f); else importOther(f);
-  });
+  // （重複登録回避コメントのまま・リスナーは上で1回だけ登録）
 
   } // init end
 })();
