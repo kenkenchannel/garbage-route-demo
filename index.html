@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver116</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver118</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -168,7 +168,6 @@
       </label>
     </div>
 
-    <!-- 「遠距離オートズーム」の右側に『回収地点全クリア』を配置 -->
     <div class="row" style="align-items:end">
       <label>遠距離オートズーム(m)
         <input type="text" id="farZoom" value="100" inputmode="numeric" autocomplete="off">
@@ -178,9 +177,11 @@
       </div>
     </div>
 
-    <div class="row">
+    <!-- ★ Ver118：ナビ行を 3ボタンに（開始 / 一時停止 / 再開） -->
+    <div class="row" style="grid-template-columns:1fr 1fr 1fr">
       <button id="btnNavStart" class="primary">ナビ開始（Description順のみ）</button>
       <button id="btnNavStop" class="ghost">一時停止</button>
+      <button id="btnNavResume" class="ghost">再開</button>
     </div>
 
     <div class="row">
@@ -188,16 +189,14 @@
       <button id="btnPreview" class="ghost">CSV表示</button>
     </div>
 
-    <!-- 実車有無・注記切替 -->
     <div class="row">
       <button id="btnRealToggle" class="ghost" title="実車の有効/無効を切り替えます">実車：無効</button>
       <button id="btnLabelToggle" class="ghost" title="地理院『標準地図の注記』重ね合わせのON/OFF">注記：ON</button>
     </div>
 
-    <!-- 凡例（Ver は赤、凡例文は黒） -->
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver116</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver118</span>
     </div>
   </div>
 </div>
@@ -222,22 +221,20 @@
 
 <script>
 (function(){
-  const VERSION = 'Ver116';
+  const VERSION = 'Ver118';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
   // ★ここを、あなたがデプロイした Web アプリのURLに差し替えてください
-  // 例: 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXXXXXX/exec'
-  const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwYzIsXdyd3GiXwEq868xzOMfB-HMmis_kvAGW9_2-crmOObKTnnKKsRXNCKIn-j-9X/exec';
+  const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyMMXXxEKospe4Q7ZE2EKduglrDRfimxIX1V-jOZ7zUWsS4pIJrZ-P6sjrkA4sa9BQvZg/exec';
 
-  // スプレッドシートに1行送信
   async function sendRowToServer(payload){
     if(!GAS_ENDPOINT || GAS_ENDPOINT.indexOf('https://') !== 0) return;
     try{
       await fetch(GAS_ENDPOINT, {
         method: 'POST',
-        mode: 'no-cors',  // CORS エラーを回避（レスポンスは見ない）
+        mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
@@ -250,7 +247,6 @@
   else init();
 
   function init(){
-  /* ========= ユーティリティ ========= */
   const AUTO_COLLECT_M = 10;
   const EXCEPTION_M    = 20;
   const POPUP_STAY_UNTIL_M = 10;
@@ -571,6 +567,7 @@
       if(p && p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
       selected.delete(nm);
     }
+    refreshFab();
   }
   refreshFab();
 
@@ -639,7 +636,6 @@
     }, 100);
   }
 
-  /* 現在位置取得（即時用） */
   async function getCurrentLatLng(timeoutMs = 1200){
     return new Promise((resolve,reject)=>{
       if(!navigator.geolocation) return reject(new Error('Geolocation unsupported'));
@@ -667,11 +663,8 @@
   }
 
   function pushLogRow(row){
-    // ローカル保存
     logRows.push(row);
     localStorage.setItem('collectionLog',JSON.stringify(logRows));
-
-    // GAS へも送信
     try{
       const payload = {
         datetime: row[0] ?? '',
@@ -688,7 +681,7 @@
   }
 
   async function collectSelected(){
-    if(!confirm('本当に回収しますか？')){ clearSelection(); refreshFab(); return; }
+    if(!confirm('本当に回収しますか？')){ clearSelection(); return; }
     if(selected.size===0) return;
 
     let lat='', lon='';
@@ -863,7 +856,7 @@
     importExceptionCSV(f);
   });
 
-  // 記録CSV
+  /* CSVダウンロード/表示 */
   function makeCSVText(){
     const header=['Datetime','Place','DeviceLat','DeviceLon','Vehicle','Driver'];
     const lines=[header].concat(logRows).map(r=>r.map(x=>String(x).replace(/"/g,'""')).join(','));
@@ -925,7 +918,7 @@
   document.getElementById('btnDownload').addEventListener('click',()=>{ blurAllInputs(); downloadCSV(); });
   document.getElementById('btnPreview').addEventListener('click', ()=>{ blurAllInputs(); previewCSV(); });
 
-  /* ナビ（Description鎖） */
+  /* ===== ナビ（Description鎖） ===== */
   const nav={order:[],idx:0,active:false,watchId:null,thresholdM:25,arriveM:15,lastAnnounceTarget:null,farZoomM:100};
 
   function rebuildOrderFromStrictChain(){ nav.order = strictOrder.slice(); }
@@ -944,6 +937,36 @@
     return nameIndex.has(p.desc) ? p.desc : null;
   }
 
+  // ★ Ver118：進捗（先頭から連続して回収済の数）を返す
+  function getProgressDoneCount(){
+    if(!strictOrder || strictOrder.length===0) return 0;
+    let done=0;
+    for(let i=0;i<strictOrder.length;i++){
+      const p=nameIndex.get(strictOrder[i]);
+      if(p && p.status==='collected') done++;
+      else break;
+    }
+    return done; // 0..N
+  }
+
+  // ★ Ver118：一時停止（現状＋音声メッセージ追加）
+  function stopGuidance(){
+    nav.active=false;
+    if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
+    nav.watchId=null;
+    stopBlink();
+
+    const done = getProgressDoneCount(); // #done まで完了
+    if(done<=0){
+      speakSafe('一時停止します。まだ回収は済んでいません。');
+      showToast('一時停止：まだ回収は0件',2);
+    }else{
+      speakSafe(`一時停止します。#${done}番目まで回収は済んでいます。`);
+      showToast(`一時停止：#${done}まで回収済`,2);
+    }
+  }
+
+  // ※「ナビ開始」は “現状のまま（修正なし）” にしています
   function startGuidance(){
     blurAllInputs();
     unlockAll();
@@ -979,15 +1002,78 @@
       if(!gpsWatchId) startGpsWatch();
     }
   }
-  function stopGuidance(){
-    nav.active=false;
-    if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
-    nav.watchId=null;
-    stopBlink();
-    speakSafe('ナビを停止しました。');
+
+  // ★ Ver118：再開（新ボタン）
+  function resumeGuidance(){
+    blurAllInputs();
+    unlockAll();
+
+    if(points.length===0){ alert('地点がありません'); return; }
+    if(strictOrder.length===0){
+      alert('Description による鎖が見つかりません（先頭行から辿れませんでした）');
+      return;
+    }
+
+    // 進捗
+    const done = getProgressDoneCount(); // #done まで回収済
+    const total = strictOrder.length;
+
+    if(done >= total){
+      alert('すべて完了しています（未回収の地点がありません）。');
+      return;
+    }
+
+    // デフォルトは「#done の次」＝ #done+1 から
+    let startSeq = done + 1; // 1-based
+
+    // 確認ダイアログ（仕様どおり）
+    let okDefault = true;
+    if(done <= 0){
+      okDefault = confirm('再開したい回収地点番号は #1 番目でよいですか？');
+    }else{
+      okDefault = confirm(`再開したい回収地点番号は #${done}番目の次の地点でよいですか？`);
+    }
+
+    if(!okDefault){
+      const input = prompt(`#何番目から再開したいですか？（1〜${total} の数字を入力）`, String(startSeq));
+      if(input===null) return;
+      const n = parseInt(String(input).trim(),10);
+      if(!Number.isFinite(n) || n<1 || n>total){
+        alert('番号が正しくありません。');
+        return;
+      }
+      startSeq = n;
+    }
+
+    // ナビ状態を作って開始（「ナビ開始」とは別系統）
+    rebuildOrderFromStrictChain();
+
+    const idx = startSeq - 1;
+    const cur = nav.order[idx];
+    const p = nameIndex.get(cur);
+    if(!p){
+      alert('指定した番号の地点が見つかりません。');
+      return;
+    }
+
+    nav.idx = idx;
+    nav.active = true;
+    togglePanel(false);
+
+    speakSafe(`#${startSeq}番目から再開します。まずは ` + p.name + ' に向かってください。');
+    nav.lastAnnounceTarget = cur;
+    focusTarget(cur);
+
+    if(realMode){
+      if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
+      nav.watchId = navigator.geolocation.watchPosition(onPos,()=>{}, {enableHighAccuracy:true,maximumAge:0,timeout:15000});
+      if(!gpsWatchId) startGpsWatch();
+    }
   }
+
   document.getElementById('btnNavStart').addEventListener('click', startGuidance);
   document.getElementById('btnNavStop').addEventListener('click',  stopGuidance);
+  document.getElementById('btnNavResume').addEventListener('click', resumeGuidance);
 
   function autoZoomForNext(fromName, toName){
     try{
@@ -1155,8 +1241,6 @@
       }
     }catch(err){ showErr(err); }
   });
-
-  // （重複登録回避コメントのまま・リスナーは上で1回だけ登録）
 
   } // init end
 })();
