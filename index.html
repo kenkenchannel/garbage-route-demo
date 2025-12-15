@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver118</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver119</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -47,7 +47,10 @@
   #btnPanel{
     position:absolute;right:10px;top:10px;z-index:1100;
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
-    display:inline-block;width:auto
+    display:inline-block;width:auto;
+
+    /* ★追加：ボタン幅ぶん左へ移動 */
+    transform: translateX(-100%);
   }
   .volbox{
     position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px
@@ -177,7 +180,7 @@
       </div>
     </div>
 
-    <!-- ★ Ver118：ナビ行を 3ボタンに（開始 / 一時停止 / 再開） -->
+    <!-- ★変更：一時停止の右に「再開」ボタンを追加（3列） -->
     <div class="row" style="grid-template-columns:1fr 1fr 1fr">
       <button id="btnNavStart" class="primary">ナビ開始（Description順のみ）</button>
       <button id="btnNavStop" class="ghost">一時停止</button>
@@ -196,12 +199,11 @@
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver118</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver119</span>
     </div>
   </div>
 </div>
 
-<!-- CSVプレビュー用モーダル -->
 <div id="csvOverlay" aria-modal="true" role="dialog">
   <div id="csvPanel">
     <div id="csvHead">
@@ -221,7 +223,7 @@
 
 <script>
 (function(){
-  const VERSION = 'Ver118';
+  const VERSION = 'Ver119';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -266,7 +268,6 @@
   }
   window.addEventListener('error',ev=>showErr(ev.error||ev.message||'unknown'));
 
-  /* パネル開閉 */
   const panel=document.getElementById('panel');
   const btnPanel=document.getElementById('btnPanel');
   let panelVisible=true;
@@ -281,7 +282,6 @@
   }
   btnPanel.addEventListener('click',()=>{ suppressFollow(); togglePanel(); });
 
-  /* 音量とフォーカス解除 */
   let audioVol=parseFloat(localStorage.getItem('chimeVol')||'0.7');
   document.getElementById('volDown').addEventListener('click', ()=>{ blurActiveInput(); audioVol=Math.max(0,audioVol-0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('音量: '+Math.round(audioVol*100)+'%'); });
   document.getElementById('volUp').addEventListener('click',   ()=>{ blurActiveInput(); audioVol=Math.min(1,audioVol+0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('音量: '+Math.round(audioVol*100)+'%'); });
@@ -365,7 +365,7 @@
   driverSel .addEventListener('change', ()=>{ localStorage.setItem('driver' ,driverSel.value ); });
   populateVehicles();
 
-  /* 地図・レイヤ（Esri + GSI注記） */
+  /* 地図・レイヤ */
   const map=L.map('map',{zoomControl:false});
   const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
     maxZoom:20, attribution:'Tiles c Esri'
@@ -404,7 +404,7 @@
   });
   updateRealBtn();
 
-  /* 現在地表示（実車有効時） */
+  /* 現在地表示 */
   map.createPane('vehiclePane'); map.getPane('vehiclePane').style.zIndex=500;
   map.createPane('markerPane');  map.getPane('markerPane').style.zIndex =600;
 
@@ -608,7 +608,6 @@
     strictOrder.forEach((nm,i)=>{ const p=nameIndex.get(nm); if(p){ p.seq=i+1; setPopupContent(p); }});
   }
 
-  /* ====== 次案内 点滅 ====== */
   let blinkTimer = null;
   let blinkTargetName = null;
   function stopBlink(){
@@ -665,6 +664,7 @@
   function pushLogRow(row){
     logRows.push(row);
     localStorage.setItem('collectionLog',JSON.stringify(logRows));
+
     try{
       const payload = {
         datetime: row[0] ?? '',
@@ -681,7 +681,7 @@
   }
 
   async function collectSelected(){
-    if(!confirm('本当に回収しますか？')){ clearSelection(); return; }
+    if(!confirm('本当に回収しますか？')){ clearSelection(); refreshFab(); return; }
     if(selected.size===0) return;
 
     let lat='', lon='';
@@ -748,7 +748,6 @@
   }
   document.getElementById('btnClearAll').addEventListener('click', clearAllPoints);
 
-  /* CSV入出力（Name 重複チェック付） */
   function importCSV(file){
     stopBlink();
     points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[]; nextDistByName.clear();
@@ -828,7 +827,6 @@
     if(/\.csv$/i.test(f.name)) importCSV(f); else importOther(f);
   });
 
-  /* 例外到着CSV */
   const exceptions = new Map();
   function importExceptionCSV(file){
     exceptions.clear();
@@ -856,7 +854,6 @@
     importExceptionCSV(f);
   });
 
-  /* CSVダウンロード/表示 */
   function makeCSVText(){
     const header=['Datetime','Place','DeviceLat','DeviceLon','Vehicle','Driver'];
     const lines=[header].concat(logRows).map(r=>r.map(x=>String(x).replace(/"/g,'""')).join(','));
@@ -918,7 +915,7 @@
   document.getElementById('btnDownload').addEventListener('click',()=>{ blurAllInputs(); downloadCSV(); });
   document.getElementById('btnPreview').addEventListener('click', ()=>{ blurAllInputs(); previewCSV(); });
 
-  /* ===== ナビ（Description鎖） ===== */
+  /* ナビ（Description鎖） */
   const nav={order:[],idx:0,active:false,watchId:null,thresholdM:25,arriveM:15,lastAnnounceTarget:null,farZoomM:100};
 
   function rebuildOrderFromStrictChain(){ nav.order = strictOrder.slice(); }
@@ -937,36 +934,18 @@
     return nameIndex.has(p.desc) ? p.desc : null;
   }
 
-  // ★ Ver118：進捗（先頭から連続して回収済の数）を返す
-  function getProgressDoneCount(){
-    if(!strictOrder || strictOrder.length===0) return 0;
-    let done=0;
-    for(let i=0;i<strictOrder.length;i++){
-      const p=nameIndex.get(strictOrder[i]);
-      if(p && p.status==='collected') done++;
-      else break;
+  /* ===== 追加：回収済みの最大 # を求める ===== */
+  function getMaxCollectedSeq(){
+    let max = 0;
+    for(const p of points){
+      if(p && p.status==='collected' && typeof p.seq==='number'){
+        if(p.seq > max) max = p.seq;
+      }
     }
-    return done; // 0..N
+    return max;
   }
 
-  // ★ Ver118：一時停止（現状＋音声メッセージ追加）
-  function stopGuidance(){
-    nav.active=false;
-    if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
-    nav.watchId=null;
-    stopBlink();
-
-    const done = getProgressDoneCount(); // #done まで完了
-    if(done<=0){
-      speakSafe('一時停止します。まだ回収は済んでいません。');
-      showToast('一時停止：まだ回収は0件',2);
-    }else{
-      speakSafe(`一時停止します。#${done}番目まで回収は済んでいます。`);
-      showToast(`一時停止：#${done}まで回収済`,2);
-    }
-  }
-
-  // ※「ナビ開始」は “現状のまま（修正なし）” にしています
+  /* ナビ開始（現状のまま：変更なし） */
   function startGuidance(){
     blurAllInputs();
     unlockAll();
@@ -1003,7 +982,21 @@
     }
   }
 
-  // ★ Ver118：再開（新ボタン）
+  /* ===== 変更：一時停止（状態は保持） ===== */
+  function pauseGuidance(){
+    // 監視だけ止める（idx/order は維持）
+    nav.active=false;
+    if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
+    nav.watchId=null;
+    stopBlink();
+
+    const maxSeq = getMaxCollectedSeq();
+    const msg = `一時停止します。#${maxSeq}番目まで回収は済んでいます。`;
+    speakSafe(msg);
+    alert(msg);
+  }
+
+  /* ===== 追加：再開 ===== */
   function resumeGuidance(){
     blurAllInputs();
     unlockAll();
@@ -1013,54 +1006,40 @@
       alert('Description による鎖が見つかりません（先頭行から辿れませんでした）');
       return;
     }
+    rebuildOrderFromStrictChain();
 
-    // 進捗
-    const done = getProgressDoneCount(); // #done まで回収済
-    const total = strictOrder.length;
-
-    if(done >= total){
-      alert('すべて完了しています（未回収の地点がありません）。');
+    const maxSeq = getMaxCollectedSeq();
+    const suggestedSeq = Math.min(maxSeq + 1, strictOrder.length);
+    if(suggestedSeq <= 0){
+      alert('再開できる地点がありません。');
       return;
     }
 
-    // デフォルトは「#done の次」＝ #done+1 から
-    let startSeq = done + 1; // 1-based
+    const ok = confirm(`再開したい回収地点番号は #${suggestedSeq} 番目の次の地点でよいですか？\n（はい＝#${suggestedSeq}から再開）`);
+    let startSeq = suggestedSeq;
 
-    // 確認ダイアログ（仕様どおり）
-    let okDefault = true;
-    if(done <= 0){
-      okDefault = confirm('再開したい回収地点番号は #1 番目でよいですか？');
-    }else{
-      okDefault = confirm(`再開したい回収地点番号は #${done}番目の次の地点でよいですか？`);
-    }
-
-    if(!okDefault){
-      const input = prompt(`#何番目から再開したいですか？（1〜${total} の数字を入力）`, String(startSeq));
-      if(input===null) return;
-      const n = parseInt(String(input).trim(),10);
-      if(!Number.isFinite(n) || n<1 || n>total){
-        alert('番号が正しくありません。');
+    if(!ok){
+      const ans = prompt(`#何番目から再開したいですか？（1〜${strictOrder.length}）`, String(suggestedSeq));
+      if(ans === null) return; // キャンセル
+      const n = parseInt(String(ans).trim(), 10);
+      if(!Number.isFinite(n) || n < 1 || n > strictOrder.length){
+        alert('入力値が不正です。再開を中止します。');
         return;
       }
       startSeq = n;
     }
 
-    // ナビ状態を作って開始（「ナビ開始」とは別系統）
-    rebuildOrderFromStrictChain();
-
-    const idx = startSeq - 1;
-    const cur = nav.order[idx];
-    const p = nameIndex.get(cur);
-    if(!p){
-      alert('指定した番号の地点が見つかりません。');
-      return;
-    }
-
-    nav.idx = idx;
+    nav.idx = startSeq - 1;
     nav.active = true;
     togglePanel(false);
 
-    speakSafe(`#${startSeq}番目から再開します。まずは ` + p.name + ' に向かってください。');
+    const cur = nav.order[nav.idx];
+    if(!cur || !nameIndex.has(cur)){
+      alert('再開地点が見つかりません。');
+      return;
+    }
+
+    speakSafe(`再開します。まずは ${nameIndex.get(cur).name} に向かってください。`);
     nav.lastAnnounceTarget = cur;
     focusTarget(cur);
 
@@ -1072,7 +1051,7 @@
   }
 
   document.getElementById('btnNavStart').addEventListener('click', startGuidance);
-  document.getElementById('btnNavStop').addEventListener('click',  stopGuidance);
+  document.getElementById('btnNavStop').addEventListener('click',  pauseGuidance);
   document.getElementById('btnNavResume').addEventListener('click', resumeGuidance);
 
   function autoZoomForNext(fromName, toName){
@@ -1111,7 +1090,13 @@
       const j = strictOrder.indexOf(nx);
       if(j>=0){ nav.order = strictOrder.slice(); nav.idx = j; }
     }else{
-      if(nav.active){ speakSafe('このルートは完了しました。'); stopGuidance(); }
+      if(nav.active){
+        speakSafe('このルートは完了しました。');
+        nav.active=false;
+        if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
+        nav.watchId=null;
+        stopBlink();
+      }
     }
   }
 
@@ -1167,7 +1152,12 @@
           autoZoomForNext(prev, cur);
         }
       }else{
-        speakSafe('すべて完了しました。'); stopGuidance(); return;
+        speakSafe('すべて完了しました。');
+        nav.active=false;
+        if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
+        nav.watchId=null;
+        stopBlink();
+        return;
       }
     }
 
