@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver119</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver120</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -43,13 +43,11 @@
   .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#eee;font-size:12px;margin-left:6px}
   .err{position:absolute;top:0;left:0;right:0;background:#fee;color:#900;padding:8px 10px;font-size:12px;z-index:2000;border-bottom:1px solid #f99;display:none}
 
-  /* 右上フローティング */
+  /* 右上フローティング：設定ボタンを左へ1ボタン分移動 */
   #btnPanel{
     position:absolute;right:10px;top:10px;z-index:1100;
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
     display:inline-block;width:auto;
-
-    /* ★追加：ボタン幅ぶん左へ移動 */
     transform: translateX(-100%);
   }
   .volbox{
@@ -98,6 +96,27 @@
   #csvHead .hint{ font-size:12px; color:#555; margin-top:6px }
   #csvBody{ flex:1; overflow:auto; }
   #csvBody pre{ margin:0; padding:12px; white-space:pre; font:12px/1.5 ui-monospace,Menlo,Consolas,monospace }
+
+  /* 「再開地点選択」モーダル */
+  #resumeOverlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.55);
+    z-index:3001; display:none; align-items:center; justify-content:center;
+  }
+  #resumePanel{
+    width:min(420px,94vw); max-height:70vh;
+    background:#fff;color:#111;border-radius:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35);
+    padding:14px;display:flex;flex-direction:column;gap:8px;
+  }
+  #resumePanel h1{font-size:16px;margin:0 0 4px}
+  #resumePanel p{font-size:12px;margin:0 0 6px}
+  #resumeSelect{
+    width:100%;flex:1;min-height:200px;
+    font-size:13px;
+  }
+  #resumePanel .rowBtns{
+    display:flex;gap:8px;margin-top:8px;
+  }
 
   /* 点滅 */
   .blink-white{
@@ -180,7 +199,7 @@
       </div>
     </div>
 
-    <!-- ★変更：一時停止の右に「再開」ボタンを追加（3列） -->
+    <!-- ナビ開始 / 一時停止 / 再開 -->
     <div class="row" style="grid-template-columns:1fr 1fr 1fr">
       <button id="btnNavStart" class="primary">ナビ開始（Description順のみ）</button>
       <button id="btnNavStop" class="ghost">一時停止</button>
@@ -204,6 +223,7 @@
   </div>
 </div>
 
+<!-- CSVプレビュー用モーダル -->
 <div id="csvOverlay" aria-modal="true" role="dialog">
   <div id="csvPanel">
     <div id="csvHead">
@@ -218,6 +238,25 @@
       </div>
     </div>
     <div id="csvBody"><pre id="csvPre"></pre></div>
+  </div>
+</div>
+
+<!-- 再開地点選択モーダル -->
+<div id="resumeOverlay" aria-modal="true" role="dialog">
+  <div id="resumePanel">
+    <h1>再開する地点を選択</h1>
+    <p>回収順に並んでいます。右側の記号：<b>済</b>=回収済 / <b>無</b>=無回収 / 空欄=未操作。</p>
+    <select id="resumeSelect" size="10"></select>
+    <div class="rowBtns">
+      <button id="resumeOk"
+        style="flex:1;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:14px;">
+        この地点から再開
+      </button>
+      <button id="resumeCancel"
+        style="flex:1;background:#fff;color:#111;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;font-size:14px;">
+        キャンセル
+      </button>
+    </div>
   </div>
 </div>
 
@@ -371,6 +410,7 @@
     maxZoom:20, attribution:'Tiles c Esri'
   }).addTo(map);
   const gsiLabel = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',{
+
     maxZoom:20, opacity:0.45, attribution:'c GSI'
   }).addTo(map);
   map.setView([35.841,139.34],14);
@@ -945,7 +985,7 @@
     return max;
   }
 
-  /* ナビ開始（現状のまま：変更なし） */
+  /* ナビ開始（最初の未回収から） */
   function startGuidance(){
     blurAllInputs();
     unlockAll();
@@ -982,9 +1022,8 @@
     }
   }
 
-  /* ===== 変更：一時停止（状態は保持） ===== */
+  /* ===== 一時停止：状態保持＋案内 ===== */
   function pauseGuidance(){
-    // 監視だけ止める（idx/order は維持）
     nav.active=false;
     if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
     nav.watchId=null;
@@ -996,7 +1035,47 @@
     alert(msg);
   }
 
-  /* ===== 追加：再開 ===== */
+  /* ===== 再開モーダル関連 ===== */
+  const resumeOverlay = document.getElementById('resumeOverlay');
+  const resumeSelect  = document.getElementById('resumeSelect');
+  const resumeOk      = document.getElementById('resumeOk');
+  const resumeCancel  = document.getElementById('resumeCancel');
+
+  function buildResumeSelect(defaultIdx){
+    resumeSelect.innerHTML='';
+    strictOrder.forEach((nm,i)=>{
+      const p = nameIndex.get(nm);
+      if(!p) return;
+      let statusLabel='';
+      if(p.status==='collected') statusLabel='済';
+      else if(p.status==='skipped') statusLabel='無';
+      const seq = p.seq || (i+1);
+      const label = statusLabel
+        ? `#${seq} ${p.name}　[${statusLabel}]`
+        : `#${seq} ${p.name}`;
+      const opt=document.createElement('option');
+      opt.value=String(i);
+      opt.textContent=label;
+      resumeSelect.appendChild(opt);
+    });
+    if(resumeSelect.options.length>0){
+      const idx = (defaultIdx>=0 && defaultIdx<resumeSelect.options.length) ? defaultIdx : 0;
+      resumeSelect.selectedIndex = idx;
+      resumeSelect.options[idx].scrollIntoView({block:'nearest'});
+    }
+  }
+
+  function openResumeOverlay(defaultIdx){
+    buildResumeSelect(defaultIdx);
+    resumeOverlay.style.display='flex';
+  }
+  function closeResumeOverlay(){
+    resumeOverlay.style.display='none';
+  }
+  resumeCancel.onclick = closeResumeOverlay;
+  resumeOverlay.addEventListener('click', (e)=>{ if(e.target===resumeOverlay) closeResumeOverlay(); });
+
+  /* ===== 再開メイン処理 ===== */
   function resumeGuidance(){
     blurAllInputs();
     unlockAll();
@@ -1009,33 +1088,33 @@
     rebuildOrderFromStrictChain();
 
     const maxSeq = getMaxCollectedSeq();
-    const suggestedSeq = Math.min(maxSeq + 1, strictOrder.length);
-    if(suggestedSeq <= 0){
+    // デフォルト選択：次の地点（maxSeq+1）に相当するインデックス
+    const suggestedIdx = Math.min(strictOrder.length-1, Math.max(0, maxSeq));
+
+    openResumeOverlay(suggestedIdx);
+  }
+
+  resumeOk.onclick = function(){
+    if(resumeSelect.options.length===0){
       alert('再開できる地点がありません。');
       return;
     }
-
-    const ok = confirm(`再開したい回収地点番号は #${suggestedSeq} 番目の次の地点でよいですか？\n（はい＝#${suggestedSeq}から再開）`);
-    let startSeq = suggestedSeq;
-
-    if(!ok){
-      const ans = prompt(`#何番目から再開したいですか？（1〜${strictOrder.length}）`, String(suggestedSeq));
-      if(ans === null) return; // キャンセル
-      const n = parseInt(String(ans).trim(), 10);
-      if(!Number.isFinite(n) || n < 1 || n > strictOrder.length){
-        alert('入力値が不正です。再開を中止します。');
-        return;
-      }
-      startSeq = n;
+    const val = resumeSelect.value;
+    const idx = parseInt(val,10);
+    if(!Number.isFinite(idx) || idx<0 || idx>=strictOrder.length){
+      alert('再開地点を選択してください。');
+      return;
     }
+    closeResumeOverlay();
 
-    nav.idx = startSeq - 1;
+    nav.idx = idx;
     nav.active = true;
     togglePanel(false);
 
     const cur = nav.order[nav.idx];
     if(!cur || !nameIndex.has(cur)){
       alert('再開地点が見つかりません。');
+      nav.active=false;
       return;
     }
 
@@ -1048,7 +1127,7 @@
       nav.watchId = navigator.geolocation.watchPosition(onPos,()=>{}, {enableHighAccuracy:true,maximumAge:0,timeout:15000});
       if(!gpsWatchId) startGpsWatch();
     }
-  }
+  };
 
   document.getElementById('btnNavStart').addEventListener('click', startGuidance);
   document.getElementById('btnNavStop').addEventListener('click',  pauseGuidance);
