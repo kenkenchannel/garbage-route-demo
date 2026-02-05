@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver128</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver129</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -126,22 +126,18 @@
   }
 
   /* ===== 自車アイコン（緑丸の中心に重ねる） ===== */
-  /* Leaflet の divIcon のデフォ枠を消す */
   .car-icon{
     background: transparent !important;
     border: 0 !important;
   }
-  /* 赤い円（矢印外枠） */
   .car-icon .car-arrow{
     width:64px;height:64px;border-radius:50%;
     border:4px solid #e11d48;
     background:#ffffff;
     position:relative;
-    /* ★transform を入れると座標点からズレるので入れない */
     box-sizing:border-box;
     box-shadow:0 4px 14px rgba(0,0,0,.18);
   }
-  /* 中の三角（点滅） */
   .car-icon .car-arrow-inner{
     position:absolute;
     left:50%;top:50%;
@@ -163,7 +159,6 @@
 <div id="err" class="err"></div>
 <div id="toast"></div>
 
-<!-- 地図上：大きい回収ボタン / 無回収ボタン -->
 <button id="btnFabCollect" class="fab">回収（選択 0）</button>
 <button id="btnFabSkip" class="fab-small">無回収（選択→黄）</button>
 
@@ -226,7 +221,6 @@
       </div>
     </div>
 
-    <!-- 一時停止の右に「再開」ボタン -->
     <div class="row" style="grid-template-columns:1fr 1fr 1fr">
       <button id="btnNavStart" class="primary">ナビ開始（Description順のみ）</button>
       <button id="btnNavStop" class="ghost">一時停止</button>
@@ -245,12 +239,11 @@
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver128</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver129</span>
     </div>
   </div>
 </div>
 
-<!-- CSVプレビュー用モーダル -->
 <div id="csvOverlay" aria-modal="true" role="dialog">
   <div id="csvPanel">
     <div id="csvHead">
@@ -268,7 +261,6 @@
   </div>
 </div>
 
-<!-- 再開地点選択用モーダル -->
 <div id="resumeOverlay" aria-modal="true" role="dialog">
   <div id="resumePanel">
     <h1>再開地点の選択</h1>
@@ -283,7 +275,7 @@
 
 <script>
 (function(){
-  const VERSION = 'Ver128';
+  const VERSION = 'Ver129';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -385,40 +377,15 @@
   document.addEventListener('touchstart',  unlockAll, onceOpt);
   document.addEventListener('click',       unlockAll, onceOpt);
 
-  // ★日本語/数字混在でも読みやすくする（右39左40 → 右 39 左 40 など）※Speak無しのときだけ使う
+  // Speak 用：余計な置換をしない（「の」を「から」にしない）
   function normalizeSpeakText(s){
     s = String(s ?? '');
-    // 日本語と数字の境界にスペース
-    s = s.replace(/([一-龠ぁ-ヴァ-ヴー])(\d)/g, '$1 $2');
-    s = s.replace(/(\d)([一-龠ぁ-ヴァ-ヴー])/g, '$1 $2');
-    // 記号を少し読みやすく
-    s = s.replace(/[{}[\]]/g, ' ');
-    s = s.replace(/\s+/g, ' ').trim();
-    return s;
-  }
-
-  // ★Speak列がある場合は「Speakを最優先」し、余計な変換をしない（全角スペースとハイフンだけ安全処理）
-  function normalizeSpeakOnly(s){
-    if(!s) return '';
-    s = String(s);
-
-    // 全角スペース→半角
+    // 全角スペース → 半角スペース
     s = s.replace(/\u3000/g, ' ');
-
-    // ハイフン類は「の」に寄せる（Speech APIが「から」と読むのを回避）
-    // ※Speak列に「130-2」などが入っていても、必ず「の」扱いにする
-    s = s.replace(/[‐-‒–—−－\-]/g, ' の ');
-
-    // スペース整理
+    // {} [] を除去（表示由来のゴミ対策）
+    s = s.replace(/[{}[\]]/g, ' ');
+    // 連続空白の整理
     s = s.replace(/\s+/g, ' ').trim();
-
-    // 読み崩れ対策：方向語は区切っておく（短い「、」は誤読を減らしやすい）
-    s = s.replace(/(みぎ)\s*/g, 'みぎ、 ');
-    s = s.replace(/(ひだり)\s*/g, 'ひだり、 ');
-
-    // 最終整理（「、」前後）
-    s = s.replace(/\s*、\s*/g, '、').replace(/、+/g,'、').replace(/、\s*/g,'、').trim();
-
     return s;
   }
 
@@ -437,32 +404,15 @@
     }
   }
 
-  // ★voiceのキャッシュ（毎回 getVoices() しない）
-  let cachedJaVoice = null;
-  function initVoices(){
-    try{
-      const v = pickJaVoice();
-      if(v) cachedJaVoice = v;
-    }catch(_e){}
-  }
-  try{
-    initVoices();
-    if('onvoiceschanged' in speechSynthesis){
-      speechSynthesis.onvoiceschanged = ()=>{ initVoices(); };
-    }
-  }catch(_e){}
-
-  // ★Ver128: speakSafe は “渡された文字列をそのまま読む” に徹する
-  function speakSafe(text){
-    if(!text) return;
+  function speakSafe(t){
+    if(!t) return;
     try{
       unlockAll();
-      initVoices();
-      speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(String(text));
-      u.lang='ja-JP';
-      u.rate=0.95; // 少し遅くして誤読低減
-      if(cachedJaVoice) u.voice = cachedJaVoice;
+      if (speechSynthesis.speaking) speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(normalizeSpeakText(t));
+      u.lang='ja-JP'; u.rate=1.0;
+      const v = pickJaVoice();
+      if(v) u.voice = v;
       speechSynthesis.speak(u);
     }catch(e){
       console.warn('音声再生に失敗:', e);
@@ -542,12 +492,11 @@
   let gpsWatchId=null, locMarker=null, locCircle=null, followSelf=true, headingMode=false;
   const btnHeading = document.getElementById('btnHeading');
 
-  // ★自車アイコン：中心を座標点に合わせる
   const carIcon = L.divIcon({
     className:'car-icon',
     html:'<div class="car-arrow"><div class="car-arrow-inner"></div></div>',
     iconSize:[64,64],
-    iconAnchor:[32,32]   // ★中心＝緑丸中心（座標点）
+    iconAnchor:[32,32]
   });
 
   function ensureLocLayer(lat,lon,acc){
@@ -555,9 +504,8 @@
 
     if(!locMarker){
       locMarker=L.marker([lat,lon],{icon:carIcon,pane:'vehiclePane'}).addTo(map);
-      locMarker.setZIndexOffset(2000); // ★常に前面
+      locMarker.setZIndexOffset(2000);
 
-      // 緑の丸（精度円）は残す
       locCircle=L.circle([lat,lon],{
         radius:acc||25,
         color:'#23a455', fillColor:'#23a455', fillOpacity:0.15,
@@ -675,14 +623,13 @@
     refreshFab();
   }
 
-  // ★Speak列対応：speak を保持
   function addPoint(name,lat,lon,desc,speak){
     if(firstLoadedName===null) firstLoadedName=name;
     const m=L.marker([lat,lon],{icon:blueIcon,pane:'markerPane'}).addTo(map);
     const rec={
-      name, lat, lon,
+      name,lat,lon,
       desc:(desc||'').trim(),
-      speak:(speak||'').toString(),
+      speak:(speak||'').toString().trim(),
       marker:m,status:'normal',selRing:null,seq:undefined
     };
     setPopupContent(rec);
@@ -884,47 +831,82 @@
   }
   document.getElementById('btnClearAll').addEventListener('click', clearAllPoints);
 
-  function importCSV(file){
+  // ====== 重要：SJIS/UTF-8 自動判定で CSV を読む ======
+  async function readCsvTextSmart(file){
+    const buf = await file.arrayBuffer();
+
+    // 1) UTF-8 (BOM付き含む) を fatal で試す → 失敗したら SJIS
+    try{
+      const td8 = new TextDecoder('utf-8', {fatal:true});
+      return td8.decode(buf);
+    }catch(_e){
+      // 2) Shift_JIS / CP932 系
+      try{
+        const tds = new TextDecoder('shift-jis');
+        return tds.decode(buf);
+      }catch(_e2){
+        // 3) 最後の手段：fatalなしUTF-8
+        const td8b = new TextDecoder('utf-8');
+        return td8b.decode(buf);
+      }
+    }
+  }
+
+  async function importCSV(file){
     stopBlink();
     points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[]; nextDistByName.clear();
-    Papa.parse(file,{
-      header:true,skipEmptyLines:true,
-      complete:(res)=>{
-        try{
-          const rows=res.data||[];
-          const seen=new Set(), dups=new Set();
-          for(const r of rows){
-            const nm=(r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||'').toString().trim();
-            if(!nm) continue;
-            if(seen.has(nm)) dups.add(nm); else seen.add(nm);
-          }
-          if(dups.size>0){
-            alert('地点の名称に重複があります。処理を中止します。\n重複: '+Array.from(dups).join(', '));
-            return;
-          }
 
-          let added=0;
-          for(const r of rows){
-            const name=(r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||'').toString().trim();
-            const lat =parseFloat(r.Latitude||r.lat||r.Lat||r['緯度']);
-            const lon =parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r['経度']);
-            const desc=(r.Description||r.desc||r['説明']||'').toString().trim();
-            const speak=(r.Speak||r.speak||r['読み']||r['よみ']||'').toString(); // ★Speak列
-            if(name && Number.isFinite(lat)&&Number.isFinite(lon)){ addPoint(name,lat,lon,desc,speak); added++; }
-          }
-          if(added>0){
-            buildStrictOrderFromFirst();
-            map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
-            updatePointCount();
-            showToast(`${added} 点読み込み`,2);
-          }else{
-            alert('有効な列(Name,Latitude,Longitude)が見つかりません');
-          }
-        }catch(e){ showErr(e); }
-      },
-      error:(e)=>showErr(e)
-    });
+    try{
+      const text = await readCsvTextSmart(file);
+
+      Papa.parse(text,{
+        header:true,skipEmptyLines:true,
+        complete:(res)=>{
+          try{
+            const rows=res.data||[];
+            const seen=new Set(), dups=new Set();
+            for(const r of rows){
+              const nm=(r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||'').toString().trim();
+              if(!nm) continue;
+              if(seen.has(nm)) dups.add(nm); else seen.add(nm);
+            }
+            if(dups.size>0){
+              alert('地点の名称に重複があります。処理を中止します。\n重複: '+Array.from(dups).join(', '));
+              return;
+            }
+
+            let added=0;
+            for(const r of rows){
+              const name=(r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||'').toString().trim();
+              const lat =parseFloat(r.Latitude||r.lat||r.Lat||r['緯度']);
+              const lon =parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r['経度']);
+              const desc=(r.Description||r.desc||r['説明']||'').toString().trim();
+
+              // Speak 列（5列目想定だが、列名で拾う）
+              const speak=(r.Speak||r.speak||r['読み']||r['よみ']||'').toString().trim();
+
+              if(name && Number.isFinite(lat)&&Number.isFinite(lon)){
+                addPoint(name,lat,lon,desc,speak);
+                added++;
+              }
+            }
+            if(added>0){
+              buildStrictOrderFromFirst();
+              map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
+              updatePointCount();
+              showToast(`${added} 点読み込み`,2);
+            }else{
+              alert('有効な列(Name,Latitude,Longitude)が見つかりません');
+            }
+          }catch(e){ showErr(e); }
+        },
+        error:(e)=>showErr(e)
+      });
+    }catch(err){
+      showErr(err);
+    }
   }
+
   async function importOther(file){
     try{
       stopBlink();
@@ -1052,16 +1034,6 @@
   document.getElementById('btnDownload').addEventListener('click',()=>{ blurAllInputs(); downloadCSV(); });
   document.getElementById('btnPreview').addEventListener('click', ()=>{ blurAllInputs(); previewCSV(); });
 
-  /* ===== 読み上げ対象名の決定（Speak優先） ===== */
-  function getSpeakNameByPointName(pointName){
-    const p = nameIndex.get(pointName);
-    if(!p) return normalizeSpeakText(pointName || '');
-    if(p.speak && String(p.speak).trim()){
-      return normalizeSpeakOnly(p.speak);
-    }
-    return normalizeSpeakText(p.name);
-  }
-
   /* ナビ（Description鎖） */
   const nav={order:[],idx:0,active:false,watchId:null,thresholdM:25,arriveM:15,lastAnnounceTarget:null,farZoomM:100};
 
@@ -1081,7 +1053,6 @@
     return nameIndex.has(p.desc) ? p.desc : null;
   }
 
-  /* 回収済みの最大 # を求める */
   function getMaxCollectedSeq(){
     let max = 0;
     for(const p of points){
@@ -1092,7 +1063,6 @@
     return max;
   }
 
-  /* 再開リスト用オプション生成（"#1 {1} 済" 形式） */
   function buildResumeOptions(){
     const items=[];
     strictOrder.forEach((nm,idx)=>{
@@ -1108,7 +1078,6 @@
     return items;
   }
 
-  /* 再開ダイアログ表示 */
   function openResumeDialog(defaultSeq, callback){
     const overlay = document.getElementById('resumeOverlay');
     const select  = document.getElementById('resumeSelect');
@@ -1140,7 +1109,6 @@
       overlay.style.display='none';
       okBtn.removeEventListener('click', onOk);
       cancelBtn.removeEventListener('click', onCancel);
-      overlay.removeEventListener('click', onBg);
     }
     function onOk(){
       const v=parseInt(select.value,10);
@@ -1150,19 +1118,12 @@
     function onCancel(){
       close();
     }
-    // ★Ver128: 背景タップで即閉じない（2秒待ってから閉じる＝「閉じるまでの時間を2倍」）
-    function onBg(e){
-      if(e.target===overlay){
-        setTimeout(()=>{ onCancel(); }, 2000);
-      }
-    }
 
+    // ★背景タップで閉じない（勝手に閉じる誤動作対策）
     okBtn.addEventListener('click', onOk);
     cancelBtn.addEventListener('click', onCancel);
-    overlay.addEventListener('click', onBg);
   }
 
-  /* ナビ開始（初回） */
   function startGuidance(){
     blurAllInputs();
     unlockAll();
@@ -1188,7 +1149,9 @@
     nav.idx=startIdx; nav.active=true; togglePanel(false);
 
     const cur=nav.order[nav.idx];
-    speakSafe('ナビを開始します。まずは ' + getSpeakNameByPointName(cur) + ' に向かってください。');
+    const curP = nameIndex.get(cur);
+    const say = (curP && curP.speak) ? curP.speak : (curP ? curP.name : '');
+    speakSafe('ナビを開始します。まずは ' + say + ' に向かってください。');
     nav.lastAnnounceTarget = cur;
     focusTarget(cur);
 
@@ -1199,7 +1162,6 @@
     }
   }
 
-  /* 一時停止（状態は保持） */
   function pauseGuidance(){
     nav.active=false;
     if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
@@ -1212,7 +1174,6 @@
     alert(msg);
   }
 
-  /* 再開（プルダウンから地点名を選択） */
   function resumeGuidance(){
     blurAllInputs();
     unlockAll();
@@ -1244,7 +1205,9 @@
         return;
       }
 
-      speakSafe(`再開します。まずは ${getSpeakNameByPointName(cur)} に向かってください。`);
+      const curP = nameIndex.get(cur);
+      const say = (curP && curP.speak) ? curP.speak : (curP ? curP.name : '');
+      speakSafe(`再開します。まずは ${say} に向かってください。`);
       nav.lastAnnounceTarget = cur;
       focusTarget(cur);
 
@@ -1289,7 +1252,11 @@
     if(nx){
       nav.active=true;
       nav.lastAnnounceTarget = nx;
-      speakSafe(getSpeakNameByPointName(nx)+' に向かってください。');
+
+      const p = nameIndex.get(nx);
+      const say = (p && p.speak) ? p.speak : (p ? p.name : '');
+      speakSafe(say+' に向かってください。');
+
       focusTarget(nx);
       autoZoomForNext(doneName, nx);
 
@@ -1352,7 +1319,8 @@
         nav.idx = k+1; cur = nav.order[nav.idx] = strictOrder[nav.idx];
         currentPoint = nameIndex.get(cur);
         if(currentPoint){
-          speakSafe(getSpeakNameByPointName(cur)+' に向かってください。');
+          const say = currentPoint.speak ? currentPoint.speak : currentPoint.name;
+          speakSafe(say+' に向かってください。');
           nav.lastAnnounceTarget=cur;
           focusTarget(cur);
           autoZoomForNext(prev, cur);
