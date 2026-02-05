@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver127</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver128</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -15,7 +15,6 @@
   body,button{touch-action:manipulation;}
   #map{position:absolute;inset:0;z-index:0}
 
-  /* ===== 左パネル ===== */
   .panel{
     position:absolute;left:8px;top:8px;z-index:1000;
     background:rgba(255,255,255,.97);
@@ -43,7 +42,6 @@
   .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#eee;font-size:12px;margin-left:6px}
   .err{position:absolute;top:0;left:0;right:0;background:#fee;color:#900;padding:8px 10px;font-size:12px;z-index:2000;border-bottom:1px solid #f99;display:none}
 
-  /* 右上フローティング：「設定」ボタンは一つ左へ寄せる */
   #btnPanel{
     position:absolute;right:10px;top:10px;z-index:1100;
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
@@ -55,7 +53,6 @@
   }
   .volbox button{background:#fff;border:1px solid #ccc;border-radius:8px;padding:6px 8px;font-size:14px;width:auto}
 
-  /* FAB */
   .fab{
     position:fixed;right:16px;bottom:84px;z-index:1500;
     background:#ef4444;color:#fff;border:none;border-radius:9999px;
@@ -76,7 +73,6 @@
   .leaflet-control-zoom{font-size:28px}
   .leaflet-control-zoom a{width:52px;height:52px;line-height:52px;font-size:28px}
 
-  /* CSVプレビュー：ページ内モーダル */
   #csvOverlay{
     position:fixed; inset:0; background:rgba(0,0,0,.55);
     z-index:3000; display:none; align-items:center; justify-content:center;
@@ -97,7 +93,6 @@
   #csvBody{ flex:1; overflow:auto; }
   #csvBody pre{ margin:0; padding:12px; white-space:pre; font:12px/1.5 ui-monospace,Menlo,Consolas,monospace }
 
-  /* 再開ダイアログ */
   #resumeOverlay{
     position:fixed; inset:0; background:rgba(0,0,0,.45);
     z-index:3100; display:none; align-items:center; justify-content:center;
@@ -113,7 +108,6 @@
   #resumePanel select{width:100%;margin:8px 0 12px;}
   #resumePanel .row{margin-top:8px;}
 
-  /* 点滅（地点マーカー用） */
   .blink-white{
     filter: brightness(210%) saturate(0%) contrast(220%);
     will-change: filter;
@@ -125,7 +119,6 @@
     padding:6px 10px;border-radius:8px;text-decoration:none;font-size:12px
   }
 
-  /* ===== 自車アイコン（緑丸の中心に重ねる） ===== */
   .car-icon{ background: transparent !important; border: 0 !important; }
   .car-icon .car-arrow{
     width:64px;height:64px;border-radius:50%;
@@ -180,9 +173,8 @@
       <label>地点CSV読込（Name,Latitude,Longitude[,Description][,Speak]）</label>
       <div class="file-wrap"><input type="file" id="file" accept=".csv,.kml,.geojson,.json"></div>
       <div class="small">
-        CSV推奨。KML/GeoJSONは簡易対応（ポイントのみ）。<br>
         <b>Speak列</b>（任意）に「ひらがな推奨」の読み上げ文字列を入れると、音声案内が安定します。<br>
-        例：みぎ こじゅうに ひだり ひゃくさんじゅう の に
+        ※Ver128では、Speakが読めない場合でも、地点名の「-」は自動で「の」として読み上げます。
       </div>
     </div>
 
@@ -240,7 +232,7 @@
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver127</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver128</span>
     </div>
   </div>
 </div>
@@ -276,12 +268,11 @@
 
 <script>
 (function(){
-  const VERSION = 'Ver127';
+  const VERSION = 'Ver128';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
-  // ★ここを、あなたがデプロイした Web アプリのURLに差し替えてください
   const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyMMXXxEKospe4Q7ZE2EKduglrDRfimxIX1V-jOZ7zUWsS4pIJrZ-P6sjrkA4sa9BQvZg/exec';
 
   async function sendRowToServer(payload){
@@ -306,6 +297,9 @@
   const EXCEPTION_M    = 20;
   const POPUP_STAY_UNTIL_M = 10;
   const SUPPRESS_MS = 2000;
+
+  // ★要望(3)：再開ダイアログ自動クローズ（現状の2倍）＝ 60秒
+  const RESUME_AUTO_CLOSE_MS = 60000;
 
   function showErr(e){
     const el=document.getElementById('err');
@@ -378,13 +372,85 @@
   document.addEventListener('touchstart',  unlockAll, onceOpt);
   document.addEventListener('click',       unlockAll, onceOpt);
 
+  // ======== 読み上げ用 正規化（「-」を「の」にする） ========
   function normalizeSpeakText(s){
     s = String(s ?? '');
-    s = s.replace(/[　]/g, ' ');            // 全角スペース→半角
+    s = s.replace(/[　]/g, ' '); // 全角スペース→半角
+
+    // ★数字-数字 を「の」に（"130-2" → "130 の 2"）
+    s = s.replace(/(\d)\s*[-‐-–—−ー]\s*(\d)/g, '$1 の $2');
+
+    // 日本語と数字の境界にスペース
     s = s.replace(/([一-龠ぁ-ヴァ-ヴー])(\d)/g, '$1 $2');
     s = s.replace(/(\d)([一-龠ぁ-ヴァ-ヴー])/g, '$1 $2');
+
+    // 余計な括弧
     s = s.replace(/[{}[\]]/g, ' ');
+
+    // 記号は基本スペースへ
+    s = s.replace(/[,:;|]/g, ' ');
     s = s.replace(/\s+/g, ' ').trim();
+    return s;
+  }
+
+  // ======== 数字→ひらがな（0〜9999 程度） ========
+  function numToHiragana(n){
+    n = parseInt(String(n),10);
+    if(!Number.isFinite(n)) return '';
+    if(n===0) return 'れい';
+
+    const d = ['','いち','に','さん','よん','ご','ろく','なな','はち','きゅう'];
+
+    function one(x){ return d[x] || ''; }
+
+    function two(x){
+      if(x<10) return one(x);
+      const tens = Math.floor(x/10), ones = x%10;
+      let t = (tens===1) ? 'じゅう' : (one(tens)+'じゅう');
+      return ones ? (t + one(ones)) : t;
+    }
+
+    function three(x){
+      if(x<100) return two(x);
+      const h = Math.floor(x/100), rest = x%100;
+      let head = '';
+      if(h===1) head='ひゃく';
+      else if(h===3) head='さんびゃく';
+      else if(h===6) head='ろっぴゃく';
+      else if(h===8) head='はっぴゃく';
+      else head = one(h)+'ひゃく';
+      return rest ? (head + two(rest)) : head;
+    }
+
+    function four(x){
+      if(x<1000) return three(x);
+      const th = Math.floor(x/1000), rest = x%1000;
+      let head = '';
+      if(th===1) head='せん';
+      else if(th===3) head='さんぜん';
+      else if(th===8) head='はっせん';
+      else head = one(th)+'せん';
+      return rest ? (head + three(rest)) : head;
+    }
+
+    return four(n);
+  }
+
+  // ======== 地点名の自動読み上げ生成（Speak未設定時の保険） ========
+  function autoSpeakFromName(name){
+    let s = String(name ?? '');
+
+    // 右/左 は “みぎ/ひだり” に寄せる
+    s = s.replace(/右/g, 'みぎ ');
+    s = s.replace(/左/g, 'ひだり ');
+
+    // "130-2" などは「の」
+    s = s.replace(/(\d)\s*[-‐-–—−ー]\s*(\d)/g, '$1 の $2');
+
+    // 数字列をひらがなへ
+    s = s.replace(/\d+/g, (m)=>' '+numToHiragana(m)+' ');
+
+    s = normalizeSpeakText(s);
     return s;
   }
 
@@ -574,12 +640,12 @@
   }
   function setPopupContent(p){ p.marker.bindPopup(popupHtmlFor(p)); }
 
-  // ★Speak列優先（無ければ Name）
-  function getSpeakNameByPointName(pointName){
+  // ★読み上げに使う文字列（Speak優先。無ければ地点名から自動生成）
+  function getSpeakTextByPointName(pointName){
     const p = nameIndex.get(pointName);
-    if(!p) return String(pointName ?? '');
+    if(!p) return autoSpeakFromName(pointName);
     const s = String(p.speak ?? '').trim();
-    return s ? s : p.name;
+    return s ? s : autoSpeakFromName(p.name);
   }
 
   const selected = new Set();
@@ -746,7 +812,7 @@
     return null;
   }
 
-  /* ログ（ローカル保存 + GAS 送信） */
+  /* ログ */
   let logRows=JSON.parse(localStorage.getItem('collectionLog')||'[]');
 
   function nowStamp(){
@@ -757,7 +823,6 @@
   function pushLogRow(row){
     logRows.push(row);
     localStorage.setItem('collectionLog',JSON.stringify(logRows));
-
     try{
       const payload = {
         datetime: row[0] ?? '',
@@ -792,7 +857,7 @@
       const p=nameIndex.get(nm);
       if(!p || p.status!=='normal') continue;
       const vehicle=vehicleSel.value; const driver=driverSel.value;
-      pushLogRow([nowStamp(), p.name, lat, lon, vehicle, driver]); // ★ログPlaceはName固定
+      pushLogRow([nowStamp(), p.name, lat, lon, vehicle, driver]);
       p.status='collected';
       p.marker.setIcon(redIcon);
       if(p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
@@ -841,15 +906,9 @@
   }
   document.getElementById('btnClearAll').addEventListener('click', clearAllPoints);
 
-  /* ===================== Ver127：Speak が空扱いになる “決定打” を潰す ===================== */
-
-  // ヘッダ名の揺れ（BOM/空白/CR/大小文字）を吸収
+  /* ===== CSV 読込（Speak列取り込み強化） ===== */
   function normKey(k){
-    return String(k ?? '')
-      .replace(/^\uFEFF/, '')
-      .replace(/\r/g, '')
-      .trim()
-      .toLowerCase();
+    return String(k ?? '').replace(/^\uFEFF/,'').replace(/\r/g,'').trim().toLowerCase();
   }
   function getField(r, candidates){
     if(!r) return undefined;
@@ -860,14 +919,19 @@
         if(normKey(k) === nc) return r[k];
       }
     }
-    // ★候補が見つからない時：キーに "speak" を含むものがあれば拾う（列名が "Speak " 等でもOK）
     for(const k of keys){
       if(normKey(k).includes('speak')) return r[k];
     }
     return undefined;
   }
-
-  // UTF-8 / Shift_JIS 自動判定
+  function readSpeakValue(r){
+    let speakRaw = getField(r, ['Speak','speak','読み上げ','よみ']);
+    let speak = String(speakRaw ?? '').trim();
+    if(!speak && Array.isArray(r && r.__parsed_extra) && r.__parsed_extra.length){
+      speak = r.__parsed_extra.map(v=>String(v??'').trim()).filter(Boolean).join(' ').trim();
+    }
+    return speak;
+  }
   async function readTextSmart(file){
     const buf = await file.arrayBuffer();
     const u8 = new Uint8Array(buf);
@@ -884,38 +948,18 @@
     try{ return new TextDecoder(enc).decode(u8); }
     catch(_e){ return new TextDecoder('utf-8').decode(u8); }
   }
-
-  // 区切り文字を推定
   function parsePointsTable(text){
     let res = Papa.parse(text, {header:true, skipEmptyLines:true});
     const fields = (res && res.meta && res.meta.fields) ? res.meta.fields : [];
     const onlyOne = (fields.length <= 1);
-
     if(onlyOne){
       const tabCount = (text.match(/\t/g) || []).length;
       const semiCount = (text.match(/;/g) || []).length;
-      if(tabCount > 0){
-        res = Papa.parse(text, {header:true, skipEmptyLines:true, delimiter:'\t'});
-      }else if(semiCount > 0){
-        res = Papa.parse(text, {header:true, skipEmptyLines:true, delimiter:';'});
-      }else{
-        res = Papa.parse(text, {header:true, skipEmptyLines:true, delimiter:','});
-      }
+      if(tabCount > 0) res = Papa.parse(text, {header:true, skipEmptyLines:true, delimiter:'\t'});
+      else if(semiCount > 0) res = Papa.parse(text, {header:true, skipEmptyLines:true, delimiter:';'});
+      else res = Papa.parse(text, {header:true, skipEmptyLines:true, delimiter:','});
     }
     return res;
-  }
-
-  // ★ここが核心：Speak 列が “ヘッダ無し/列数ズレ” で __parsed_extra に落ちても拾う
-  function readSpeakValue(r){
-    let speakRaw = getField(r, ['Speak','speak','読み上げ','よみ']);
-    let speak = String(speakRaw ?? '').trim();
-
-    // PapaParse で「ヘッダ行よりデータ列が多い」場合、余りは __parsed_extra に入る
-    if(!speak && Array.isArray(r && r.__parsed_extra) && r.__parsed_extra.length){
-      // 余りが複数ある場合は連結（基本は最初が Speak のはず）
-      speak = r.__parsed_extra.map(v=>String(v??'').trim()).filter(Boolean).join(' ').trim();
-    }
-    return speak;
   }
 
   async function importCSV(file){
@@ -944,7 +988,7 @@
         const lat  = parseFloat(getField(r, ['Latitude','lat','Lat','緯度']));
         const lon  = parseFloat(getField(r, ['Longitude','lon','Lon','Lng','経度']));
         const desc = String(getField(r, ['Description','desc','説明']) ?? '').trim();
-        const speak = readSpeakValue(r); // ★Ver127
+        const speak = readSpeakValue(r);
 
         if(name && Number.isFinite(lat)&&Number.isFinite(lon)){
           addPoint(name,lat,lon,desc,speak);
@@ -1138,6 +1182,9 @@
     return items;
   }
 
+  // ★再開ダイアログ表示中は onPos で画面が動かないようにする（プルダウンが閉じにくくする）
+  let resumeDialogOpen = false;
+
   function openResumeDialog(defaultSeq, callback){
     const overlay = document.getElementById('resumeOverlay');
     const select  = document.getElementById('resumeSelect');
@@ -1163,10 +1210,19 @@
       select.value=defaultStr;
     }
 
+    resumeDialogOpen = true;
     overlay.style.display='flex';
+
+    // ★自動クローズ（2倍）
+    let autoTimer = setTimeout(()=>{ close(); }, RESUME_AUTO_CLOSE_MS);
+    const bump = ()=>{ clearTimeout(autoTimer); autoTimer = setTimeout(()=>{ close(); }, RESUME_AUTO_CLOSE_MS); };
+    select.addEventListener('change', bump);
 
     function close(){
       overlay.style.display='none';
+      resumeDialogOpen = false;
+      clearTimeout(autoTimer);
+      select.removeEventListener('change', bump);
       okBtn.removeEventListener('click', onOk);
       cancelBtn.removeEventListener('click', onCancel);
       overlay.removeEventListener('click', onBg);
@@ -1209,7 +1265,7 @@
     nav.idx=startIdx; nav.active=true; togglePanel(false);
 
     const cur=nav.order[nav.idx];
-    speakSafe('ナビを開始します。まずは ' + getSpeakNameByPointName(cur) + ' に向かってください。');
+    speakSafe('ナビを開始します。まずは ' + getSpeakTextByPointName(cur) + ' に向かってください。');
     nav.lastAnnounceTarget = cur;
     focusTarget(cur);
 
@@ -1263,7 +1319,7 @@
         return;
       }
 
-      speakSafe(`再開します。まずは ${getSpeakNameByPointName(cur)} に向かってください。`);
+      speakSafe(`再開します。まずは ${getSpeakTextByPointName(cur)} に向かってください。`);
       nav.lastAnnounceTarget = cur;
       focusTarget(cur);
 
@@ -1308,7 +1364,7 @@
     if(nx){
       nav.active=true;
       nav.lastAnnounceTarget = nx;
-      speakSafe(getSpeakNameByPointName(nx) + ' に向かってください。');
+      speakSafe(getSpeakTextByPointName(nx) + ' に向かってください。');
       focusTarget(nx);
       autoZoomForNext(doneName, nx);
 
@@ -1358,6 +1414,7 @@
 
   function onPos(pos){
     if(!realMode) return;
+    if(resumeDialogOpen) return; // ★再開ダイアログ中は動かさない
     ensureLocLayer(pos.coords.latitude,pos.coords.longitude,pos.coords.accuracy);
     if(!nav.active) return;
 
@@ -1371,7 +1428,7 @@
         nav.idx = k+1; cur = nav.order[nav.idx] = strictOrder[nav.idx];
         currentPoint = nameIndex.get(cur);
         if(currentPoint){
-          speakSafe(getSpeakNameByPointName(cur) + ' に向かってください。');
+          speakSafe(getSpeakTextByPointName(cur) + ' に向かってください。');
           nav.lastAnnounceTarget=cur;
           focusTarget(cur);
           autoZoomForNext(prev, cur);
