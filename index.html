@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver122</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver123</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -125,27 +125,30 @@
     padding:6px 10px;border-radius:8px;text-decoration:none;font-size:12px
   }
 
-  /* =============================
-     自車アイコン（赤い矢印）
-     - 外枠: 赤円
-     - 中: 矢印（赤⇔白 点滅）
-     ============================= */
+  /* ===== 自車アイコン（緑丸の中心に重ねる） ===== */
+  /* Leaflet の divIcon のデフォ枠を消す */
+  .car-icon{
+    background: transparent !important;
+    border: 0 !important;
+  }
+  /* 赤い円（矢印外枠） */
   .car-icon .car-arrow{
     width:64px;height:64px;border-radius:50%;
     border:4px solid #e11d48;
     background:#ffffff;
     position:relative;
-    transform:translate(-50%,-80%);
+    /* ★transform を入れると座標点からズレるので入れない */
     box-sizing:border-box;
     box-shadow:0 4px 14px rgba(0,0,0,.18);
   }
+  /* 中の三角（点滅） */
   .car-icon .car-arrow-inner{
     position:absolute;
     left:50%;top:50%;
-    transform:translate(-50%,-62%);
+    transform:translate(-50%,-55%);
     width:0;height:0;
     border-style:solid;
-    border-width:24px 12px 0 12px;
+    border-width:22px 12px 0 12px;
     border-color:#e11d48 transparent transparent transparent;
     animation:arrowBlink 1s infinite;
   }
@@ -242,7 +245,7 @@
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver122</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver123</span>
     </div>
   </div>
 </div>
@@ -280,7 +283,7 @@
 
 <script>
 (function(){
-  const VERSION = 'Ver122';
+  const VERSION = 'Ver123';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -382,21 +385,33 @@
   document.addEventListener('touchstart',  unlockAll, onceOpt);
   document.addEventListener('click',       unlockAll, onceOpt);
 
-  // ★日本語＋数字が混ざる名称を読み上げやすく整形（例：右39左40 → 右 39 左 40）
-  function normalizeSpeakText(t){
-    if(!t) return '';
-    let s = String(t);
-
-    // よくある囲い/記号を削る（読み上げの邪魔になりやすい）
-    s = s.replace(/[{}\[\]【】「」"']/g, ' ');
-
-    // 日本語(非数字)と数字の境界にスペースを入れる
-    s = s.replace(/([^\d\s])(\d)/g, '$1 $2');
-    s = s.replace(/(\d)([^\d\s])/g, '$1 $2');
-
-    // 連続スペースを1つへ
+  // ★日本語/数字混在でも読みやすくする（右39左40 → 右 39 左 40 など）
+  function normalizeSpeakText(s){
+    s = String(s ?? '');
+    // 日本語と数字の境界にスペース
+    s = s.replace(/([一-龠ぁ-ゔァ-ヴー])(\d)/g, '$1 $2');
+    s = s.replace(/(\d)([一-龠ぁ-ゔァ-ヴー])/g, '$1 $2');
+    // 記号を少し読みやすく
+    s = s.replace(/[{}[\]]/g, ' ');
     s = s.replace(/\s+/g, ' ').trim();
     return s;
+  }
+
+  function pickJaVoice(){
+    try{
+      const vs = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
+      if(!vs || !vs.length) return null;
+      // ja-JP を優先
+      const ja = vs.filter(v=>/^ja/i.test(v.lang||''));
+      if(ja.length){
+        // iOS/Chromeで安定しやすい候補を優先（存在すれば）
+        const prefer = ja.find(v=>/Kyoko|Otoya|Google 日本語|Japanese/i.test(v.name||''));
+        return prefer || ja[0];
+      }
+      return null;
+    }catch(_e){
+      return null;
+    }
   }
 
   function speakSafe(t){
@@ -406,6 +421,10 @@
       if (speechSynthesis.speaking) speechSynthesis.cancel();
       const u=new SpeechSynthesisUtterance(normalizeSpeakText(t));
       u.lang='ja-JP'; u.rate=1.0;
+
+      const v = pickJaVoice();
+      if(v) u.voice = v;
+
       speechSynthesis.speak(u);
     }catch(e){
       console.warn('音声再生に失敗:', e);
@@ -485,33 +504,32 @@
   let gpsWatchId=null, locMarker=null, locCircle=null, followSelf=true, headingMode=false;
   const btnHeading = document.getElementById('btnHeading');
 
-  // ★自車アイコン（赤矢印）
+  // ★自車アイコン：中心を座標点に合わせる
   const carIcon = L.divIcon({
     className:'car-icon',
     html:'<div class="car-arrow"><div class="car-arrow-inner"></div></div>',
     iconSize:[64,64],
-    iconAnchor:[32,50]
+    iconAnchor:[32,32]   // ★中心＝緑丸中心（座標点）
   });
 
   function ensureLocLayer(lat,lon,acc){
     if(!realMode) return;
-    if(!locMarker){
-      // ★緑丸 → 赤矢印マーカー
-      locMarker=L.marker([lat,lon],{icon:carIcon,pane:'vehiclePane'}).addTo(map);
 
-      // ★精度円（緑）も赤系へ変更（不要なら fillOpacity=0 にする等で消せます）
+    if(!locMarker){
+      locMarker=L.marker([lat,lon],{icon:carIcon,pane:'vehiclePane'}).addTo(map);
+      locMarker.setZIndexOffset(2000); // ★常に前面
+
+      // 緑の丸（精度円）は残す（必要なら opacity を落としてもOK）
       locCircle=L.circle([lat,lon],{
         radius:acc||25,
-        color:'#e11d48',
-        fillColor:'#e11d48',
-        fillOpacity:0.10,
-        weight:2,
+        color:'#23a455', fillColor:'#23a455', fillOpacity:0.15,
         pane:'vehiclePane'
       }).addTo(map);
     }else{
       locMarker.setLatLng([lat,lon]);
       if(locCircle) locCircle.setLatLng([lat,lon]).setRadius(acc||25);
     }
+
     if(followSelf && Date.now() >= suppressFollowUntil){
       map.setView([lat,lon], map.getZoom());
     }
@@ -1019,7 +1037,7 @@
     return max;
   }
 
-  /* ★再開リスト表示： "#1 {地点名} 済"（[ ] は使わない） */
+  /* 再開リスト用オプション生成（"#1 {1} 済" 形式） */
   function buildResumeOptions(){
     const items=[];
     strictOrder.forEach((nm,idx)=>{
@@ -1029,17 +1047,13 @@
       let status='';
       if(p.status==='collected') status='済';
       else if(p.status==='skipped') status='無';
-
-      // select の見た目は環境でタブが潰れるので「スペース＋区切り」で安定させる
-      // ご希望のイメージ： "#1" "{1}" "済" → 文字列としては以下の並び
-      const label = status
-        ? `#${seq}  {${p.name}}  ${status}`
-        : `#${seq}  {${p.name}}`;
+      const label = `#${seq} {${p.name}}${status ? ' ' + status : ''}`;
       items.push({seq,label});
     });
     return items;
   }
 
+  /* 再開ダイアログ表示 */
   function openResumeDialog(defaultSeq, callback){
     const overlay = document.getElementById('resumeOverlay');
     const select  = document.getElementById('resumeSelect');
@@ -1090,6 +1104,7 @@
     overlay.addEventListener('click', onBg);
   }
 
+  /* ナビ開始（初回） */
   function startGuidance(){
     blurAllInputs();
     unlockAll();
@@ -1126,6 +1141,7 @@
     }
   }
 
+  /* 一時停止（状態は保持） */
   function pauseGuidance(){
     nav.active=false;
     if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
@@ -1138,6 +1154,7 @@
     alert(msg);
   }
 
+  /* 再開（プルダウンから地点名を選択） */
   function resumeGuidance(){
     blurAllInputs();
     unlockAll();
