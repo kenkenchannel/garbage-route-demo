@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver126</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver127</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -181,7 +181,8 @@
       <div class="file-wrap"><input type="file" id="file" accept=".csv,.kml,.geojson,.json"></div>
       <div class="small">
         CSV推奨。KML/GeoJSONは簡易対応（ポイントのみ）。<br>
-        <b>Speak列</b>（任意）に「ひらがな推奨」の読み上げ文字列を入れると、音声案内が安定します。例：みぎ こじゅうに ひだり ひゃくさんじゅう の に
+        <b>Speak列</b>（任意）に「ひらがな推奨」の読み上げ文字列を入れると、音声案内が安定します。<br>
+        例：みぎ こじゅうに ひだり ひゃくさんじゅう の に
       </div>
     </div>
 
@@ -239,7 +240,7 @@
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver126</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver127</span>
     </div>
   </div>
 </div>
@@ -275,11 +276,12 @@
 
 <script>
 (function(){
-  const VERSION = 'Ver126';
+  const VERSION = 'Ver127';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
+  // ★ここを、あなたがデプロイした Web アプリのURLに差し替えてください
   const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyMMXXxEKospe4Q7ZE2EKduglrDRfimxIX1V-jOZ7zUWsS4pIJrZ-P6sjrkA4sa9BQvZg/exec';
 
   async function sendRowToServer(payload){
@@ -378,7 +380,7 @@
 
   function normalizeSpeakText(s){
     s = String(s ?? '');
-    s = s.replace(/[　]/g, ' ');
+    s = s.replace(/[　]/g, ' ');            // 全角スペース→半角
     s = s.replace(/([一-龠ぁ-ヴァ-ヴー])(\d)/g, '$1 $2');
     s = s.replace(/(\d)([一-龠ぁ-ヴァ-ヴー])/g, '$1 $2');
     s = s.replace(/[{}[\]]/g, ' ');
@@ -410,11 +412,9 @@
       unlockAll();
       initVoices();
       if (speechSynthesis.speaking) speechSynthesis.cancel();
-
       const u=new SpeechSynthesisUtterance(normalizeSpeakText(t));
       u.lang='ja-JP'; u.rate=1.0;
       if(cachedJaVoice) u.voice = cachedJaVoice;
-
       speechSynthesis.speak(u);
     }catch(e){
       console.warn('音声再生に失敗:', e);
@@ -511,7 +511,6 @@
     if(!locMarker){
       locMarker=L.marker([lat,lon],{icon:carIcon,pane:'vehiclePane'}).addTo(map);
       locMarker.setZIndexOffset(2000);
-
       locCircle=L.circle([lat,lon],{
         radius:acc||25,
         color:'#23a455', fillColor:'#23a455', fillOpacity:0.15,
@@ -575,7 +574,7 @@
   }
   function setPopupContent(p){ p.marker.bindPopup(popupHtmlFor(p)); }
 
-  // ★Speak列優先で読み上げ（ログのPlaceはname固定）
+  // ★Speak列優先（無ければ Name）
   function getSpeakNameByPointName(pointName){
     const p = nameIndex.get(pointName);
     if(!p) return String(pointName ?? '');
@@ -842,13 +841,13 @@
   }
   document.getElementById('btnClearAll').addEventListener('click', clearAllPoints);
 
-  /* ===================== Ver126：Speak列が空扱いになる原因を潰す ===================== */
+  /* ===================== Ver127：Speak が空扱いになる “決定打” を潰す ===================== */
 
-  // ヘッダ名のズレ（BOM / 前後スペース / 大小文字 / CR）を吸収して値を拾う
+  // ヘッダ名の揺れ（BOM/空白/CR/大小文字）を吸収
   function normKey(k){
     return String(k ?? '')
-      .replace(/^\uFEFF/, '')   // BOM
-      .replace(/\r/g, '')       // CR
+      .replace(/^\uFEFF/, '')
+      .replace(/\r/g, '')
       .trim()
       .toLowerCase();
   }
@@ -861,25 +860,24 @@
         if(normKey(k) === nc) return r[k];
       }
     }
+    // ★候補が見つからない時：キーに "speak" を含むものがあれば拾う（列名が "Speak " 等でもOK）
+    for(const k of keys){
+      if(normKey(k).includes('speak')) return r[k];
+    }
     return undefined;
   }
 
-  // UTF-8 / Shift_JIS を自動判定して text を得る
+  // UTF-8 / Shift_JIS 自動判定
   async function readTextSmart(file){
     const buf = await file.arrayBuffer();
     const u8 = new Uint8Array(buf);
-
-    // BOM付きUTF-8 は即採用
     if(u8.length >= 3 && u8[0]===0xEF && u8[1]===0xBB && u8[2]===0xBF){
       return new TextDecoder('utf-8').decode(u8);
     }
-
     const decUtf8 = safeDecode(u8, 'utf-8');
     const decSjis = safeDecode(u8, 'shift_jis');
-
     const badUtf8 = (decUtf8.match(/\uFFFD/g) || []).length;
     const badSjis = (decSjis.match(/\uFFFD/g) || []).length;
-
     return (badSjis < badUtf8) ? decSjis : decUtf8;
   }
   function safeDecode(u8, enc){
@@ -887,7 +885,7 @@
     catch(_e){ return new TextDecoder('utf-8').decode(u8); }
   }
 
-  // 区切り文字（, / \t / ;）を自動推定
+  // 区切り文字を推定
   function parsePointsTable(text){
     let res = Papa.parse(text, {header:true, skipEmptyLines:true});
     const fields = (res && res.meta && res.meta.fields) ? res.meta.fields : [];
@@ -907,6 +905,19 @@
     return res;
   }
 
+  // ★ここが核心：Speak 列が “ヘッダ無し/列数ズレ” で __parsed_extra に落ちても拾う
+  function readSpeakValue(r){
+    let speakRaw = getField(r, ['Speak','speak','読み上げ','よみ']);
+    let speak = String(speakRaw ?? '').trim();
+
+    // PapaParse で「ヘッダ行よりデータ列が多い」場合、余りは __parsed_extra に入る
+    if(!speak && Array.isArray(r && r.__parsed_extra) && r.__parsed_extra.length){
+      // 余りが複数ある場合は連結（基本は最初が Speak のはず）
+      speak = r.__parsed_extra.map(v=>String(v??'').trim()).filter(Boolean).join(' ').trim();
+    }
+    return speak;
+  }
+
   async function importCSV(file){
     stopBlink();
     points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[]; nextDistByName.clear();
@@ -916,7 +927,6 @@
       const res = parsePointsTable(text);
       const rows = res.data || [];
 
-      // 重複チェック（Name）
       const seen=new Set(), dups=new Set();
       for(const r of rows){
         const nm = String(getField(r, ['Name','name','名称','タイトル','title','id']) ?? '').trim();
@@ -934,10 +944,7 @@
         const lat  = parseFloat(getField(r, ['Latitude','lat','Lat','緯度']));
         const lon  = parseFloat(getField(r, ['Longitude','lon','Lon','Lng','経度']));
         const desc = String(getField(r, ['Description','desc','説明']) ?? '').trim();
-
-        // ★ここが肝：Speak列を「ヘッダ揺れ込み」で確実に拾う
-        const speakRaw = getField(r, ['Speak','speak','読み上げ','よみ']);
-        const speak = String(speakRaw ?? '').trim();
+        const speak = readSpeakValue(r); // ★Ver127
 
         if(name && Number.isFinite(lat)&&Number.isFinite(lon)){
           addPoint(name,lat,lon,desc,speak);
