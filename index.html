@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver129</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver130</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -182,7 +182,7 @@
     <div>
       <label>地点CSV読込（Name,Latitude,Longitude[,Description][,Speak]）</label>
       <div class="file-wrap"><input type="file" id="file" accept=".csv,.kml,.geojson,.json"></div>
-      <div class="small">CSV推奨。KML/GeoJSONは簡易対応（ポイントのみ）。</div>
+      <div class="small">CSV推奨。Excel保存CSV（Shift_JIS）も自動判定して読みます。</div>
     </div>
 
     <div>
@@ -239,7 +239,7 @@
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver129</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver130</span>
     </div>
   </div>
 </div>
@@ -275,7 +275,7 @@
 
 <script>
 (function(){
-  const VERSION = 'Ver129';
+  const VERSION = 'Ver130';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -377,15 +377,11 @@
   document.addEventListener('touchstart',  unlockAll, onceOpt);
   document.addEventListener('click',       unlockAll, onceOpt);
 
-  // Speak 用：余計な置換をしない（「の」を「から」にしない）
+  // ★読み上げ用テキストを軽く整形（Speak列は基本そのまま優先）
   function normalizeSpeakText(s){
     s = String(s ?? '');
-    // 全角スペース → 半角スペース
-    s = s.replace(/\u3000/g, ' ');
-    // {} [] を除去（表示由来のゴミ対策）
-    s = s.replace(/[{}[\]]/g, ' ');
-    // 連続空白の整理
-    s = s.replace(/\s+/g, ' ').trim();
+    s = s.replace(/\u3000/g,' ');   // 全角空白→半角
+    s = s.replace(/\s+/g,' ').trim();
     return s;
   }
 
@@ -448,14 +444,13 @@
 
   /* 地図・レイヤ */
   const map=L.map('map',{zoomControl:false});
-  const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
     maxZoom:20, attribution:'Tiles c Esri'
   }).addTo(map);
   const gsiLabel = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',{
     maxZoom:20, opacity:0.45, attribution:'c GSI'
   }).addTo(map);
   map.setView([35.841,139.34],14);
-
   L.control.zoom({position:'bottomleft'}).addTo(map);
 
   ['movestart','dragstart','zoomstart','mousedown','touchstart','wheel'].forEach(ev=>{
@@ -489,7 +484,7 @@
   map.createPane('vehiclePane'); map.getPane('vehiclePane').style.zIndex=500;
   map.createPane('markerPane');  map.getPane('markerPane').style.zIndex =600;
 
-  let gpsWatchId=null, locMarker=null, locCircle=null, followSelf=true, headingMode=false;
+  let gpsWatchId=null, locMarker=null, locCircle=null, followSelf=true;
   const btnHeading = document.getElementById('btnHeading');
 
   const carIcon = L.divIcon({
@@ -569,6 +564,12 @@
   }
   function setPopupContent(p){ p.marker.bindPopup(popupHtmlFor(p)); }
 
+  // ★読み上げで使う名称：Speak優先
+  function sayOfPoint(p){
+    const sp = (p && p.speak) ? String(p.speak).trim() : '';
+    return sp ? sp : (p ? p.name : '');
+  }
+
   const selected = new Set();
   const btnFabCollect = document.getElementById('btnFabCollect');
   const btnFabSkip    = document.getElementById('btnFabSkip');
@@ -623,14 +624,28 @@
     refreshFab();
   }
 
+  function cleanSpeakValue(v){
+    let s = String(v ?? '').trim();
+    if(!s) return '';
+    s = s.replace(/\u3000/g,' ');  // 全角空白→半角
+    s = s.replace(/\s+/g,' ').trim();
+    return s;
+  }
+
   function addPoint(name,lat,lon,desc,speak){
     if(firstLoadedName===null) firstLoadedName=name;
     const m=L.marker([lat,lon],{icon:blueIcon,pane:'markerPane'}).addTo(map);
+
     const rec={
-      name,lat,lon,
+      name,
+      lat,
+      lon,
       desc:(desc||'').trim(),
-      speak:(speak||'').toString().trim(),
-      marker:m,status:'normal',selRing:null,seq:undefined
+      speak: cleanSpeakValue(speak),
+      marker:m,
+      status:'normal',
+      selRing:null,
+      seq:undefined
     };
     setPopupContent(rec);
     m.on('click', ()=> onMarkerClick(rec));
@@ -831,80 +846,84 @@
   }
   document.getElementById('btnClearAll').addEventListener('click', clearAllPoints);
 
-  // ====== 重要：SJIS/UTF-8 自動判定で CSV を読む ======
-  async function readCsvTextSmart(file){
-    const buf = await file.arrayBuffer();
-
-    // 1) UTF-8 (BOM付き含む) を fatal で試す → 失敗したら SJIS
-    try{
-      const td8 = new TextDecoder('utf-8', {fatal:true});
-      return td8.decode(buf);
-    }catch(_e){
-      // 2) Shift_JIS / CP932 系
-      try{
-        const tds = new TextDecoder('shift-jis');
-        return tds.decode(buf);
-      }catch(_e2){
-        // 3) 最後の手段：fatalなしUTF-8
-        const td8b = new TextDecoder('utf-8');
-        return td8b.decode(buf);
-      }
-    }
+  // ===== CSV取り込み：UTF-8 → ダメなら Shift_JIS で再パース =====
+  function parseCsvWithEncoding(file, enc, onOk){
+    Papa.parse(file,{
+      header:true,
+      skipEmptyLines:true,
+      encoding: enc,
+      complete: onOk,
+      error: (e)=>showErr(e)
+    });
+  }
+  function hasSpeakField(res){
+    const f = (res && res.meta && res.meta.fields) ? res.meta.fields : [];
+    return f.some(x=>String(x||'').trim().toLowerCase()==='speak');
+  }
+  function looksBroken(res){
+    const f = (res && res.meta && res.meta.fields) ? res.meta.fields : [];
+    const joined = f.join(',');
+    return / |\uFFFD/.test(joined) || (f.length && !f.some(x=>String(x||'').toLowerCase().includes('name')));
   }
 
-  async function importCSV(file){
+  function importCSV(file){
     stopBlink();
     points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[]; nextDistByName.clear();
 
-    try{
-      const text = await readCsvTextSmart(file);
+    const handle = (res)=>{
+      try{
+        const rows=res.data||[];
+        const seen=new Set(), dups=new Set();
+        for(const r of rows){
+          const nm=(r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||'').toString().trim();
+          if(!nm) continue;
+          if(seen.has(nm)) dups.add(nm); else seen.add(nm);
+        }
+        if(dups.size>0){
+          alert('地点の名称に重複があります。処理を中止します。\n重複: '+Array.from(dups).join(', '));
+          return;
+        }
 
-      Papa.parse(text,{
-        header:true,skipEmptyLines:true,
-        complete:(res)=>{
-          try{
-            const rows=res.data||[];
-            const seen=new Set(), dups=new Set();
-            for(const r of rows){
-              const nm=(r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||'').toString().trim();
-              if(!nm) continue;
-              if(seen.has(nm)) dups.add(nm); else seen.add(nm);
-            }
-            if(dups.size>0){
-              alert('地点の名称に重複があります。処理を中止します。\n重複: '+Array.from(dups).join(', '));
-              return;
-            }
+        let added=0;
+        for(const r of rows){
+          const name=(r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||'').toString().trim();
+          const lat =parseFloat(r.Latitude||r.lat||r.Lat||r['緯度']);
+          const lon =parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r['経度']);
+          const desc=(r.Description||r.desc||r['説明']||'').toString().trim();
 
-            let added=0;
-            for(const r of rows){
-              const name=(r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||'').toString().trim();
-              const lat =parseFloat(r.Latitude||r.lat||r.Lat||r['緯度']);
-              const lon =parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r['経度']);
-              const desc=(r.Description||r.desc||r['説明']||'').toString().trim();
+          // ★Speak列は様々な表記を許容
+          const speakRaw =
+            (r.Speak ?? r.speak ?? r['読み'] ?? r['よみ'] ?? r['読み上げ'] ?? r['発音'] ?? '');
 
-              // Speak 列（5列目想定だが、列名で拾う）
-              const speak=(r.Speak||r.speak||r['読み']||r['よみ']||'').toString().trim();
+          const speak = cleanSpeakValue(speakRaw);
 
-              if(name && Number.isFinite(lat)&&Number.isFinite(lon)){
-                addPoint(name,lat,lon,desc,speak);
-                added++;
-              }
-            }
-            if(added>0){
-              buildStrictOrderFromFirst();
-              map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
-              updatePointCount();
-              showToast(`${added} 点読み込み`,2);
-            }else{
-              alert('有効な列(Name,Latitude,Longitude)が見つかりません');
-            }
-          }catch(e){ showErr(e); }
-        },
-        error:(e)=>showErr(e)
-      });
-    }catch(err){
-      showErr(err);
-    }
+          if(name && Number.isFinite(lat)&&Number.isFinite(lon)){
+            addPoint(name,lat,lon,desc,speak);
+            added++;
+          }
+        }
+        if(added>0){
+          buildStrictOrderFromFirst();
+          map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
+          updatePointCount();
+          // Speak列がどれだけ入っているか軽く表示
+          const nSpeak = points.filter(p=>p.speak).length;
+          showToast(`${added} 点読み込み（Speak ${nSpeak}）`,2);
+        }else{
+          alert('有効な列(Name,Latitude,Longitude)が見つかりません');
+        }
+      }catch(e){ showErr(e); }
+    };
+
+    // 1) まずUTF-8
+    parseCsvWithEncoding(file, 'UTF-8', (res)=>{
+      // Speak列が無い/ヘッダ崩れっぽいなら Shift_JIS で再パース
+      if(looksBroken(res) || !hasSpeakField(res)){
+        parseCsvWithEncoding(file, 'Shift_JIS', (res2)=>handle(res2));
+      }else{
+        handle(res);
+      }
+    });
   }
 
   async function importOther(file){
@@ -1109,6 +1128,7 @@
       overlay.style.display='none';
       okBtn.removeEventListener('click', onOk);
       cancelBtn.removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onBg);
     }
     function onOk(){
       const v=parseInt(select.value,10);
@@ -1118,10 +1138,13 @@
     function onCancel(){
       close();
     }
+    function onBg(e){
+      if(e.target===overlay) onCancel();
+    }
 
-    // ★背景タップで閉じない（勝手に閉じる誤動作対策）
     okBtn.addEventListener('click', onOk);
     cancelBtn.addEventListener('click', onCancel);
+    overlay.addEventListener('click', onBg);
   }
 
   function startGuidance(){
@@ -1149,9 +1172,8 @@
     nav.idx=startIdx; nav.active=true; togglePanel(false);
 
     const cur=nav.order[nav.idx];
-    const curP = nameIndex.get(cur);
-    const say = (curP && curP.speak) ? curP.speak : (curP ? curP.name : '');
-    speakSafe('ナビを開始します。まずは ' + say + ' に向かってください。');
+    const pcur = nameIndex.get(cur);
+    speakSafe('ナビを開始します。まずは ' + sayOfPoint(pcur) + ' に向かってください。');
     nav.lastAnnounceTarget = cur;
     focusTarget(cur);
 
@@ -1205,9 +1227,8 @@
         return;
       }
 
-      const curP = nameIndex.get(cur);
-      const say = (curP && curP.speak) ? curP.speak : (curP ? curP.name : '');
-      speakSafe(`再開します。まずは ${say} に向かってください。`);
+      const pcur = nameIndex.get(cur);
+      speakSafe(`再開します。まずは ${sayOfPoint(pcur)} に向かってください。`);
       nav.lastAnnounceTarget = cur;
       focusTarget(cur);
 
@@ -1252,11 +1273,8 @@
     if(nx){
       nav.active=true;
       nav.lastAnnounceTarget = nx;
-
-      const p = nameIndex.get(nx);
-      const say = (p && p.speak) ? p.speak : (p ? p.name : '');
-      speakSafe(say+' に向かってください。');
-
+      const pn = nameIndex.get(nx);
+      speakSafe(sayOfPoint(pn)+' に向かってください。');
       focusTarget(nx);
       autoZoomForNext(doneName, nx);
 
@@ -1319,8 +1337,7 @@
         nav.idx = k+1; cur = nav.order[nav.idx] = strictOrder[nav.idx];
         currentPoint = nameIndex.get(cur);
         if(currentPoint){
-          const say = currentPoint.speak ? currentPoint.speak : currentPoint.name;
-          speakSafe(say+' に向かってください。');
+          speakSafe(sayOfPoint(currentPoint)+' に向かってください。');
           nav.lastAnnounceTarget=cur;
           focusTarget(cur);
           autoZoomForNext(prev, cur);
@@ -1405,6 +1422,8 @@
       }
     }catch(err){ showErr(err); }
   });
+
+  btnHeading.disabled = true; // 既存仕様維持（本機能は未使用）
 
   } // init end
 })();
