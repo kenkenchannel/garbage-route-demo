@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver123</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver124</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -185,9 +185,12 @@
     </div>
 
     <div>
-      <label>地点CSV読込（Name,Latitude,Longitude[,Description]）</label>
+      <label>地点CSV読込（Name,Latitude,Longitude[,Description][,Speak]）</label>
       <div class="file-wrap"><input type="file" id="file" accept=".csv,.kml,.geojson,.json"></div>
-      <div class="small">CSV推奨。KML/GeoJSONは簡易対応（ポイントのみ）。</div>
+      <div class="small">
+        CSV推奨。KML/GeoJSONは簡易対応（ポイントのみ）。<br>
+        <b>Speak列</b>（任意）に「ひらがな推奨」の読み上げ文字列を入れると、音声案内が安定します。例：みぎ こじゅうに ひだり ひゃくさんじゅう の に
+      </div>
     </div>
 
     <div>
@@ -245,7 +248,7 @@
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver123</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver124</span>
     </div>
   </div>
 </div>
@@ -283,7 +286,7 @@
 
 <script>
 (function(){
-  const VERSION = 'Ver123';
+  const VERSION = 'Ver124';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -389,41 +392,43 @@
   function normalizeSpeakText(s){
     s = String(s ?? '');
     // 日本語と数字の境界にスペース
-    s = s.replace(/([一-龠ぁ-ゔァ-ヴー])(\d)/g, '$1 $2');
-    s = s.replace(/(\d)([一-龠ぁ-ゔァ-ヴー])/g, '$1 $2');
+    s = s.replace(/([一-龠ぁ-ヴァ-ヴー])(\d)/g, '$1 $2');
+    s = s.replace(/(\d)([一-龠ぁ-ヴァ-ヴー])/g, '$1 $2');
     // 記号を少し読みやすく
     s = s.replace(/[{}[\]]/g, ' ');
     s = s.replace(/\s+/g, ' ').trim();
     return s;
   }
 
-  function pickJaVoice(){
+  // ======== 日本語ボイスを確実に確保（voiceschanged対応） ========
+  let cachedJaVoice = null;
+  function initVoices(){
     try{
       const vs = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
-      if(!vs || !vs.length) return null;
-      // ja-JP を優先
-      const ja = vs.filter(v=>/^ja/i.test(v.lang||''));
-      if(ja.length){
-        // iOS/Chromeで安定しやすい候補を優先（存在すれば）
-        const prefer = ja.find(v=>/Kyoko|Otoya|Google 日本語|Japanese/i.test(v.name||''));
-        return prefer || ja[0];
-      }
-      return null;
-    }catch(_e){
-      return null;
-    }
+      if(!vs || !vs.length) return;
+      const ja = vs.filter(v => /^ja/i.test(v.lang || ''));
+      if(!ja.length) return;
+      cachedJaVoice =
+        ja.find(v => /Kyoko|Otoya|Google 日本語|Japanese/i.test(v.name || '')) ||
+        ja[0];
+    }catch(_e){}
+  }
+  if('speechSynthesis' in window){
+    speechSynthesis.onvoiceschanged = initVoices;
+    initVoices();
   }
 
   function speakSafe(t){
     if(!t) return;
     try{
       unlockAll();
+      initVoices(); // 念のため
       if (speechSynthesis.speaking) speechSynthesis.cancel();
+
       const u=new SpeechSynthesisUtterance(normalizeSpeakText(t));
       u.lang='ja-JP'; u.rate=1.0;
 
-      const v = pickJaVoice();
-      if(v) u.voice = v;
+      if(cachedJaVoice) u.voice = cachedJaVoice;
 
       speechSynthesis.speak(u);
     }catch(e){
@@ -583,6 +588,14 @@
   }
   function setPopupContent(p){ p.marker.bindPopup(popupHtmlFor(p)); }
 
+  // ★Speak列があれば、読み上げはそちらを優先（ログのPlaceはnameのまま）
+  function getSpeakNameByPointName(pointName){
+    const p = nameIndex.get(pointName);
+    if(!p) return String(pointName ?? '');
+    const s = String(p.speak ?? '').trim();
+    return s ? s : p.name;
+  }
+
   const selected = new Set();
   const btnFabCollect = document.getElementById('btnFabCollect');
   const btnFabSkip    = document.getElementById('btnFabSkip');
@@ -637,10 +650,16 @@
     refreshFab();
   }
 
-  function addPoint(name,lat,lon,desc){
+  // ★Speak対応：speak引数追加
+  function addPoint(name,lat,lon,desc,speak){
     if(firstLoadedName===null) firstLoadedName=name;
     const m=L.marker([lat,lon],{icon:blueIcon,pane:'markerPane'}).addTo(map);
-    const rec={name,lat,lon,desc:(desc||'').trim(),marker:m,status:'normal',selRing:null,seq:undefined};
+    const rec={
+      name,lat,lon,
+      desc:(desc||'').trim(),
+      speak:(speak||'').trim(),
+      marker:m,status:'normal',selRing:null,seq:undefined
+    };
     setPopupContent(rec);
     m.on('click', ()=> onMarkerClick(rec));
     points.push(rec);
@@ -791,7 +810,7 @@
       const p=nameIndex.get(nm);
       if(!p || p.status!=='normal') continue;
       const vehicle=vehicleSel.value; const driver=driverSel.value;
-      pushLogRow([nowStamp(), p.name, lat, lon, vehicle, driver]);
+      pushLogRow([nowStamp(), p.name, lat, lon, vehicle, driver]); // ★ログはp.name固定
       p.status='collected';
       p.marker.setIcon(redIcon);
       if(p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
@@ -865,7 +884,14 @@
             const lat =parseFloat(r.Latitude||r.lat||r.Lat||r['緯度']);
             const lon =parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r['経度']);
             const desc=(r.Description||r.desc||r['説明']||'').toString().trim();
-            if(name && Number.isFinite(lat)&&Number.isFinite(lon)){ addPoint(name,lat,lon,desc); added++; }
+
+            // ★Speak列（任意）
+            const speak=(r.Speak||r.speak||r['読み上げ']||r['よみ']||'').toString().trim();
+
+            if(name && Number.isFinite(lat)&&Number.isFinite(lon)){
+              addPoint(name,lat,lon,desc,speak);
+              added++;
+            }
           }
           if(added>0){
             buildStrictOrderFromFirst();
@@ -893,7 +919,7 @@
         let i=0; while((m=coordRegex.exec(text))){
           const lon=parseFloat(m[1]); const lat=parseFloat(m[2]);
           const nm=(names[i]||'').toString().trim(); i++;
-          if(nm && Number.isFinite(lat)&&Number.isFinite(lon)) addPoint(nm,lat,lon,'');
+          if(nm && Number.isFinite(lat)&&Number.isFinite(lon)) addPoint(nm,lat,lon,'','');
         }
       }else if(file.name.toLowerCase().endsWith('.geojson')||file.name.toLowerCase().endsWith('.json')){
         const gj=JSON.parse(text);
@@ -902,7 +928,7 @@
           if(f.geometry && f.geometry.type==='Point' && Array.isArray(f.geometry.coordinates)){
             const lon=f.geometry.coordinates[0], lat=f.geometry.coordinates[1];
             const nm=((f.properties&&(f.properties.Name||f.properties.name))||'').toString().trim();
-            if(nm) addPoint(nm,lat,lon,'');
+            if(nm) addPoint(nm,lat,lon,'','');
           }
         });
       }
@@ -1130,7 +1156,7 @@
     nav.idx=startIdx; nav.active=true; togglePanel(false);
 
     const cur=nav.order[nav.idx];
-    speakSafe('ナビを開始します。まずは ' + nameIndex.get(cur).name + ' に向かってください。');
+    speakSafe('ナビを開始します。まずは ' + getSpeakNameByPointName(cur) + ' に向かってください。');
     nav.lastAnnounceTarget = cur;
     focusTarget(cur);
 
@@ -1186,7 +1212,7 @@
         return;
       }
 
-      speakSafe(`再開します。まずは ${nameIndex.get(cur).name} に向かってください。`);
+      speakSafe(`再開します。まずは ${getSpeakNameByPointName(cur)} に向かってください。`);
       nav.lastAnnounceTarget = cur;
       focusTarget(cur);
 
@@ -1231,7 +1257,7 @@
     if(nx){
       nav.active=true;
       nav.lastAnnounceTarget = nx;
-      speakSafe(nameIndex.get(nx).name+' に向かってください。');
+      speakSafe(getSpeakNameByPointName(nx) + ' に向かってください。');
       focusTarget(nx);
       autoZoomForNext(doneName, nx);
 
@@ -1264,7 +1290,7 @@
 
     if(arrived){
       const vehicle=vehicleSel.value; const driver=driverSel.value;
-      pushLogRow([nowStamp(),p.name,lat,lon,vehicle,driver]);
+      pushLogRow([nowStamp(),p.name,lat,lon,vehicle,driver]); // ★ログはp.name固定
 
       p.status='collected';
       p.marker.setIcon(redIcon);
@@ -1294,7 +1320,7 @@
         nav.idx = k+1; cur = nav.order[nav.idx] = strictOrder[nav.idx];
         currentPoint = nameIndex.get(cur);
         if(currentPoint){
-          speakSafe(currentPoint.name+' に向かってください。');
+          speakSafe(getSpeakNameByPointName(cur) + ' に向かってください。');
           nav.lastAnnounceTarget=cur;
           focusTarget(cur);
           autoZoomForNext(prev, cur);
