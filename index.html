@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver140</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver143</title>
 
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -26,7 +26,7 @@
     padding:10px;width:min(400px,92vw);
     font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
     box-sizing:border-box;
-    max-height:calc(100dvh - 24px); /* Ver140: 下部のVer表記が隠れにくいようにする */
+    max-height:calc(100dvh - 24px); /* Ver143: 下部のVer表記が隠れにくいようにする */
     overflow-y:auto;
     padding-bottom:22px;
   }
@@ -58,7 +58,7 @@
     position:absolute;right:10px;top:10px;z-index:1100;
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
     display:inline-block;width:auto;
-    transform:none; /* Ver140: 音量ボタン下に隠れないよう右側へ移動 */
+    transform:none; /* Ver143: 音量ボタン下に隠れないよう右側へ移動 */
   }
   .volbox{
     position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px
@@ -254,7 +254,7 @@ if ('serviceWorker' in navigator) {
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver140</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver143</span>
     </div>
   </div>
 </div>
@@ -290,14 +290,14 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver140';
+  const VERSION = 'Ver143';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
   const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyMMXXxEKospe4Q7ZE2EKduglrDRfimxIX1V-jOZ7zUWsS4pIJrZ-P6sjrkA4sa9BQvZg/exec';
 
-  // Ver140: MyDrive同期ボタン用。HTML単体ではAndroidのGoogle Drive同期ON/OFFはできないため、
+  // Ver143: MyDrive同期ボタン用。HTML単体ではAndroidのGoogle Drive同期ON/OFFはできないため、
   // このボタンではDriveフォルダを開き、データ読込は従来どおり各ファイル選択ボタンで行います。
   const MYDRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
   const POINTS_DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
@@ -970,7 +970,7 @@ const FLEET={
   }
 
 
-  // ===== Ver140: MyDrive同期 =====
+  // ===== Ver143: MyDrive同期 =====
   // 重要：HTML/ブラウザからAndroid設定の「Drive同期ON/OFF」を直接操作することはできません。
   // そのため、このボタンではブラウザ側キャッシュを軽く消去し、Google Driveフォルダを開きます。
   // 地点CSV・基本回収ルートの読込は、従来どおり画面上の各「ファイルを選択」ボタンから行います。
@@ -1009,6 +1009,35 @@ const FLEET={
       alert('MyDrive同期ボタンの処理でエラーが発生しました。\n' + (e && e.message ? e.message : e));
     }finally{
       if(btn){ btn.disabled = false; btn.textContent = oldText; }
+    }
+  }
+
+
+  // ===== Ver143: Driveフォルダ表示補助 =====
+  // Android/Chromeの仕様上、ファイル選択ダイアログの初期フォルダをHTMLから固定することはできません。
+  // そのため、ファイル選択ボタンを押したときは、該当するGoogle Driveフォルダを別タブで開くだけにします。
+  // 実際の読込は、従来どおりファイル選択ダイアログでファイルを選んだあとに実行されます。
+  function openDriveFolderForFileInput(kind){
+    try{
+      const url = (kind === 'route') ? ROUTE_DRIVE_FOLDER_URL : POINTS_DRIVE_FOLDER_URL;
+      const label = (kind === 'route') ? '基本回収ルート' : '地点CSV';
+      if(!url){ return; }
+
+      showToast(label + '用のGoogle Driveフォルダを開きます。ファイル選択は従来どおり行ってください。', 2.5);
+
+      // ファイル選択ダイアログを妨げないよう、少し遅らせて別タブを開く
+      setTimeout(()=>{
+        try{
+          const opened = window.open(url, '_blank');
+          if(!opened){
+            console.warn('Driveフォルダを開けませんでした:', url);
+          }
+        }catch(e){
+          console.warn('Driveフォルダを開く処理でエラー:', e);
+        }
+      }, 250);
+    }catch(e){
+      console.warn('openDriveFolderForFileInput error:', e);
     }
   }
 
