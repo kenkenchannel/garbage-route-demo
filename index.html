@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver139</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver140</title>
 
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -26,6 +26,9 @@
     padding:10px;width:min(400px,92vw);
     font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
     box-sizing:border-box;
+    max-height:calc(100dvh - 24px); /* Ver140: 下部のVer表記が隠れにくいようにする */
+    overflow-y:auto;
+    padding-bottom:22px;
   }
   .panel h2{font-size:16px;margin:0 0 6px}
   .panel-title{display:flex;align-items:center;gap:6px;}
@@ -34,7 +37,7 @@
   #gasSyncStatus{font-size:12px;color:#14532d;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:4px 6px;margin:3px 0 6px;display:none;}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
   .row>*{width:100%}
-  .controls{display:grid;gap:6px}
+  .controls{display:grid;gap:4px}
   label{font-size:12px;color:#333;display:block}
   select,input[type="text"],input[type="file"],button{
     padding:8px;border-radius:8px;border:1px solid #ccc;font-size:14px;box-sizing:border-box;
@@ -47,6 +50,7 @@
   button.warn{background:#f59e0b;color:#111;border:none}
   button.ghost{background:#fff}
   .small{font-size:12px;color:#555}
+  #legendLine{margin-top:-2px!important;line-height:1.25;padding-bottom:12px;}
   .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#eee;font-size:12px;margin-left:6px}
   .err{position:absolute;top:0;left:0;right:0;background:#fee;color:#900;padding:8px 10px;font-size:12px;z-index:2000;border-bottom:1px solid #f99;display:none}
 
@@ -54,7 +58,7 @@
     position:absolute;right:10px;top:10px;z-index:1100;
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
     display:inline-block;width:auto;
-    transform: translateX(-100%);
+    transform:none; /* Ver140: 音量ボタン下に隠れないよう右側へ移動 */
   }
   .volbox{
     position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px
@@ -250,7 +254,7 @@ if ('serviceWorker' in navigator) {
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver139</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver140</span>
     </div>
   </div>
 </div>
@@ -286,16 +290,18 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver139';
+  const VERSION = 'Ver140';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
   const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyMMXXxEKospe4Q7ZE2EKduglrDRfimxIX1V-jOZ7zUWsS4pIJrZ-P6sjrkA4sa9BQvZg/exec';
 
-  // Ver139: MyDrive同期ボタン用。HTML単体ではAndroidのGoogle Drive同期ON/OFFはできないため、
+  // Ver140: MyDrive同期ボタン用。HTML単体ではAndroidのGoogle Drive同期ON/OFFはできないため、
   // このボタンではDriveフォルダを開き、データ読込は従来どおり各ファイル選択ボタンで行います。
   const MYDRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
+  const POINTS_DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
+  const ROUTE_DRIVE_FOLDER_URL  = 'https://drive.google.com/drive/folders/1947oZh4-7rXJvrq0pYl17-TFwryTnL9O';
 
   async function sendRowToServer(payload){
     if(!GAS_ENDPOINT || GAS_ENDPOINT.indexOf('https://') !== 0) return;
@@ -964,7 +970,7 @@ const FLEET={
   }
 
 
-  // ===== Ver139: MyDrive同期 =====
+  // ===== Ver140: MyDrive同期 =====
   // 重要：HTML/ブラウザからAndroid設定の「Drive同期ON/OFF」を直接操作することはできません。
   // そのため、このボタンではブラウザ側キャッシュを軽く消去し、Google Driveフォルダを開きます。
   // 地点CSV・基本回収ルートの読込は、従来どおり画面上の各「ファイルを選択」ボタンから行います。
@@ -1097,6 +1103,9 @@ const FLEET={
     }catch(e){ showErr(e); }
   }
 
+  document.getElementById('file').addEventListener('click',()=>{
+    openDriveFolderForFileInput('points');
+  });
   document.getElementById('file').addEventListener('change',(e)=>{
     const f=e.target.files[0]; if(!f) return;
     blurAllInputs();
@@ -1531,6 +1540,9 @@ const FLEET={
     setTimeout(fitRoute,50);
   });
 
+  document.getElementById('fileRoute').addEventListener('click',()=>{
+    openDriveFolderForFileInput('route');
+  });
   document.getElementById('fileRoute').addEventListener('change', async (e)=>{
     const f=e.target.files[0]; if(!f) return;
     blurAllInputs();
