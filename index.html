@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver137</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver139</title>
 
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -31,6 +31,7 @@
   .panel-title{display:flex;align-items:center;gap:6px;}
   .panel-title .title-left{display:flex;align-items:center;min-width:0;white-space:nowrap;}
   #btnMyDriveSync{margin-left:auto;width:auto;padding:5px 8px;border-radius:8px;font-size:12px;line-height:1.2;background:#dcfce7;border:1px solid #86efac;color:#14532d;}
+  #gasSyncStatus{font-size:12px;color:#14532d;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:4px 6px;margin:3px 0 6px;display:none;}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
   .row>*{width:100%}
   .controls{display:grid;gap:6px}
@@ -178,8 +179,9 @@ if ('serviceWorker' in navigator) {
 <div class="panel" id="panel">
   <h2 class="panel-title">
     <span class="title-left">回収結果数 <span class="pill" id="pointCount">0 箇所(赤0/黄0)</span></span>
-    <button id="btnMyDriveSync" type="button" title="GAS配信から地点CSV・回収ルートを再取得します">MyDrive同期</button>
+    <button id="btnMyDriveSync" type="button" title="Google Driveフォルダを開きます。データ読込は従来どおり各ファイル選択ボタンで行います">MyDrive同期</button>
   </h2>
+  <div id="gasSyncStatus"></div>
 
   <div class="controls">
     <div class="row">
@@ -248,7 +250,7 @@ if ('serviceWorker' in navigator) {
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver137</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver139</span>
     </div>
   </div>
 </div>
@@ -284,16 +286,15 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver137';
+  const VERSION = 'Ver139';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
   const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyMMXXxEKospe4Q7ZE2EKduglrDRfimxIX1V-jOZ7zUWsS4pIJrZ-P6sjrkA4sa9BQvZg/exec';
 
-  // Ver137: MyDrive同期（GAS配信）用。GAS_sample_Code.gs をデプロイしたWebアプリURLに差し替えてください。
-  // 未設定のまま押すと、Google Driveフォルダを開きます。
-  const GAS_SYNC_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwMkp9rN0OpuiPUSvptmRC_XkWv4KVqddVBkq0J2WsA97j-HcEy-3OKQdW9fnTxjhcn7Q/exec';
+  // Ver139: MyDrive同期ボタン用。HTML単体ではAndroidのGoogle Drive同期ON/OFFはできないため、
+  // このボタンではDriveフォルダを開き、データ読込は従来どおり各ファイル選択ボタンで行います。
   const MYDRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
 
   async function sendRowToServer(payload){
@@ -963,195 +964,45 @@ const FLEET={
   }
 
 
-  // ===== Ver137: GAS配信（MyDrive同期） =====
-  function fetchJsonp(url, params={}){
-    return new Promise((resolve,reject)=>{
-      if(!url || url.indexOf('PASTE_YOUR_GAS_WEB_APP_URL_HERE') >= 0){
-        reject(new Error('GAS_SYNC_ENDPOINT が未設定です。'));
-        return;
-      }
-      const cbName = '__torimorenuGasCb_' + Date.now() + '_' + Math.floor(Math.random()*100000);
-      const s = document.createElement('script');
-      const u = new URL(url);
-      Object.keys(params||{}).forEach(k=>u.searchParams.set(k, params[k]));
-      u.searchParams.set('callback', cbName);
-      u.searchParams.set('_ts', Date.now().toString());
-      let timer = setTimeout(()=>{
-        cleanup();
-        reject(new Error('GAS配信の応答がタイムアウトしました。'));
-      }, 30000);
-      function cleanup(){
-        clearTimeout(timer);
-        try{ delete window[cbName]; }catch(_e){ window[cbName] = undefined; }
-        try{ s.remove(); }catch(_e){}
-      }
-      window[cbName] = (data)=>{
-        cleanup();
-        resolve(data);
-      };
-      s.onerror = ()=>{
-        cleanup();
-        reject(new Error('GAS配信の読み込みに失敗しました。'));
-      };
-      s.src = u.toString();
-      document.head.appendChild(s);
-    });
-  }
-
-  function clearLoadedPointsOnly(){
-    stopBlink();
-    points.forEach(p=>{
-      try{ if(p.selRing) map.removeLayer(p.selRing); }catch(_e){}
-      try{ map.removeLayer(p.marker); }catch(_e){}
-    });
-    points.length=0;
-    nameIndex.clear();
-    strictOrder=[];
-    firstLoadedName=null;
-    nextDistByName.clear();
-    clearSelection();
-    updatePointCount();
-  }
-
-  function importCSVTextFromGas(csvText, encLabel='GAS'){
-    clearLoadedPointsOnly();
-    Papa.parse(String(csvText||''),{
-      header:true,
-      skipEmptyLines:true,
-      transformHeader:(h)=> String(h||'').replace(/^\uFEFF/,'').trim(),
-      complete:(res)=>{
-        try{
-          const rows=res.data||[];
-          const seen=new Set(), dups=new Set();
-          for(const r of rows){
-            const nm=(r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||'').toString().trim();
-            if(!nm) continue;
-            if(seen.has(nm)) dups.add(nm); else seen.add(nm);
-          }
-          if(dups.size>0){
-            alert('GAS配信の地点CSVに名称の重複があります。処理を中止します。\n重複: '+Array.from(dups).join(', '));
-            return;
-          }
-          let added=0, speakCount=0;
-          for(const r of rows){
-            const name=(r.Name||r.name||r['名称']||r['タイトル']||r.title||r.id||'').toString().trim();
-            const lat =parseFloat(r.Latitude||r.lat||r.Lat||r['緯度']);
-            const lon =parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r['経度']);
-            const desc=(r.Description||r.desc||r['説明']||'').toString().trim();
-            const speak=(r.Speak||r.speak||r['読み']||r['ヨミ']||r['Yomi']||'').toString().replace(/\u3000/g,' ').trim();
-            if(name && Number.isFinite(lat)&&Number.isFinite(lon)){
-              addPoint(name,lat,lon,desc,speak);
-              if(speak) speakCount++;
-              added++;
-            }
-          }
-          if(added>0){
-            buildStrictOrderFromFirst();
-            map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
-            updatePointCount();
-            showToast(`${added} 点をGASから読込（${encLabel} / speak${speakCount}）`,3);
-          }else{
-            alert('GAS配信CSVに有効な地点(Name,Latitude,Longitude)が見つかりません。');
-          }
-        }catch(e){ showErr(e); }
-      },
-      error:(e)=>showErr(e)
-    });
-  }
-
-  function importPointArrayFromGas(rows){
-    const header = ['Name','Latitude','Longitude','Description','Speak'];
-    const csv = [header.join(',')].concat((rows||[]).map(r=>{
-      const vals = [r.Name||r.name||'', r.Latitude||r.lat||'', r.Longitude||r.lon||'', r.Description||r.desc||'', r.Speak||r.speak||''];
-      return vals.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',');
-    })).join('\n');
-    importCSVTextFromGas(csv, 'GAS JSON');
-  }
-
-  function importRouteTextFromGas(routeText, fileName='route.csv'){
-    const text = String(routeText||'');
-    const lower = String(fileName||'').toLowerCase();
-    try{
-      if(lower.endsWith('.gpx') || lower.endsWith('.xml') || text.trim().startsWith('<?xml') || text.indexOf('<gpx')>=0){
-        const xml=new DOMParser().parseFromString(text,'application/xml');
-        let pts=[...xml.querySelectorAll('trkpt, rtept')];
-        let latlngs=pts.map(el=>[parseFloat(el.getAttribute('lat')), parseFloat(el.getAttribute('lon'))])
-                       .filter(v=>Number.isFinite(v[0])&&Number.isFinite(v[1]));
-        if(latlngs.length<2){
-          const wpts=[...xml.querySelectorAll('wpt')].map(el=>[parseFloat(el.getAttribute('lat')), parseFloat(el.getAttribute('lon'))])
-                                                   .filter(v=>Number.isFinite(v[0])&&Number.isFinite(v[1]));
-          if(wpts.length>=2) latlngs=wpts;
-        }
-        if(latlngs.length>=2){ setRouteLatLngs(latlngs); setTimeout(fitRoute,50); showToast(`回収ルートをGASから読込（${latlngs.length}点）`,3); }
-        else showToast('GAS配信ルートは読み込みましたが、線を引く点が不足しています',3);
-        return;
-      }
-      if(lower.endsWith('.geojson') || lower.endsWith('.json') || text.trim().startsWith('{')){
-        const gj=JSON.parse(text); const latlngs=[];
-        if(gj.type==='FeatureCollection'){ gj.features.forEach(feat=>{ if(feat.geometry&&feat.geometry.type==='LineString'){ feat.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); } }); }
-        else if(gj.type==='Feature'&&gj.geometry&&gj.geometry.type==='LineString'){ gj.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
-        else if(gj.type==='LineString'){ gj.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
-        if(latlngs.length>=2){ setRouteLatLngs(latlngs); setTimeout(fitRoute,50); showToast(`回収ルートをGASから読込（${latlngs.length}点）`,3); }
-        else showErr('GAS配信GeoJSON内にLineStringがありません');
-        return;
-      }
-      Papa.parse(text,{header:true,skipEmptyLines:true,complete:(res)=>{
-        const latlngs=[]; (res.data||[]).forEach(r=>{ const la=parseFloat(r.Latitude||r.lat||r['緯度']); const lo=parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r['経度']); if(Number.isFinite(la)&&Number.isFinite(lo)) latlngs.push([la,lo]); });
-        if(latlngs.length<2){ showErr('GAS配信ルートCSVの行が少ない/列名不一致'); return; }
-        setRouteLatLngs(latlngs); setTimeout(fitRoute,50); showToast(`回収ルートをGASから読込（${latlngs.length}点）`,3);
-      }});
-    }catch(e){ showErr(e); }
-  }
-
-  function importRouteArrayFromGas(rows){
-    const latlngs=[];
-    (rows||[]).forEach(r=>{
-      if(Array.isArray(r) && r.length>=2){
-        const la=parseFloat(r[0]), lo=parseFloat(r[1]);
-        if(Number.isFinite(la)&&Number.isFinite(lo)) latlngs.push([la,lo]);
-      }else{
-        const la=parseFloat(r.Latitude||r.lat||r['緯度']);
-        const lo=parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r['経度']);
-        if(Number.isFinite(la)&&Number.isFinite(lo)) latlngs.push([la,lo]);
-      }
-    });
-    if(latlngs.length>=2){ setRouteLatLngs(latlngs); setTimeout(fitRoute,50); showToast(`回収ルートをGASから読込（${latlngs.length}点）`,3); }
-    else alert('GAS配信のroute配列に有効な座標がありません。');
-  }
-
+  // ===== Ver139: MyDrive同期 =====
+  // 重要：HTML/ブラウザからAndroid設定の「Drive同期ON/OFF」を直接操作することはできません。
+  // そのため、このボタンではブラウザ側キャッシュを軽く消去し、Google Driveフォルダを開きます。
+  // 地点CSV・基本回収ルートの読込は、従来どおり画面上の各「ファイルを選択」ボタンから行います。
   async function syncMyDriveFromGas(){
     blurAllInputs();
     unlockAll();
-    if(!GAS_SYNC_ENDPOINT || GAS_SYNC_ENDPOINT.indexOf('PASTE_YOUR_GAS_WEB_APP_URL_HERE') >= 0){
-      alert('GAS_SYNC_ENDPOINT が未設定です。\n\n同梱の GAS_sample_Code.gs をGoogle Apps Scriptに貼り付けてWebアプリURLを発行し、index.html内の GAS_SYNC_ENDPOINT に貼り付けてください。\n\n今回はGoogle Driveフォルダを開きます。');
-      window.open(MYDRIVE_FOLDER_URL, '_blank');
-      return;
-    }
+
     const btn = document.getElementById('btnMyDriveSync');
-    const oldText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '同期中…';
-    showToast('MyDrive同期：GASから取得中…',2);
+    const oldText = btn ? btn.textContent : 'MyDrive同期';
+    if(btn){ btn.disabled = true; btn.textContent = 'Driveを開く…'; }
+
     try{
-      if('caches' in window){ try{ const names=await caches.keys(); await Promise.all(names.map(n=>caches.delete(n))); }catch(_e){} }
-      const data = await fetchJsonp(GAS_SYNC_ENDPOINT, {mode:'sync'});
-      if(!data || data.ok === false){ throw new Error((data && data.message) ? data.message : 'GASから有効な応答がありません。'); }
+      showToast('Google Driveフォルダを開きます。読込は各ファイル選択ボタンで行ってください。', 3);
 
-      let did = false;
-      if(data.pointsCsv){ importCSVTextFromGas(data.pointsCsv, data.pointsFileName || 'GAS CSV'); did = true; }
-      else if(Array.isArray(data.points)){ importPointArrayFromGas(data.points); did = true; }
+      // ブラウザ側のキャッシュだけ軽く削除（Android OSのDrive同期操作ではありません）
+      if('caches' in window){
+        try{
+          const names = await caches.keys();
+          await Promise.all(names.map(n => caches.delete(n)));
+        }catch(_e){}
+      }
 
-      if(data.routeCsv){ importRouteTextFromGas(data.routeCsv, data.routeFileName || 'route.csv'); did = true; }
-      else if(Array.isArray(data.route)){ importRouteArrayFromGas(data.route); did = true; }
+      if('serviceWorker' in navigator){
+        try{
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+        }catch(_e){}
+      }
 
-      if(!did){ alert('GAS応答に pointsCsv / points / routeCsv / route がありません。GAS側設定を確認してください。'); }
-      else showToast('MyDrive同期が完了しました',3);
+      const opened = window.open(MYDRIVE_FOLDER_URL, '_blank');
+      if(!opened){
+        alert('Google Driveフォルダを開けませんでした。\nブラウザのポップアップブロックを解除するか、下記URLを直接開いてください。\n\n' + MYDRIVE_FOLDER_URL);
+      }
     }catch(e){
       console.warn(e);
-      alert('MyDrive同期に失敗しました。\n' + (e && e.message ? e.message : e));
+      alert('MyDrive同期ボタンの処理でエラーが発生しました。\n' + (e && e.message ? e.message : e));
     }finally{
-      btn.disabled = false;
-      btn.textContent = oldText;
+      if(btn){ btn.disabled = false; btn.textContent = oldText; }
     }
   }
 
