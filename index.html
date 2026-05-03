@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver146</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver147</title>
 
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -26,7 +26,7 @@
     padding:10px;width:min(400px,92vw);
     font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
     box-sizing:border-box;
-    max-height:calc(100dvh - 24px); /* Ver146: 下部のVer表記が隠れにくいようにする */
+    max-height:calc(100dvh - 24px); /* Ver147: 下部のVer表記が隠れにくいようにする */
     overflow-y:auto;
     padding-bottom:22px;
   }
@@ -58,7 +58,7 @@
     position:absolute;right:10px;top:10px;z-index:1100;
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
     display:inline-block;width:auto;
-    transform:none; /* Ver146: 音量ボタン下に隠れないよう右側へ移動 */
+    transform:none; /* Ver147: 音量ボタン下に隠れないよう右側へ移動 */
   }
   .volbox{
     position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px
@@ -254,7 +254,7 @@ if ('serviceWorker' in navigator) {
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver146</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver147</span>
     </div>
   </div>
 </div>
@@ -290,27 +290,27 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver146';
+  const VERSION = 'Ver147';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
-  const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwQW0ZsgV3mQ5qYONsMs3j7DsE_VGFwrBCU1cIvGLsh_jEZ9dVsCNJmbe3jaf1t15ZG/exec';
+  const GAS_ENDPOINT = 'PASTE_COLLECTION_RESULTS_RECEIVER_GAS_V3_WEB_APP_URL_HERE';
 
-  // Ver146: 回収結果はGAS経由でGoogleスプレッドシート「collection_results_data」に一元保存します。
-  // GAS_ENDPOINT は同梱の collection_results_receiver_GAS_v2.gs をWebアプリとしてデプロイしたURLに差し替えてください。
+  // Ver147: 回収結果はGAS経由でGoogleスプレッドシート「collection_results_data」に一元保存します。
+  // GAS_ENDPOINT は同梱の collection_results_receiver_GAS_v3.gs をWebアプリとしてデプロイしたURLに差し替えてください。
   // 未設定でも従来どおり端末内localStorageには一時保存されます。
   const MYDRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
   const POINTS_DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
   const ROUTE_DRIVE_FOLDER_URL  = 'https://drive.google.com/drive/folders/1947oZh4-7rXJvrq0pYl17-TFwryTnL9O';
 
   async function sendRowToServer(payload){
-    if(!GAS_ENDPOINT || GAS_ENDPOINT.indexOf('https://') !== 0 || GAS_ENDPOINT.indexOf('PASTE_COLLECTION_RESULTS_RECEIVER_GAS_V2_WEB_APP_URL_HERE') >= 0){
+    if(!GAS_ENDPOINT || GAS_ENDPOINT.indexOf('https://') !== 0 || GAS_ENDPOINT.indexOf('PASTE_COLLECTION_RESULTS_RECEIVER_GAS_V3_WEB_APP_URL_HERE') >= 0){
       console.warn('GAS_ENDPOINT未設定のため、端末内に未送信保存します。');
       throw new Error('GAS_ENDPOINT未設定');
     }
 
-    // Ver146:
+    // Ver147:
     // 取りもれーぬ側は fetch + no-cors でGASへPOSTします。
     // 電波圏外や送信失敗時は pushLogRow 側で pendingRows に保存されます。
     await fetch(GAS_ENDPOINT, {
@@ -727,6 +727,7 @@ const FLEET={
       if(confirm('アイコン色を赤から黄(無回収)に変更しますか？')){
         rec.status='skipped';
         rec.marker.setIcon(yellowIcon);
+        updateLastLogResultType(rec.name, '無回収');
         if(rec.selRing){ try{ map.removeLayer(rec.selRing); }catch(_e){} rec.selRing=null; }
         updatePointCount();
         showToast(`「${rec.name}」を無回収（黄）に変更しました`,2);
@@ -737,6 +738,7 @@ const FLEET={
       if(confirm('アイコン色を黄から赤(回収済)に変更しますか？')){
         rec.status='collected';
         rec.marker.setIcon(redIcon);
+        updateLastLogResultType(rec.name, '回収');
         if(rec.selRing){ try{ map.removeLayer(rec.selRing); }catch(_e){} rec.selRing=null; }
         updatePointCount();
         showToast(`「${rec.name}」を回収済（赤）に戻しました`,2);
@@ -874,6 +876,48 @@ const FLEET={
     return 'TRM-' + Date.now() + '-' + Math.floor(Math.random()*1000000);
   }
 
+  function normalizeResultType(rt){
+    const s = String(rt || '').trim();
+    if(s === '無回収' || s === 'no_collect' || s === 'skip' || s === 'skipped' || s === 'yellow') return '無回収';
+    if(s === '回収' || s === 'collected' || s === 'auto' || s === 'manual' || s === 'red') return '回収';
+    return s || '回収';
+  }
+
+  function findLastLogIndexByPlace(place){
+    for(let i=logRows.length-1; i>=0; i--){
+      const r = logRows[i];
+      if(Array.isArray(r) && String(r[1] ?? '') === String(place ?? '')) return i;
+    }
+    return -1;
+  }
+
+  function ensureLogRowRecordId(row){
+    if(!Array.isArray(row)) return makeRecordId();
+    if(!row[7]) row[7] = makeRecordId();
+    return row[7];
+  }
+
+  function updateLastLogResultType(place, resultType){
+    const idx = findLastLogIndexByPlace(place);
+    if(idx < 0) return false;
+    const row = logRows[idx];
+    row[6] = normalizeResultType(resultType);
+    ensureLogRowRecordId(row);
+    localStorage.setItem('collectionLog', JSON.stringify(logRows));
+
+    const payload = makeCollectionPayload(row, row[6]);
+    payload.updateReason = 'status-toggle';
+    sendRowToServer(payload).then(res=>{
+      console.log('GAS結果区分更新OK:', res);
+    }).catch(e=>{
+      console.warn('GAS結果区分更新に失敗。未送信キューへ保存:', e);
+      pendingRows.push(payload);
+      savePendingRows();
+      showToast('GAS送信失敗：結果区分更新を未送信保存しました', 3);
+    });
+    return true;
+  }
+
   let pendingRows = JSON.parse(localStorage.getItem('collectionLogPending') || '[]');
   function savePendingRows(){
     localStorage.setItem('collectionLogPending', JSON.stringify(pendingRows));
@@ -881,8 +925,11 @@ const FLEET={
 
   function makeCollectionPayload(row, resultType){
     const stamp = row[0] ?? nowStamp();
+    const rt = normalizeResultType(resultType || row[6] || '回収');
+    const recordId = ensureLogRowRecordId(row);
+
     return {
-      recordId: makeRecordId(),
+      recordId: recordId,
       appVersion: VERSION,
       deviceTime: stamp,
       workDate: getWorkDateFromStamp(stamp),
@@ -891,22 +938,26 @@ const FLEET={
       lon: row[3] ?? '',
       vehicle: row[4] ?? '',
       driver: row[5] ?? '',
-      resultType: resultType || row[6] || 'manual',
+      resultType: rt,
       source: realMode ? 'realMode' : 'manualMode',
       userAgent: navigator.userAgent || '',
       pageUrl: location.href || '',
-      note: ''
+      note: '',
+      iconColor: rt === '無回収' ? 'yellow' : 'red'
     };
   }
 
-  function pushLogRow(row, resultType='manual'){
+  function pushLogRow(row, resultType='回収'){
     // 端末内にも従来どおり残します（通信圏外・送信失敗時の保険）
     const row2 = Array.isArray(row) ? row.slice() : [];
-    if(row2.length < 7) row2[6] = resultType;
+    const rt = normalizeResultType(resultType || row2[6] || '回収');
+    row2[6] = rt;
+    ensureLogRowRecordId(row2);
+
     logRows.push(row2);
     localStorage.setItem('collectionLog',JSON.stringify(logRows));
 
-    const payload = makeCollectionPayload(row2, resultType);
+    const payload = makeCollectionPayload(row2, rt);
     sendRowToServer(payload).then(res=>{
       console.log('GAS一元保存OK:', res);
     }).catch(e=>{
@@ -956,7 +1007,7 @@ const FLEET={
       const p=nameIndex.get(nm);
       if(!p || p.status!=='normal') continue;
       const vehicle=vehicleSel.value; const driver=driverSel.value;
-      pushLogRow([nowStamp(), p.name, lat, lon, vehicle, driver, 'manual'], 'manual');
+      pushLogRow([nowStamp(), p.name, lat, lon, vehicle, driver, '回収'], '回収');
       p.status='collected';
       p.marker.setIcon(redIcon);
       if(p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
@@ -978,7 +1029,7 @@ const FLEET={
       const p=nameIndex.get(nm);
       if(!p || p.status!=='normal') continue;
       p.status='skipped';
-      try{ pushLogRow([nowStamp(), p.name, '', '', vehicleSel.value, driverSel.value, 'skip'], 'skip'); }catch(_e){}
+      try{ pushLogRow([nowStamp(), p.name, '', '', vehicleSel.value, driverSel.value, '無回収'], '無回収'); }catch(_e){}
       p.marker.setIcon(yellowIcon);
       if(p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
       selected.delete(nm);
@@ -1032,7 +1083,7 @@ const FLEET={
   }
 
 
-  // ===== Ver146: MyDrive同期 =====
+  // ===== Ver147: MyDrive同期 =====
   // 重要：HTML/ブラウザからAndroid設定の「Drive同期ON/OFF」を直接操作することはできません。
   // そのため、このボタンではブラウザ側キャッシュを軽く消去し、Google Driveフォルダを開きます。
   // 地点CSV・基本回収ルートの読込は、従来どおり画面上の各「ファイルを選択」ボタンから行います。
@@ -1075,7 +1126,7 @@ const FLEET={
   }
 
 
-  // ===== Ver146: Driveフォルダ表示補助 =====
+  // ===== Ver147: Driveフォルダ表示補助 =====
   // Android/Chromeの仕様上、ファイル選択ダイアログの初期フォルダをHTMLから固定することはできません。
   // そのため、ファイル選択ボタンを押したときは、該当するGoogle Driveフォルダを別タブで開くだけにします。
   // 実際の読込は、従来どおりファイル選択ダイアログでファイルを選んだあとに実行されます。
@@ -1560,7 +1611,7 @@ const FLEET={
 
     if(arrived){
       const vehicle=vehicleSel.value; const driver=driverSel.value;
-      pushLogRow([nowStamp(),p.name,lat,lon,vehicle,driver,'auto'], 'auto');
+      pushLogRow([nowStamp(),p.name,lat,lon,vehicle,driver,'回収'], '回収');
 
       p.status='collected';
       p.marker.setIcon(redIcon);
