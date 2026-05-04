@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver147</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver148</title>
 
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -26,7 +26,7 @@
     padding:10px;width:min(400px,92vw);
     font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
     box-sizing:border-box;
-    max-height:calc(100dvh - 24px); /* Ver147: 下部のVer表記が隠れにくいようにする */
+    max-height:calc(100dvh - 24px); /* Ver148: 下部のVer表記が隠れにくいようにする */
     overflow-y:auto;
     padding-bottom:22px;
   }
@@ -58,7 +58,7 @@
     position:absolute;right:10px;top:10px;z-index:1100;
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
     display:inline-block;width:auto;
-    transform:none; /* Ver147: 音量ボタン下に隠れないよう右側へ移動 */
+    transform:none; /* Ver148: 音量ボタン下に隠れないよう右側へ移動 */
   }
   .volbox{
     position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px
@@ -254,7 +254,7 @@ if ('serviceWorker' in navigator) {
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver147</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver148</span>
     </div>
   </div>
 </div>
@@ -290,27 +290,27 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver147';
+  const VERSION = 'Ver148';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
-  const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxPyUgfSsYKdhKS5uv86a8sW9Y9NCBUffC67VdUbYdoHHweKkspnGHVU_GBb9vAnaxN/exec';
+  const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwFjsTanzzw2xkV_p4RCobosVo8RIQ6Q-DuBoTfGbWGcfRyvKMP1vMiVhnS5JCzWOrF/exec';
 
-  // Ver147: 回収結果はGAS経由でGoogleスプレッドシート「collection_results_data」に一元保存します。
-  // GAS_ENDPOINT は同梱の collection_results_receiver_GAS_v3.gs をWebアプリとしてデプロイしたURLに差し替えてください。
+  // Ver148: 回収結果はGAS経由でGoogleスプレッドシート「collection_results_data」に一元保存します。
+  // GAS_ENDPOINT は同梱の collection_results_receiver_GAS_v4.gs をWebアプリとしてデプロイしたURLに差し替えてください。
   // 未設定でも従来どおり端末内localStorageには一時保存されます。
   const MYDRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
   const POINTS_DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
   const ROUTE_DRIVE_FOLDER_URL  = 'https://drive.google.com/drive/folders/1947oZh4-7rXJvrq0pYl17-TFwryTnL9O';
 
   async function sendRowToServer(payload){
-    if(!GAS_ENDPOINT || GAS_ENDPOINT.indexOf('https://') !== 0 || GAS_ENDPOINT.indexOf('PASTE_COLLECTION_RESULTS_RECEIVER_GAS_V3_WEB_APP_URL_HERE') >= 0){
+    if(!GAS_ENDPOINT || GAS_ENDPOINT.indexOf('https://') !== 0 || GAS_ENDPOINT.indexOf('PASTE_COLLECTION_RESULTS_RECEIVER_GAS_V4_WEB_APP_URL_HERE') >= 0){
       console.warn('GAS_ENDPOINT未設定のため、端末内に未送信保存します。');
       throw new Error('GAS_ENDPOINT未設定');
     }
 
-    // Ver147:
+    // Ver148:
     // 取りもれーぬ側は fetch + no-cors でGASへPOSTします。
     // 電波圏外や送信失敗時は pushLogRow 側で pendingRows に保存されます。
     await fetch(GAS_ENDPOINT, {
@@ -669,6 +669,7 @@ const FLEET={
   const points=[];
   const nameIndex=new Map();
   let firstLoadedName=null;
+  let currentCourseName='';
 
   const blueIcon=L.icon({
     iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -905,6 +906,7 @@ const FLEET={
     ensureLogRowRecordId(row);
     localStorage.setItem('collectionLog', JSON.stringify(logRows));
 
+    if(!row[8]) row[8] = currentCourseName || '';
     const payload = makeCollectionPayload(row, row[6]);
     payload.updateReason = 'status-toggle';
     sendRowToServer(payload).then(res=>{
@@ -933,6 +935,8 @@ const FLEET={
       appVersion: VERSION,
       deviceTime: stamp,
       workDate: getWorkDateFromStamp(stamp),
+      courseName: currentCourseName || row[8] || '',
+      course: currentCourseName || row[8] || '',
       place: row[1] ?? '',
       lat: row[2] ?? '',
       lon: row[3] ?? '',
@@ -953,6 +957,7 @@ const FLEET={
     const rt = normalizeResultType(resultType || row2[6] || '回収');
     row2[6] = rt;
     ensureLogRowRecordId(row2);
+    if(!row2[8]) row2[8] = currentCourseName || '';
 
     logRows.push(row2);
     localStorage.setItem('collectionLog',JSON.stringify(logRows));
@@ -1052,6 +1057,7 @@ const FLEET={
     points.length=0; nameIndex.clear(); strictOrder=[]; firstLoadedName=null; nextDistByName.clear();
     clearSelection();
     document.getElementById('file').value='';
+    currentCourseName='';
     updatePointCount();
     alert('回収地点のデータを全て消去しました。');
   }
@@ -1083,7 +1089,7 @@ const FLEET={
   }
 
 
-  // ===== Ver147: MyDrive同期 =====
+  // ===== Ver148: MyDrive同期 =====
   // 重要：HTML/ブラウザからAndroid設定の「Drive同期ON/OFF」を直接操作することはできません。
   // そのため、このボタンではブラウザ側キャッシュを軽く消去し、Google Driveフォルダを開きます。
   // 地点CSV・基本回収ルートの読込は、従来どおり画面上の各「ファイルを選択」ボタンから行います。
@@ -1126,7 +1132,7 @@ const FLEET={
   }
 
 
-  // ===== Ver147: Driveフォルダ表示補助 =====
+  // ===== Ver148: Driveフォルダ表示補助 =====
   // Android/Chromeの仕様上、ファイル選択ダイアログの初期フォルダをHTMLから固定することはできません。
   // そのため、ファイル選択ボタンを押したときは、該当するGoogle Driveフォルダを別タブで開くだけにします。
   // 実際の読込は、従来どおりファイル選択ダイアログでファイルを選んだあとに実行されます。
@@ -1154,7 +1160,18 @@ const FLEET={
     }
   }
 
+
+  function deriveCourseNameFromFileName(fileName){
+    let s = String(fileName || '').trim();
+    s = s.replace(/\.[^.]+$/,'');
+    s = s.replace(/CSV$/i,'');
+    s = s.replace(/collection_log.*$/i,'');
+    s = s.replace(/地点$/,'');
+    return s.trim();
+  }
+
   function importCSV(file){
+    currentCourseName = deriveCourseNameFromFileName(file && file.name ? file.name : '');
     stopBlink();
     points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[]; nextDistByName.clear();
 
@@ -1200,7 +1217,7 @@ const FLEET={
               buildStrictOrderFromFirst();
               map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
               updatePointCount();
-              showToast(`${added} 点読込（${d.enc} / speak${speakCount}）`,2);
+              showToast(`${added} 点読込（${d.enc} / speak${speakCount} / コース:${currentCourseName || '未設定'}）`,2);
             }else{
               alert('有効な列(Name,Latitude,Longitude)が見つかりません');
             }
@@ -1213,6 +1230,7 @@ const FLEET={
 
   async function importOther(file){
     try{
+      currentCourseName = deriveCourseNameFromFileName(file && file.name ? file.name : '');
       stopBlink();
       points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[]; nextDistByName.clear();
       const text=await file.text();
