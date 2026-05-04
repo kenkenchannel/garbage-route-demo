@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver148</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver149</title>
 
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -26,7 +26,7 @@
     padding:10px;width:min(400px,92vw);
     font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
     box-sizing:border-box;
-    max-height:calc(100dvh - 24px); /* Ver148: 下部のVer表記が隠れにくいようにする */
+    max-height:calc(100dvh - 24px); /* Ver149: 下部のVer表記が隠れにくいようにする */
     overflow-y:auto;
     padding-bottom:22px;
   }
@@ -58,7 +58,7 @@
     position:absolute;right:10px;top:10px;z-index:1100;
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
     display:inline-block;width:auto;
-    transform:none; /* Ver148: 音量ボタン下に隠れないよう右側へ移動 */
+    transform:none; /* Ver149: 音量ボタン下に隠れないよう右側へ移動 */
   }
   .volbox{
     position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px
@@ -254,7 +254,7 @@ if ('serviceWorker' in navigator) {
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver148</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver149</span>
     </div>
   </div>
 </div>
@@ -290,27 +290,27 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver148';
+  const VERSION = 'Ver149';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
   const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwFjsTanzzw2xkV_p4RCobosVo8RIQ6Q-DuBoTfGbWGcfRyvKMP1vMiVhnS5JCzWOrF/exec';
 
-  // Ver148: 回収結果はGAS経由でGoogleスプレッドシート「collection_results_data」に一元保存します。
-  // GAS_ENDPOINT は同梱の collection_results_receiver_GAS_v4.gs をWebアプリとしてデプロイしたURLに差し替えてください。
+  // Ver149: 回収結果はGAS経由でGoogleスプレッドシート「collection_results_data」に一元保存します。
+  // GAS_ENDPOINT は同梱の collection_results_receiver_GAS_v5.gs をWebアプリとしてデプロイしたURLに差し替えてください。
   // 未設定でも従来どおり端末内localStorageには一時保存されます。
   const MYDRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
   const POINTS_DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
   const ROUTE_DRIVE_FOLDER_URL  = 'https://drive.google.com/drive/folders/1947oZh4-7rXJvrq0pYl17-TFwryTnL9O';
 
   async function sendRowToServer(payload){
-    if(!GAS_ENDPOINT || GAS_ENDPOINT.indexOf('https://') !== 0 || GAS_ENDPOINT.indexOf('PASTE_COLLECTION_RESULTS_RECEIVER_GAS_V4_WEB_APP_URL_HERE') >= 0){
+    if(!GAS_ENDPOINT || GAS_ENDPOINT.indexOf('https://') !== 0 || GAS_ENDPOINT.indexOf('https://script.google.com/macros/s/AKfycbwuekIevEuQLUYICI28_98J9I9ekYj04Das7KHONa5XqpDgazX3kUPtixWAzmSNDoGdVw/exec') >= 0){
       console.warn('GAS_ENDPOINT未設定のため、端末内に未送信保存します。');
       throw new Error('GAS_ENDPOINT未設定');
     }
 
-    // Ver148:
+    // Ver149:
     // 取りもれーぬ側は fetch + no-cors でGASへPOSTします。
     // 電波圏外や送信失敗時は pushLogRow 側で pendingRows に保存されます。
     await fetch(GAS_ENDPOINT, {
@@ -907,6 +907,10 @@ const FLEET={
     localStorage.setItem('collectionLog', JSON.stringify(logRows));
 
     if(!row[8]) row[8] = currentCourseName || '';
+    if(!row[9]){
+      const p = nameIndex.get(String(row[1] || ''));
+      row[9] = p ? (p.desc || '') : '';
+    }
     const payload = makeCollectionPayload(row, row[6]);
     payload.updateReason = 'status-toggle';
     sendRowToServer(payload).then(res=>{
@@ -929,6 +933,9 @@ const FLEET={
     const stamp = row[0] ?? nowStamp();
     const rt = normalizeResultType(resultType || row[6] || '回収');
     const recordId = ensureLogRowRecordId(row);
+    const placeName = row[1] ?? '';
+    const pointRec = nameIndex.get(String(placeName));
+    const noteText = pointRec ? (pointRec.desc || '') : (row[9] || '');
 
     return {
       recordId: recordId,
@@ -937,7 +944,7 @@ const FLEET={
       workDate: getWorkDateFromStamp(stamp),
       courseName: currentCourseName || row[8] || '',
       course: currentCourseName || row[8] || '',
-      place: row[1] ?? '',
+      place: placeName,
       lat: row[2] ?? '',
       lon: row[3] ?? '',
       vehicle: row[4] ?? '',
@@ -946,7 +953,8 @@ const FLEET={
       source: realMode ? 'realMode' : 'manualMode',
       userAgent: navigator.userAgent || '',
       pageUrl: location.href || '',
-      note: '',
+      note: noteText,
+      remarks: noteText,
       iconColor: rt === '無回収' ? 'yellow' : 'red'
     };
   }
@@ -958,6 +966,10 @@ const FLEET={
     row2[6] = rt;
     ensureLogRowRecordId(row2);
     if(!row2[8]) row2[8] = currentCourseName || '';
+    if(!row2[9]){
+      const p = nameIndex.get(String(row2[1] || ''));
+      row2[9] = p ? (p.desc || '') : '';
+    }
 
     logRows.push(row2);
     localStorage.setItem('collectionLog',JSON.stringify(logRows));
@@ -1089,7 +1101,7 @@ const FLEET={
   }
 
 
-  // ===== Ver148: MyDrive同期 =====
+  // ===== Ver149: MyDrive同期 =====
   // 重要：HTML/ブラウザからAndroid設定の「Drive同期ON/OFF」を直接操作することはできません。
   // そのため、このボタンではブラウザ側キャッシュを軽く消去し、Google Driveフォルダを開きます。
   // 地点CSV・基本回収ルートの読込は、従来どおり画面上の各「ファイルを選択」ボタンから行います。
@@ -1132,7 +1144,7 @@ const FLEET={
   }
 
 
-  // ===== Ver148: Driveフォルダ表示補助 =====
+  // ===== Ver149: Driveフォルダ表示補助 =====
   // Android/Chromeの仕様上、ファイル選択ダイアログの初期フォルダをHTMLから固定することはできません。
   // そのため、ファイル選択ボタンを押したときは、該当するGoogle Driveフォルダを別タブで開くだけにします。
   // 実際の読込は、従来どおりファイル選択ダイアログでファイルを選んだあとに実行されます。
@@ -1301,10 +1313,14 @@ const FLEET={
   });
 
   function makeCSVText(){
-    const header=['Datetime','Place','DeviceLat','DeviceLon','Vehicle','Driver','ResultType'];
+    const header=['Datetime','Place','DeviceLat','DeviceLon','Vehicle','Driver','ResultType','RecordId','CourseName','Note'];
     const rows = logRows.map(r=>{
       const a = Array.isArray(r) ? r.slice() : [];
       while(a.length < header.length) a.push('');
+      if(!a[9]){
+        const p = nameIndex.get(String(a[1] || ''));
+        a[9] = p ? (p.desc || '') : '';
+      }
       return a.slice(0, header.length);
     });
     const lines=[header].concat(rows).map(r=>r.map(x=>String(x ?? '').replace(/"/g,'""')).join(','));
