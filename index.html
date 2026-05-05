@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver152</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver154</title>
 
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -26,7 +26,7 @@
     padding:10px;width:min(400px,92vw);
     font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
     box-sizing:border-box;
-    max-height:calc(100dvh - 24px); /* Ver152: 下部のVer表記が隠れにくいようにする */
+    max-height:calc(100dvh - 24px); /* Ver154: 下部のVer表記が隠れにくいようにする */
     overflow-y:auto;
     padding-bottom:22px;
   }
@@ -58,7 +58,7 @@
     position:absolute;right:10px;top:10px;z-index:1100;
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
     display:inline-block;width:auto;
-    transform:none; /* Ver152: 音量ボタン下に隠れないよう右側へ移動 */
+    transform:none; /* Ver154: 音量ボタン下に隠れないよう右側へ移動 */
   }
   .volbox{
     position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px
@@ -194,7 +194,7 @@ if ('serviceWorker' in navigator) {
     </div>
 
     <div>
-      <label>地点CSV読込（Name,Latitude,Longitude[,Description][,Speak]）</label>
+      <label>地点CSV読込（Name,Latitude,Longitude,Description,Note,Speak）</label>
       <div class="file-wrap"><input type="file" id="file" accept=".csv,.kml,.geojson,.json"></div>
       <div class="small">CSV推奨。KML/GeoJSONは簡易対応（ポイントのみ）。</div>
     </div>
@@ -254,7 +254,7 @@ if ('serviceWorker' in navigator) {
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver152</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver154</span>
     </div>
   </div>
 </div>
@@ -290,15 +290,15 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver152';
+  const VERSION = 'Ver154';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
-  const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwFjsTanzzw2xkV_p4RCobosVo8RIQ6Q-DuBoTfGbWGcfRyvKMP1vMiVhnS5JCzWOrF/exec';
+  const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwuekIevEuQLUYICI28_98J9I9ekYj04Das7KHONa5XqpDgazX3kUPtixWAzmSNDoGdVw/exec';
 
-  // Ver152: 回収結果はGAS経由でGoogleスプレッドシート「collection_results_data」に一元保存します。
-  // GAS_ENDPOINT は同梱の collection_results_receiver_GAS_v5.gs をWebアプリとしてデプロイしたURLに差し替えてください。
+  // Ver154: 回収結果はGAS経由でGoogleスプレッドシート「collection_results_data」に一元保存します。
+  // GAS_ENDPOINT は collection_results_receiver_GAS_v5.gs のWebアプリURLを設定済みです。
   // 未設定でも従来どおり端末内localStorageには一時保存されます。
   const MYDRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
   const POINTS_DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
@@ -310,7 +310,7 @@ if ('serviceWorker' in navigator) {
       throw new Error('GAS_ENDPOINT未設定');
     }
 
-    // Ver152:
+    // Ver154:
     // 取りもれーぬ側は fetch + no-cors でGASへPOSTします。
     // 電波圏外や送信失敗時は pushLogRow 側で pendingRows に保存されます。
     await fetch(GAS_ENDPOINT, {
@@ -764,13 +764,14 @@ const FLEET={
     refreshFab();
   }
 
-  function addPoint(name,lat,lon,desc,speak, (typeof note !== 'undefined' ? note : '')){
+  function addPoint(name,lat,lon,desc,speak,note){
     if(firstLoadedName===null) firstLoadedName=name;
     const m=L.marker([lat,lon],{icon:blueIcon,pane:'markerPane'}).addTo(map);
     const rec={
       name,
       lat,lon,
-      desc:(desc||'').toString().trim(), note:(typeof note !== 'undefined' ? note : '').toString().trim(),
+      desc:(desc||'').toString().trim(),
+      note:(note||'').toString().trim(),
       speak:(speak||'').toString().replace(/\u3000/g,' ').trim(),
       marker:m,status:'normal',selRing:null,seq:undefined
     };
@@ -898,6 +899,13 @@ const FLEET={
     return row[7];
   }
 
+
+  function getNoteForPlace(place){
+    const p = nameIndex.get(String(place ?? ''));
+    if(!p) return '';
+    return (p.note || p.remarks || p.remark || p.memo || '').toString().trim();
+  }
+
   function updateLastLogResultType(place, resultType){
     const idx = findLastLogIndexByPlace(place);
     if(idx < 0) return false;
@@ -907,10 +915,7 @@ const FLEET={
     localStorage.setItem('collectionLog', JSON.stringify(logRows));
 
     if(!row[8]) row[8] = currentCourseName || '';
-    if(!row[9]){
-      const p = nameIndex.get(String(row[1] || ''));
-      row[9] = getPointNoteForReport(row[1]);
-    }
+    row[9] = getNoteForPlace(row[1]) || row[9] || '';
     const payload = makeCollectionPayload(row, row[6]);
     payload.updateReason = 'status-toggle';
     sendRowToServer(payload).then(res=>{
@@ -929,35 +934,11 @@ const FLEET={
     localStorage.setItem('collectionLogPending', JSON.stringify(pendingRows));
   }
 
-
-  function getPointNoteForReport(placeName){
-    const p = nameIndex.get(String(placeName || ''));
-    if(!p) return '';
-    return String(p.note || p.remarks || p.remark || p.biko || p.memo || '').trim();
-  }
-
-  function normalizeCsvNoteValue(rowObj, rowArray){
-    try{
-      if(rowObj){
-        return String(
-          rowObj.Note || rowObj.note || rowObj.備考 ||
-          rowObj.Remarks || rowObj.remarks ||
-          rowObj.Memo || rowObj.memo || ''
-        ).trim();
-      }
-      if(rowArray && rowArray.length >= 5){
-        return String(rowArray[4] || '').trim();
-      }
-    }catch(e){}
-    return '';
-  }
-
   function makeCollectionPayload(row, resultType){
     const stamp = row[0] ?? nowStamp();
     const rt = normalizeResultType(resultType || row[6] || '回収');
     const recordId = ensureLogRowRecordId(row);
-    const placeName = row[1] ?? '';
-    const noteText = getPointNoteForReport(placeName) || (row && row[9] ? row[9] : '');
+    const noteText = getNoteForPlace(row[1]) || row[9] || '';
 
     return {
       recordId: recordId,
@@ -966,7 +947,7 @@ const FLEET={
       workDate: getWorkDateFromStamp(stamp),
       courseName: currentCourseName || row[8] || '',
       course: currentCourseName || row[8] || '',
-      place: placeName,
+      place: row[1] ?? '',
       lat: row[2] ?? '',
       lon: row[3] ?? '',
       vehicle: row[4] ?? '',
@@ -988,10 +969,7 @@ const FLEET={
     row2[6] = rt;
     ensureLogRowRecordId(row2);
     if(!row2[8]) row2[8] = currentCourseName || '';
-    if(!row2[9]){
-      const p = nameIndex.get(String(row2[1] || ''));
-      row2[9] = getPointNoteForReport(row2[1]);
-    }
+    row2[9] = getNoteForPlace(row2[1]) || row2[9] || '';
 
     logRows.push(row2);
     localStorage.setItem('collectionLog',JSON.stringify(logRows));
@@ -1123,7 +1101,7 @@ const FLEET={
   }
 
 
-  // ===== Ver152: MyDrive同期 =====
+  // ===== Ver154: MyDrive同期 =====
   // 重要：HTML/ブラウザからAndroid設定の「Drive同期ON/OFF」を直接操作することはできません。
   // そのため、このボタンではブラウザ側キャッシュを軽く消去し、Google Driveフォルダを開きます。
   // 地点CSV・基本回収ルートの読込は、従来どおり画面上の各「ファイルを選択」ボタンから行います。
@@ -1166,7 +1144,7 @@ const FLEET={
   }
 
 
-  // ===== Ver152: Driveフォルダ表示補助 =====
+  // ===== Ver154: Driveフォルダ表示補助 =====
   // Android/Chromeの仕様上、ファイル選択ダイアログの初期フォルダをHTMLから固定することはできません。
   // そのため、ファイル選択ボタンを押したときは、該当するGoogle Driveフォルダを別タブで開くだけにします。
   // 実際の読込は、従来どおりファイル選択ダイアログでファイルを選んだあとに実行されます。
@@ -1238,10 +1216,11 @@ const FLEET={
               const lat =parseFloat(r.Latitude||r.lat||r.Lat||r['緯度']);
               const lon =parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r['経度']);
               const desc=(r.Description||r.desc||r['説明']||'').toString().trim();
+              const note=(r.Note||r.note||r['備考']||r.Remarks||r.remarks||r.Memo||r.memo||'').toString().trim();
               const speak=(r.Speak||r.speak||r['読み']||r['ヨミ']||r['Yomi']||'').toString().replace(/\u3000/g,' ').trim();
 
               if(name && Number.isFinite(lat)&&Number.isFinite(lon)){
-                addPoint(name,lat,lon,desc,speak);
+                addPoint(name,lat,lon,desc,speak,note);
                 if(speak) speakCount++;
                 added++;
               }
@@ -1339,14 +1318,12 @@ const FLEET={
     const rows = logRows.map(r=>{
       const a = Array.isArray(r) ? r.slice() : [];
       while(a.length < header.length) a.push('');
-      if(!a[9]){
-        const p = nameIndex.get(String(a[1] || ''));
-        a[9] = getPointNoteForReport(a[1]);
-      }
+      if(!a[9]) a[9] = getNoteForPlace(a[1]);
       return a.slice(0, header.length);
     });
     const lines=[header].concat(rows).map(r=>r.map(x=>String(x ?? '').replace(/"/g,'""')).join(','));
-    return lines.join('\n');
+    return lines.join('
+');
   }
   function downloadCSV(){
     const csvText = makeCSVText();
