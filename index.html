@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver155</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver156</title>
 
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -26,7 +26,7 @@
     padding:10px;width:min(400px,92vw);
     font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
     box-sizing:border-box;
-    max-height:calc(100dvh - 24px); /* Ver155: 下部のVer表記が隠れにくいようにする */
+    max-height:calc(100dvh - 24px); /* Ver156: 下部のVer表記が隠れにくいようにする */
     overflow-y:auto;
     padding-bottom:22px;
   }
@@ -58,7 +58,7 @@
     position:absolute;right:10px;top:10px;z-index:1100;
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
     display:inline-block;width:auto;
-    transform:none; /* Ver155: 音量ボタン下に隠れないよう右側へ移動 */
+    transform:none; /* Ver156: 音量ボタン下に隠れないよう右側へ移動 */
   }
   .volbox{
     position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px
@@ -254,7 +254,7 @@ if ('serviceWorker' in navigator) {
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver155</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver156</span>
     </div>
   </div>
 </div>
@@ -290,14 +290,14 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver155';
+  const VERSION = 'Ver156';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
   const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwuekIevEuQLUYICI28_98J9I9ekYj04Das7KHONa5XqpDgazX3kUPtixWAzmSNDoGdVw/exec';
 
-  // Ver155: 回収結果はGAS経由でGoogleスプレッドシート「collection_results_data」に一元保存します。
+  // Ver156: 回収結果はGAS経由でGoogleスプレッドシート「collection_results_data」に一元保存します。
   // GAS_ENDPOINT は collection_results_receiver_GAS_v5.gs のWebアプリURLを設定済みです。
   // 未設定でも従来どおり端末内localStorageには一時保存されます。
   const MYDRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
@@ -310,7 +310,7 @@ if ('serviceWorker' in navigator) {
       throw new Error('GAS_ENDPOINT未設定');
     }
 
-    // Ver155:
+    // Ver156:
     // 取りもれーぬ側は fetch + no-cors でGASへPOSTします。
     // 電波圏外や送信失敗時は pushLogRow 側で pendingRows に保存されます。
     await fetch(GAS_ENDPOINT, {
@@ -1101,7 +1101,7 @@ const FLEET={
   }
 
 
-  // ===== Ver155: MyDrive同期 =====
+  // ===== Ver156: MyDrive同期 =====
   // 重要：HTML/ブラウザからAndroid設定の「Drive同期ON/OFF」を直接操作することはできません。
   // そのため、このボタンではブラウザ側キャッシュを軽く消去し、Google Driveフォルダを開きます。
   // 地点CSV・基本回収ルートの読込は、従来どおり画面上の各「ファイルを選択」ボタンから行います。
@@ -1144,7 +1144,7 @@ const FLEET={
   }
 
 
-  // ===== Ver155: Driveフォルダ表示補助 =====
+  // ===== Ver156: Driveフォルダ表示補助 =====
   // Android/Chromeの仕様上、ファイル選択ダイアログの初期フォルダをHTMLから固定することはできません。
   // そのため、ファイル選択ボタンを押したときは、該当するGoogle Driveフォルダを別タブで開くだけにします。
   // 実際の読込は、従来どおりファイル選択ダイアログでファイルを選んだあとに実行されます。
@@ -1763,6 +1763,81 @@ const FLEET={
 
   } // init end
 })();
+
+
+// =====================================================
+// Ver156 masterシート連携
+// collection_results_data の master シートから車両番号・運転者名候補を取得
+// =====================================================
+const MASTER_ENDPOINT = (typeof GAS_ENDPOINT !== 'undefined' && GAS_ENDPOINT) ? GAS_ENDPOINT : 'https://script.google.com/macros/s/AKfycbwuekIevEuQLUYICI28_98J9I9ekYj04Das7KHONa5XqpDgazX3kUPtixWAzmSNDoGdVw/exec';
+
+async function loadMasterOptionsFromServer() {
+  try {
+    if(!MASTER_ENDPOINT || MASTER_ENDPOINT.indexOf('https://') !== 0) return false;
+
+    const url = MASTER_ENDPOINT + (MASTER_ENDPOINT.indexOf('?') >= 0 ? '&' : '?') + 'action=getMaster&v=' + Date.now();
+    const res = await fetch(url, { method:'GET', cache:'no-store' });
+    const data = await res.json();
+
+    if(!data || !data.ok) {
+      console.warn('master取得失敗', data);
+      return false;
+    }
+
+    applyMasterOptionsToSelects(data.vehicleNumbers || [], data.driverNames || []);
+    return true;
+
+  } catch(e) {
+    console.warn('master取得エラー', e);
+    return false;
+  }
+}
+
+function applyMasterOptionsToSelects(vehicleNumbers, driverNames) {
+  const vehicleSelect =
+    document.getElementById('vehicleId') ||
+    document.getElementById('vehicle') ||
+    document.getElementById('carId') ||
+    document.querySelector('select[name="vehicle"]') ||
+    document.querySelector('select[name="vehicleId"]');
+
+  const driverSelect =
+    document.getElementById('driverName') ||
+    document.getElementById('driver') ||
+    document.querySelector('select[name="driver"]') ||
+    document.querySelector('select[name="driverName"]');
+
+  if(vehicleSelect && vehicleNumbers && vehicleNumbers.length) {
+    const old = vehicleSelect.value;
+    vehicleSelect.innerHTML = '';
+    vehicleNumbers.forEach(v => {
+      const op = document.createElement('option');
+      op.value = v;
+      op.textContent = v;
+      vehicleSelect.appendChild(op);
+    });
+    if(old && vehicleNumbers.indexOf(old) >= 0) vehicleSelect.value = old;
+  }
+
+  if(driverSelect && driverNames && driverNames.length) {
+    const old = driverSelect.value;
+    driverSelect.innerHTML = '';
+    driverNames.forEach(v => {
+      const op = document.createElement('option');
+      op.value = v;
+      op.textContent = v;
+      driverSelect.appendChild(op);
+    });
+    if(old && driverNames.indexOf(old) >= 0) driverSelect.value = old;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  setTimeout(function(){
+    loadMasterOptionsFromServer();
+  }, 300);
+});
+
 </script>
 </body>
 </html>
