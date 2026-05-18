@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver163</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver164</title>
 
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -64,27 +64,28 @@
     position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px
   }
   .volbox button{background:#fff;border:1px solid #ccc;border-radius:8px;padding:6px 8px;font-size:14px;width:auto}
-  /* Ver163: コース読上げ操作は、運転者プルダウンと重ならないよう地図右下へ移動 */
+  /* Ver164: コース読上げ操作は地図右下へ固定。読上げボタンを△▽の上段に配置 */
   .course-readbox{
-    position:absolute;right:10px;bottom:118px;z-index:1100;
-    display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:6px;align-items:center;
-    width:min(270px, calc(100vw - 20px));
+    position:absolute;right:10px;bottom:102px;z-index:1100;
+    display:grid;grid-template-columns:1fr 1fr;gap:6px;align-items:center;
+    width:min(220px, calc(100vw - 20px));
     font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
   }
+  #btnCourseRead{grid-column:1 / 3;}
   .course-readbox button{
     background:#fff;border:1px solid #ccc;border-radius:8px;padding:6px 8px;font-size:12px;width:100%;
     box-shadow:0 1px 4px rgba(0,0,0,.08);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
   #courseReadStatus{
-    position:absolute;right:10px;bottom:88px;z-index:1100;
+    position:absolute;right:10px;bottom:72px;z-index:1100;
     background:rgba(255,255,255,.92);border:1px solid #ddd;border-radius:8px;
     padding:3px 7px;font-size:11px;color:#444;
     font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
   }
   @media (max-width: 700px){
-    .course-readbox{right:10px;bottom:118px;width:min(270px, calc(100vw - 20px));}
-    #courseReadStatus{right:10px;bottom:88px;}
+    .course-readbox{right:10px;bottom:102px;width:min(220px, calc(100vw - 20px));}
+    #courseReadStatus{right:10px;bottom:72px;}
   }
 
   .fab{
@@ -153,9 +154,9 @@
     padding:6px 10px;border-radius:8px;text-decoration:none;font-size:12px
   }
 
-  /* ===== Ver163: ホバーツールチップ（PC用：マウスオーバー時にName表示） =====
+  /* ===== Ver164: ホバーツールチップ（PC用：マウスオーバー時にName表示） =====
      Ver157では marker の img 要素内に div を追加していたため、環境によって表示されないことがあった。
-     Ver163でも Leaflet 標準の bindTooltip を使用し、マウスを近づけるとアイコン上部へ確実に表示する。 */
+     Ver164でも Leaflet 標準の bindTooltip を使用し、マウスを近づけるとアイコン上部へ確実に表示する。 */
   .leaflet-tooltip.marker-name-tooltip-v159{
     background:rgba(30,30,30,.92);
     color:#fff;
@@ -306,7 +307,7 @@ if ('serviceWorker' in navigator) {
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver163</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver164</span>
     </div>
   </div>
 </div>
@@ -342,7 +343,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver163';
+  const VERSION = 'Ver164';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -952,7 +953,7 @@ const FLEET={
     refreshFab();
   }
 
-  /* ===== Ver163: PC用ホバーツールチップ ===== */
+  /* ===== Ver164: PC用ホバーツールチップ ===== */
   function escapeTooltipText(v){
     return String(v ?? '')
       .replace(/&/g,'&amp;')
@@ -1021,7 +1022,7 @@ const FLEET={
     strictOrder=[];
     nextDistByName.clear();
 
-    // Ver163: 地点CSV未読込時や読込途中に、状況表示更新だけで警告を出さない。
+    // Ver164: 地点CSV未読込時や読込途中に、状況表示更新だけで警告を出さない。
     if(points.length === 0){ return; }
     if(!firstLoadedName || !nameIndex.has(firstLoadedName)){
       if(!silent) alert('先頭行の Name が正しく読み込めていません。');
@@ -1050,7 +1051,7 @@ const FLEET={
   }
 
 
-  // ===== Ver163: 実車無効時の「コース一覧読上げ」 =====
+  // ===== Ver164: 実車無効時の「コース一覧読上げ」 =====
   // ・ボタンは設定パネル外（音量-/音量+/設定の下）へ常時表示
   // ・停止後は、停止した次の回収地点から再開できるように現在位置を保持
   let courseReadActive = false;
@@ -1675,6 +1676,41 @@ const FLEET={
   }
   document.getElementById('btnDownload').addEventListener('click',()=>{ blurAllInputs(); downloadCSV(); });
   document.getElementById('btnPreview').addEventListener('click', ()=>{ blurAllInputs(); previewCSV(); });
+
+
+  // ===== Ver164: 点滅制御の共通関数 =====
+  // Ver163で呼び出しだけ残っていた stopBlink/startBlinkFor を明示定義し、
+  // 地点CSV読込時の「stopBlink is not defined」を防止する。
+  let blinkTimer = null;
+  let blinkIconEl = null;
+
+  function stopBlink(){
+    if(blinkTimer){
+      clearInterval(blinkTimer);
+      blinkTimer = null;
+    }
+    if(blinkIconEl){
+      try{ blinkIconEl.classList.remove('blink-white'); }catch(_e){}
+      blinkIconEl = null;
+    }
+  }
+
+  function startBlinkFor(uniqueName){
+    stopBlink();
+    const p = nameIndex.get(uniqueName);
+    if(!p || !p.marker) return;
+    const el = (typeof p.marker.getElement === 'function') ? p.marker.getElement() : p.marker._icon;
+    if(!el) return;
+    blinkIconEl = el;
+    let on = false;
+    const tick = ()=>{
+      if(!blinkIconEl) return;
+      on = !on;
+      blinkIconEl.classList.toggle('blink-white', on);
+    };
+    tick();
+    blinkTimer = setInterval(tick, 350);
+  }
 
   const nav={order:[],idx:0,active:false,watchId:null,thresholdM:25,arriveM:15,lastAnnounceTarget:null,farZoomM:100};
 
