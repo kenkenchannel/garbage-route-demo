@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver156</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver157</title>
 
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -130,6 +130,37 @@
     display:inline-block;margin-top:6px;background:#10b981;color:#fff;
     padding:6px 10px;border-radius:8px;text-decoration:none;font-size:12px
   }
+
+  /* ===== ホバーツールチップ（PC用：マウスオーバー時にName表示）Ver157 ===== */
+  .marker-name-tooltip{
+    position:absolute;
+    left:50%; transform:translateX(-50%);
+    bottom:calc(100% + 6px);   /* アイコン上部に表示 */
+    background:rgba(30,30,50,.88);
+    color:#fff;
+    font-size:12px;
+    font-weight:bold;
+    white-space:nowrap;
+    padding:3px 9px;
+    border-radius:6px;
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .15s;
+    z-index:9999;
+    box-shadow:0 2px 6px rgba(0,0,0,.25);
+    /* 吹き出し三角 */
+    --tip-h:6px;
+  }
+  .marker-name-tooltip::after{
+    content:'';
+    position:absolute;
+    top:100%; left:50%; transform:translateX(-50%);
+    border:var(--tip-h) solid transparent;
+    border-top-color:rgba(30,30,50,.88);
+  }
+  /* マウスオーバー時：親(leaflet-pane内のアイコン)が hover を持たないため
+     JS側でクラスを付け外しする */
+  .marker-name-tooltip.visible{ opacity:1; }
 
   .car-icon{ background: transparent !important; border: 0 !important; }
   .car-icon .car-arrow{
@@ -764,6 +795,14 @@ const FLEET={
     refreshFab();
   }
 
+  /* ===== Ver157: PC用ホバーツールチップ ===== */
+  // タッチデバイス判定（Android タブレット含む）
+  const _isTouchDevice = (()=>{
+    if(navigator.maxTouchPoints > 0) return true;
+    if('ontouchstart' in window) return true;
+    return false;
+  })();
+
   function addPoint(name,lat,lon,desc,speak,note){
     if(firstLoadedName===null) firstLoadedName=name;
     const m=L.marker([lat,lon],{icon:blueIcon,pane:'markerPane'}).addTo(map);
@@ -777,6 +816,35 @@ const FLEET={
     };
     setPopupContent(rec);
     m.on('click', ()=> onMarkerClick(rec));
+
+    // ===== Ver157: PC用ホバーツールチップ =====
+    // タッチデバイス（Androidタブレット等）では mouseover が発火しないため
+    // PC（マウス操作）のみツールチップを付与する
+    if(!_isTouchDevice){
+      m.on('mouseover', function(){
+        const iconEl = this._icon;
+        if(!iconEl) return;
+        // 既存のツールチップがあれば再利用
+        let tip = iconEl.querySelector('.marker-name-tooltip');
+        if(!tip){
+          tip = document.createElement('div');
+          tip.className = 'marker-name-tooltip';
+          tip.textContent = rec.name;
+          // leaflet アイコン要素は position:absolute 済みなので直接 append
+          iconEl.style.overflow = 'visible';  // 親からはみ出せるようにする
+          iconEl.appendChild(tip);
+        }
+        tip.classList.add('visible');
+      });
+      m.on('mouseout', function(){
+        const iconEl = this._icon;
+        if(!iconEl) return;
+        const tip = iconEl.querySelector('.marker-name-tooltip');
+        if(tip) tip.classList.remove('visible');
+      });
+    }
+    /* ===== Ver157 ここまで ===== */
+
     points.push(rec);
     nameIndex.set(name,rec);
   }
