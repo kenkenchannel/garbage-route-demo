@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver160</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver162</title>
 
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -64,6 +64,27 @@
     position:absolute;right:90px;top:10px;z-index:1100;display:flex;gap:6px
   }
   .volbox button{background:#fff;border:1px solid #ccc;border-radius:8px;padding:6px 8px;font-size:14px;width:auto}
+  /* Ver162: 設定パネルを閉じても操作できるよう、コース読上げボタンを地図右上へ常時表示 */
+  .course-readbox{
+    position:absolute;right:10px;top:72px;z-index:1100;
+    display:grid;grid-template-columns:2fr 1fr 1fr;gap:6px;align-items:center;
+    width:min(330px, calc(100vw - 20px));
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
+  }
+  .course-readbox button{
+    background:#fff;border:1px solid #ccc;border-radius:8px;padding:6px 8px;font-size:12px;width:100%;
+    box-shadow:0 1px 4px rgba(0,0,0,.08);
+  }
+  #courseReadStatus{
+    position:absolute;right:10px;top:112px;z-index:1100;
+    background:rgba(255,255,255,.92);border:1px solid #ddd;border-radius:8px;
+    padding:3px 7px;font-size:11px;color:#444;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
+  }
+  @media (max-width: 700px){
+    .course-readbox{right:10px;top:74px;width:min(320px, calc(100vw - 20px));}
+    #courseReadStatus{right:10px;top:114px;}
+  }
 
   .fab{
     position:fixed;right:16px;bottom:84px;z-index:1500;
@@ -131,9 +152,9 @@
     padding:6px 10px;border-radius:8px;text-decoration:none;font-size:12px
   }
 
-  /* ===== Ver161: ホバーツールチップ（PC用：マウスオーバー時にName表示） =====
+  /* ===== Ver162: ホバーツールチップ（PC用：マウスオーバー時にName表示） =====
      Ver157では marker の img 要素内に div を追加していたため、環境によって表示されないことがあった。
-     Ver161でも Leaflet 標準の bindTooltip を使用し、マウスを近づけるとアイコン上部へ確実に表示する。 */
+     Ver162でも Leaflet 標準の bindTooltip を使用し、マウスを近づけるとアイコン上部へ確実に表示する。 */
   .leaflet-tooltip.marker-name-tooltip-v159{
     background:rgba(30,30,30,.92);
     color:#fff;
@@ -202,6 +223,12 @@ if ('serviceWorker' in navigator) {
   <button id="volDown">音量-</button>
   <button id="volUp">音量+</button>
 </div>
+<div class="course-readbox" id="courseReadBox">
+  <button id="btnCourseRead" title="実車：無効のとき、現在のコースを順番に読み上げます。停止後は続きから再開します。">コース一覧読上げ</button>
+  <button id="btnReadSlower" title="読み上げ間隔を長くします">▽</button>
+  <button id="btnReadFaster" title="読み上げ間隔を短くします">△</button>
+</div>
+<div id="courseReadStatus">読上げ間隔：3.0秒</div>
 
 <div class="panel" id="panel">
   <h2 class="panel-title">
@@ -275,16 +302,10 @@ if ('serviceWorker' in navigator) {
       <button id="btnLabelToggle" class="ghost" title="地理院『標準地図の注記』重ね合わせのON/OFF">注記：ON</button>
     </div>
 
-    <div class="row" style="grid-template-columns:2fr 1fr 1fr; align-items:end">
-      <button id="btnCourseRead" class="ghost" title="実車：無効のとき、現在のコースを先頭から順番に読み上げます">コース一覧読上げ</button>
-      <button id="btnReadSlower" class="ghost" title="読み上げ間隔を長くします">▽</button>
-      <button id="btnReadFaster" class="ghost" title="読み上げ間隔を短くします">△</button>
-    </div>
-    <div class="small" id="courseReadStatus" style="margin-top:-6px;color:#444;">読上げ間隔：3.0秒</div>
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver161</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver162</span>
     </div>
   </div>
 </div>
@@ -320,7 +341,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver161';
+  const VERSION = 'Ver162';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -930,7 +951,7 @@ const FLEET={
     refreshFab();
   }
 
-  /* ===== Ver161: PC用ホバーツールチップ ===== */
+  /* ===== Ver162: PC用ホバーツールチップ ===== */
   function escapeTooltipText(v){
     return String(v ?? '')
       .replace(/&/g,'&amp;')
@@ -1051,16 +1072,26 @@ const FLEET={
   }
 
 
-  // ===== Ver161: 実車無効時の「コース一覧読上げ」 =====
+  // ===== Ver162: 実車無効時の「コース一覧読上げ」 =====
+  // ・ボタンは設定パネル外（音量-/音量+/設定の下）へ常時表示
+  // ・停止後は、停止した次の回収地点から再開できるように現在位置を保持
   let courseReadActive = false;
+  let courseReadIndex = parseInt(localStorage.getItem('courseReadIndex') || '0', 10);
+  if(!Number.isFinite(courseReadIndex) || courseReadIndex < 0) courseReadIndex = 0;
   let courseReadDelayMs = parseInt(localStorage.getItem('courseReadDelayMs') || '3000', 10);
   if(!Number.isFinite(courseReadDelayMs)) courseReadDelayMs = 3000;
   courseReadDelayMs = Math.min(10000, Math.max(700, courseReadDelayMs));
 
   function waitMs(ms){ return new Promise(resolve=>setTimeout(resolve, ms)); }
+  function saveCourseReadIndex(v){
+    courseReadIndex = Math.max(0, v|0);
+    localStorage.setItem('courseReadIndex', String(courseReadIndex));
+  }
   function updateCourseReadStatus(){
     const st = document.getElementById('courseReadStatus');
-    if(st) st.textContent = '読上げ間隔：' + (courseReadDelayMs/1000).toFixed(1) + '秒';
+    const orderLen = buildCourseReadOrder().length;
+    const posText = orderLen ? (' / 次:' + Math.min(courseReadIndex + 1, orderLen) + '/' + orderLen) : '';
+    if(st) st.textContent = '読上げ間隔：' + (courseReadDelayMs/1000).toFixed(1) + '秒' + posText;
     localStorage.setItem('courseReadDelayMs', String(courseReadDelayMs));
   }
   function updateCourseReadButton(){
@@ -1068,14 +1099,20 @@ const FLEET={
     if(b) b.textContent = courseReadActive ? '読上げ停止' : 'コース一覧読上げ';
   }
   function stopCourseRead(){
+    // 現在読上げ中の地点を中断した場合も、次回は「次の回収地点」から再開する
     courseReadActive = false;
     updateCourseReadButton();
+    updateCourseReadStatus();
     stopBlink();
     try{ speechSynthesis.cancel(); }catch(_e){}
   }
   function buildCourseReadOrder(){
     if(strictOrder.length===0) buildStrictOrderFromFirst();
     return strictOrder.length ? strictOrder.slice() : points.map(p=>p.name);
+  }
+  function resetCourseReadIndexIfNeeded(order){
+    if(!order || !order.length){ saveCourseReadIndex(0); return; }
+    if(courseReadIndex >= order.length) saveCourseReadIndex(0);
   }
   async function startCourseRead(){
     blurAllInputs();
@@ -1089,15 +1126,20 @@ const FLEET={
 
     const order = buildCourseReadOrder();
     if(!order.length){ alert('読み上げできる地点がありません。'); return; }
+    resetCourseReadIndexIfNeeded(order);
 
     courseReadActive = true;
     updateCourseReadButton();
+    updateCourseReadStatus();
     togglePanel(false);
 
     try{
-      for(let i=0; i<order.length && courseReadActive; i++){
+      for(let i=courseReadIndex; i<order.length && courseReadActive; i++){
         const nm = order[i];
         const p = nameIndex.get(nm);
+        // 読上げ停止ボタンを押した場合、次回はこの次の地点から再開する
+        saveCourseReadIndex(Math.min(i + 1, order.length));
+        updateCourseReadStatus();
         if(!p) continue;
         focusTarget(nm);
         await speakSafeAsync(getSpeakOf(p) + ' に向かってください。');
@@ -1105,10 +1147,12 @@ const FLEET={
       }
       if(courseReadActive){
         await speakSafeAsync('コース一覧の読み上げが終了しました。');
+        saveCourseReadIndex(0);
       }
     }finally{
       courseReadActive = false;
       updateCourseReadButton();
+      updateCourseReadStatus();
       stopBlink();
     }
   }
