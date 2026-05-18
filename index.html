@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver158</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver159</title>
 
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -131,10 +131,10 @@
     padding:6px 10px;border-radius:8px;text-decoration:none;font-size:12px
   }
 
-  /* ===== Ver158: ホバーツールチップ（PC用：マウスオーバー時にName表示） =====
+  /* ===== Ver159: ホバーツールチップ（PC用：マウスオーバー時にName表示） =====
      Ver157では marker の img 要素内に div を追加していたため、環境によって表示されないことがあった。
-     Ver158では Leaflet 標準の bindTooltip を使用し、マウスを近づけるとアイコン上部へ確実に表示する。 */
-  .leaflet-tooltip.marker-name-tooltip-v158{
+     Ver159では Leaflet 標準の bindTooltip を使用し、マウスを近づけるとアイコン上部へ確実に表示する。 */
+  .leaflet-tooltip.marker-name-tooltip-v159{
     background:rgba(30,30,30,.92);
     color:#fff;
     border:0;
@@ -147,7 +147,7 @@
     white-space:nowrap;
     pointer-events:none;
   }
-  .leaflet-tooltip-top.marker-name-tooltip-v158::before{
+  .leaflet-tooltip-top.marker-name-tooltip-v159::before{
     border-top-color:rgba(30,30,30,.92);
   }
 
@@ -159,20 +159,23 @@
     position:relative;
     box-sizing:border-box;
     box-shadow:0 4px 14px rgba(0,0,0,.18);
+    transform:rotate(0deg);
+    transform-origin:50% 50%;
+    transition:transform .18s linear;
   }
   .car-icon .car-arrow-inner{
     position:absolute;
     left:50%;top:50%;
-    transform:translate(-50%,-55%);
+    transform:translate(-50%,-60%);
     width:0;height:0;
     border-style:solid;
-    border-width:22px 12px 0 12px;
-    border-color:#e11d48 transparent transparent transparent;
+    border-width:0 12px 24px 12px;
+    border-color:transparent transparent #e11d48 transparent;
     animation:arrowBlink 1s infinite;
   }
   @keyframes arrowBlink{
-    0%,100%{ border-top-color:#e11d48; }
-    50%    { border-top-color:#ffffff; }
+    0%,100%{ border-bottom-color:#e11d48; }
+    50%    { border-bottom-color:#ffffff; }
   }
 </style>
 <script>
@@ -274,7 +277,7 @@ if ('serviceWorker' in navigator) {
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver158</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver159</span>
     </div>
   </div>
 </div>
@@ -310,7 +313,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver158';
+  const VERSION = 'Ver159';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -511,8 +514,13 @@ const FLEET={
 
   L.control.zoom({position:'bottomleft'}).addTo(map);
 
+  let autoMovingMap = false;
   ['movestart','dragstart','zoomstart','mousedown','touchstart','wheel'].forEach(ev=>{
-    map.on(ev, ()=>{ suppressFollow(2200); blurActiveInput(); });
+    map.on(ev, ()=>{
+      if(autoMovingMap) return;
+      suppressFollow(2200);
+      blurActiveInput();
+    });
   });
 
   const btnLabelToggle = document.getElementById('btnLabelToggle');
@@ -531,8 +539,17 @@ const FLEET={
   btnRealToggle.addEventListener('click', ()=>{
     realMode = !realMode;
     updateRealBtn();
-    if(realMode){ startGpsWatch(); btnHeading.disabled=false; }
-    else{ stopGpsWatch(); removeLoc(); btnHeading.disabled=true; }
+    if(realMode){
+      startGpsWatch();
+      btnHeading.disabled=false;
+    }else{
+      stopGpsWatch();
+      removeLoc();
+      headingMode=false;
+      resetHeadingState();
+      btnHeading.disabled=true;
+      updateHeadingBtn();
+    }
     points.forEach(p=> setPopupContent(p));
   });
   updateRealBtn();
@@ -541,6 +558,8 @@ const FLEET={
   map.createPane('markerPane');  map.getPane('markerPane').style.zIndex =600;
 
   let gpsWatchId=null, locMarker=null, locCircle=null, followSelf=true, headingMode=false;
+  let lastGpsLat=null, lastGpsLon=null, lastHeadingDeg=null;
+  const HEADING_MIN_MOVE_M = 3.0;
   const btnHeading = document.getElementById('btnHeading');
 
   const carIcon = L.divIcon({
@@ -550,8 +569,90 @@ const FLEET={
     iconAnchor:[32,32]
   });
 
-  function ensureLocLayer(lat,lon,acc){
+  function updateHeadingBtn(){
+    if(!btnHeading) return;
+    btnHeading.textContent = 'ヘディング：' + (headingMode ? 'ON' : 'OFF');
+    btnHeading.title = headingMode
+      ? '自車アイコンを進行方向へ回転します。GPSのheadingが取れない場合は移動方向から推定します。'
+      : '通常追従表示です。';
+  }
+  function resetHeadingState(){
+    lastGpsLat=null; lastGpsLon=null; lastHeadingDeg=null;
+    rotateLocMarker(null);
+  }
+  function normalizeDeg(deg){
+    deg = Number(deg);
+    if(!Number.isFinite(deg)) return null;
+    deg = deg % 360;
+    if(deg < 0) deg += 360;
+    return deg;
+  }
+  function bearingDeg(lat1, lon1, lat2, lon2){
+    const toRad = d => d * Math.PI / 180;
+    const toDeg = r => r * 180 / Math.PI;
+    const φ1 = toRad(lat1), φ2 = toRad(lat2);
+    const Δλ = toRad(lon2 - lon1);
+    const y = Math.sin(Δλ) * Math.cos(φ2);
+    const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+    return normalizeDeg(toDeg(Math.atan2(y,x)));
+  }
+  function getHeadingDeg(lat, lon, coords){
+    let h = normalizeDeg(coords && coords.heading);
+    if(h !== null){ lastHeadingDeg = h; return h; }
+
+    if(lastGpsLat !== null && lastGpsLon !== null){
+      const moveM = meters([lastGpsLat,lastGpsLon],[lat,lon]);
+      if(moveM >= HEADING_MIN_MOVE_M){
+        h = bearingDeg(lastGpsLat,lastGpsLon,lat,lon);
+        if(h !== null){ lastHeadingDeg = h; return h; }
+      }
+    }
+    return lastHeadingDeg;
+  }
+  function rotateLocMarker(deg){
+    if(!locMarker) return;
+    const el = locMarker.getElement && locMarker.getElement();
+    if(!el) return;
+    const arrow = el.querySelector('.car-arrow');
+    if(!arrow) return;
+    if(headingMode && deg !== null && Number.isFinite(deg)){
+      arrow.style.transform = 'rotate(' + deg + 'deg)';
+    }else{
+      arrow.style.transform = 'rotate(0deg)';
+    }
+  }
+  function followCurrentPosition(lat, lon, headingDeg){
+    if(!(followSelf && Date.now() >= suppressFollowUntil)) return;
+
+    autoMovingMap = true;
+    try{
+      map.setView([lat,lon], map.getZoom(), {animate:false});
+
+      // Ver159: 地図全体は回転させず、ヘディングON時は自車位置をやや後方へ寄せて進行方向を見やすくする。
+      if(headingMode && headingDeg !== null && Number.isFinite(headingDeg)){
+        const rad = headingDeg * Math.PI / 180;
+        const px = -Math.sin(rad) * 70;
+        const py =  Math.cos(rad) * 70;
+        map.panBy([px, py], {animate:false});
+      }
+    }catch(_e){}
+    setTimeout(()=>{ autoMovingMap = false; }, 0);
+  }
+
+  btnHeading.addEventListener('click', ()=>{
     if(!realMode) return;
+    headingMode = !headingMode;
+    updateHeadingBtn();
+    rotateLocMarker(lastHeadingDeg);
+    showToast('ヘディング：' + (headingMode ? 'ON（自車アイコンを進行方向へ回転）' : 'OFF'), 1.5);
+  });
+  btnHeading.disabled = true;
+  updateHeadingBtn();
+
+  function ensureLocLayer(lat,lon,acc,coords){
+    if(!realMode) return;
+
+    const headingDeg = getHeadingDeg(lat, lon, coords || {});
 
     if(!locMarker){
       locMarker=L.marker([lat,lon],{icon:carIcon,pane:'vehiclePane'}).addTo(map);
@@ -567,19 +668,24 @@ const FLEET={
       if(locCircle) locCircle.setLatLng([lat,lon]).setRadius(acc||25);
     }
 
-    if(followSelf && Date.now() >= suppressFollowUntil){
-      map.setView([lat,lon], map.getZoom());
-    }
+    rotateLocMarker(headingDeg);
+    followCurrentPosition(lat, lon, headingDeg);
+
+    lastGpsLat = lat;
+    lastGpsLon = lon;
   }
   function removeLoc(){
     try{ if(locMarker){ map.removeLayer(locMarker); locMarker=null; } }catch(_e){}
     try{ if(locCircle){ map.removeLayer(locCircle); locCircle=null; } }catch(_e){}
   }
   function startGpsWatch(){
-    if(!navigator.geolocation) return;
+    if(!navigator.geolocation){
+      showToast('この端末ではGPSが利用できません', 2);
+      return;
+    }
     if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
     gpsWatchId=navigator.geolocation.watchPosition(pos=>{
-      const c=pos.coords; ensureLocLayer(c.latitude,c.longitude,c.accuracy);
+      const c=pos.coords; ensureLocLayer(c.latitude,c.longitude,c.accuracy,c);
     }, ()=>{}, {enableHighAccuracy:true, maximumAge:0, timeout:15000});
   }
   function stopGpsWatch(){
@@ -784,7 +890,7 @@ const FLEET={
     refreshFab();
   }
 
-  /* ===== Ver158: PC用ホバーツールチップ ===== */
+  /* ===== Ver159: PC用ホバーツールチップ ===== */
   function escapeTooltipText(v){
     return String(v ?? '')
       .replace(/&/g,'&amp;')
@@ -816,9 +922,9 @@ const FLEET={
       opacity:0.96,
       sticky:false,
       permanent:false,
-      className:'marker-name-tooltip-v158'
+      className:'marker-name-tooltip-v159'
     });
-    /* ===== Ver158 ここまで ===== */
+    /* ===== Ver159 ここまで ===== */
 
     points.push(rec);
     nameIndex.set(name,rec);
@@ -1703,7 +1809,7 @@ const FLEET={
 
   function onPos(pos){
     if(!realMode) return;
-    ensureLocLayer(pos.coords.latitude,pos.coords.longitude,pos.coords.accuracy);
+    ensureLocLayer(pos.coords.latitude,pos.coords.longitude,pos.coords.accuracy,pos.coords);
     if(!nav.active) return;
 
     let cur = nav.order[nav.idx];
