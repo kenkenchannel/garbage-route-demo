@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>回収等履歴管理システム「取りもれ～ぬ」Ver168</title>
+<title>回収等履歴管理システム「取りもれ～ぬ」Ver169</title>
 
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -64,7 +64,7 @@
     position:absolute;right:86px;top:10px;z-index:1100;display:flex;gap:6px
   }
   .volbox button{background:#fff;border:1px solid #ccc;border-radius:8px;padding:6px 8px;font-size:14px;width:auto}
-  /* Ver168: Androidタブレットで左側パネルと重ならないよう、読上げボタン群の描写開始位置を約7mm右へ調整 */
+  /* Ver169: Androidタブレットで左側パネルと重ならないよう、読上げボタン群の描写開始位置を約7mm右へ調整 */
   .course-readbox{
     position:absolute;right:2px;bottom:70px;z-index:1100;
     display:grid;grid-template-columns:1fr 1fr;gap:6px;align-items:center;
@@ -89,14 +89,14 @@
     #courseReadStatus{right:2px;bottom:38px;}
   }
 
-  /* Ver168: 手動回収ボタンを読上げボタン群と重ならないよう縦方向へ約30mm移動 */
+  /* Ver169: 手動回収ボタンをVer168位置からさらに下方向へ約10mm移動 */
   .fab{
-    position:fixed;right:16px;bottom:197px;z-index:1500;
+    position:fixed;right:16px;bottom:159px;z-index:1500;
     background:#ef4444;color:#fff;border:none;border-radius:9999px;
     padding:14px 18px;font-size:16px;box-shadow:0 6px 18px rgba(0,0,0,.18);display:none;width:auto
   }
   .fab-small{
-    position:fixed;right:16px;bottom:137px;z-index:1500;
+    position:fixed;right:16px;bottom:99px;z-index:1500;
     background:#f59e0b;color:#111;border:none;border-radius:9999px;
     padding:12px 16px;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.18);display:none;width:auto
   }
@@ -156,9 +156,9 @@
     padding:6px 10px;border-radius:8px;text-decoration:none;font-size:12px
   }
 
-  /* ===== Ver168: ホバーツールチップ（PC用：マウスオーバー時にName表示） =====
+  /* ===== Ver169: ホバーツールチップ（PC用：マウスオーバー時にName表示） =====
      Ver157では marker の img 要素内に div を追加していたため、環境によって表示されないことがあった。
-     Ver168でも Leaflet 標準の bindTooltip を使用し、マウスを近づけるとアイコン上部へ確実に表示する。 */
+     Ver169でも Leaflet 標準の bindTooltip を使用し、マウスを近づけるとアイコン上部へ確実に表示する。 */
   .leaflet-tooltip.marker-name-tooltip-v159{
     background:rgba(30,30,30,.92);
     color:#fff;
@@ -310,7 +310,7 @@ if ('serviceWorker' in navigator) {
 
     <div id="legendLine" class="small" style="margin-top:6px;">
       <span style="color:#111;">地図上回収場所の色：回収済「赤」 / 無回収「黄」 / 回収漏れ（未操作）「青」</span>
-      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver168</span>
+      <span id="legendVer" style="color:#c00; margin-left:6px;">Ver169</span>
     </div>
   </div>
 </div>
@@ -346,7 +346,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver168';
+  const VERSION = 'Ver169';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -956,7 +956,7 @@ const FLEET={
     refreshFab();
   }
 
-  /* ===== Ver168: PC用ホバーツールチップ ===== */
+  /* ===== Ver169: PC用ホバーツールチップ ===== */
   function escapeTooltipText(v){
     return String(v ?? '')
       .replace(/&/g,'&amp;')
@@ -1025,7 +1025,7 @@ const FLEET={
     strictOrder=[];
     nextDistByName.clear();
 
-    // Ver168: 地点CSV未読込時や読込途中に、状況表示更新だけで警告を出さない。
+    // Ver169: 地点CSV未読込時や読込途中に、状況表示更新だけで警告を出さない。
     if(points.length === 0){ return; }
     if(!firstLoadedName || !nameIndex.has(firstLoadedName)){
       if(!silent) alert('先頭行の Name が正しく読み込めていません。');
@@ -1054,7 +1054,7 @@ const FLEET={
   }
 
 
-  // ===== Ver168: 実車無効時の「コース一覧読上げ」 =====
+  // ===== Ver169: 実車無効時の「コース一覧読上げ」 =====
   // ・ボタンは設定パネル外（音量-/音量+/設定の下）へ常時表示
   // ・停止後は、停止した次の回収地点から再開できるように現在位置を保持
   let courseReadActive = false;
@@ -1687,7 +1687,7 @@ const FLEET={
   document.getElementById('btnPreview').addEventListener('click', ()=>{ blurAllInputs(); previewCSV(); });
 
 
-  // ===== Ver168: 点滅制御の共通関数 =====
+  // ===== Ver169: 点滅制御の共通関数 =====
   // Ver163で呼び出しだけ残っていた stopBlink/startBlinkFor を明示定義し、
   // 地点CSV読込時の「stopBlink is not defined」を防止する。
   let blinkTimer = null;
