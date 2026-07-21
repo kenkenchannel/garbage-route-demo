@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="Shift_JIS">
+<meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>‰ñû“™—š—ğŠÇ—ƒVƒXƒeƒ€uæ‚è‚à‚ê`‚ÊvVer173</title>
+<title>å›åç­‰å±¥æ­´ç®¡ç†ã‚·ã‚¹ãƒ†ãƒ ã€Œå–ã‚Šã‚‚ã‚Œï½ã¬ã€Ver173</title>
 
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
@@ -26,7 +26,7 @@
     padding:10px;width:min(400px,92vw);
     font-family:system-ui,-apple-system,Segoe UI,Roboto,'Hiragino Kaku Gothic ProN',Meiryo,sans-serif;
     box-sizing:border-box;
-    max-height:calc(100dvh - 24px); /* Ver156: ‰º•”‚ÌVer•\‹L‚ª‰B‚ê‚É‚­‚¢‚æ‚¤‚É‚·‚é */
+    max-height:calc(100dvh - 24px); /* Ver156: ä¸‹éƒ¨ã®Verè¡¨è¨˜ãŒéš ã‚Œã«ãã„ã‚ˆã†ã«ã™ã‚‹ */
     overflow-y:auto;
     padding-bottom:22px;
   }
@@ -58,13 +58,13 @@
     position:absolute;right:10px;top:10px;z-index:1100;
     background:#fff;border:1px solid #ccc;border-radius:20px;padding:16px 10px;font-size:14px;
     display:inline-block;width:auto;
-    transform:none; /* Ver156: ‰¹—Êƒ{ƒ^ƒ“‰º‚É‰B‚ê‚È‚¢‚æ‚¤‰E‘¤‚ÖˆÚ“® */
+    transform:none; /* Ver156: éŸ³é‡ãƒœã‚¿ãƒ³ä¸‹ã«éš ã‚Œãªã„ã‚ˆã†å³å´ã¸ç§»å‹• */
   }
   .volbox{
     position:absolute;right:86px;top:10px;z-index:1100;display:flex;gap:6px
   }
   .volbox button{background:#fff;border:1px solid #ccc;border-radius:8px;padding:6px 8px;font-size:14px;width:auto}
-  /* Ver173: Androidƒ^ƒuƒŒƒbƒg‚Å¶‘¤ƒpƒlƒ‹‚Æd‚È‚ç‚È‚¢‚æ‚¤A“Çã‚°ƒ{ƒ^ƒ“ŒQ‚Ì•`ÊŠJnˆÊ’u‚ğ–ñ7mm‰E‚Ö’²® */
+  /* Ver173: Androidã‚¿ãƒ–ãƒ¬ãƒƒãƒˆã§å·¦å´ãƒ‘ãƒãƒ«ã¨é‡ãªã‚‰ãªã„ã‚ˆã†ã€èª­ä¸Šã’ãƒœã‚¿ãƒ³ç¾¤ã®æå†™é–‹å§‹ä½ç½®ã‚’ç´„7mmå³ã¸èª¿æ•´ */
   .course-readbox{
     position:absolute;right:2px;bottom:70px;z-index:1100;
     display:grid;grid-template-columns:1fr 1fr;gap:6px;align-items:center;
@@ -89,11 +89,11 @@
     #courseReadStatus{right:2px;bottom:38px;}
   }
 
-  /* Ver173: è“®‰ñûƒ{ƒ^ƒ“ˆÊ’u‚ğÄ’²®
-     - ƒR[ƒXˆê——“Çã‚°ƒ{ƒ^ƒ“‚ÌˆÊ’u‚Í•ÏX‚µ‚È‚¢
-     - –³‰ñûƒ{ƒ^ƒ“‚ÍVer170‚Ì•`ÊŠJnˆÊ’u‚©‚çã•ûŒü‚Ö–ñ5mm‘Š“–
-     - ‰ñûƒ{ƒ^ƒ“‚ÍVer170‚Ì•`ÊŠJnˆÊ’u‚©‚çã•ûŒü‚Ö–ñ9mm‘Š“–
-     ¦ Android 7ƒCƒ“ƒ`À‘ª‚É‡‚í‚¹Ad‚È‚è–h~‚Ì‚½‚ßã‰ºŠÔŠu‚àŠm•Û */
+  /* Ver173: æ‰‹å‹•å›åãƒœã‚¿ãƒ³ä½ç½®ã‚’å†èª¿æ•´
+     - ã‚³ãƒ¼ã‚¹ä¸€è¦§èª­ä¸Šã’ãƒœã‚¿ãƒ³ã®ä½ç½®ã¯å¤‰æ›´ã—ãªã„
+     - ç„¡å›åãƒœã‚¿ãƒ³ã¯Ver170ã®æå†™é–‹å§‹ä½ç½®ã‹ã‚‰ä¸Šæ–¹å‘ã¸ç´„5mmç›¸å½“
+     - å›åãƒœã‚¿ãƒ³ã¯Ver170ã®æå†™é–‹å§‹ä½ç½®ã‹ã‚‰ä¸Šæ–¹å‘ã¸ç´„9mmç›¸å½“
+     â€» Android 7ã‚¤ãƒ³ãƒå®Ÿæ¸¬ã«åˆã‚ã›ã€é‡ãªã‚Šé˜²æ­¢ã®ãŸã‚ä¸Šä¸‹é–“éš”ã‚‚ç¢ºä¿ */
   .fab{
     position:fixed;right:16px;bottom:233px;z-index:1500;
     background:#ef4444;color:#fff;border:none;border-radius:9999px;
@@ -160,9 +160,9 @@
     padding:6px 10px;border-radius:8px;text-decoration:none;font-size:12px
   }
 
-  /* ===== Ver173: ƒzƒo[ƒc[ƒ‹ƒ`ƒbƒviPC—pFƒ}ƒEƒXƒI[ƒo[‚ÉName•\¦j =====
-     Ver157‚Å‚Í marker ‚Ì img —v‘f“à‚É div ‚ğ’Ç‰Á‚µ‚Ä‚¢‚½‚½‚ßAŠÂ‹«‚É‚æ‚Á‚Ä•\¦‚³‚ê‚È‚¢‚±‚Æ‚ª‚ ‚Á‚½B
-     Ver173‚Å‚à Leaflet •W€‚Ì bindTooltip ‚ğg—p‚µAƒ}ƒEƒX‚ğ‹ß‚Ã‚¯‚é‚ÆƒAƒCƒRƒ“ã•”‚ÖŠmÀ‚É•\¦‚·‚éB */
+  /* ===== Ver173: ãƒ›ãƒãƒ¼ãƒ„ãƒ¼ãƒ«ãƒãƒƒãƒ—ï¼ˆPCç”¨ï¼šãƒã‚¦ã‚¹ã‚ªãƒ¼ãƒãƒ¼æ™‚ã«Nameè¡¨ç¤ºï¼‰ =====
+     Ver157ã§ã¯ marker ã® img è¦ç´ å†…ã« div ã‚’è¿½åŠ ã—ã¦ã„ãŸãŸã‚ã€ç’°å¢ƒã«ã‚ˆã£ã¦è¡¨ç¤ºã•ã‚Œãªã„ã“ã¨ãŒã‚ã£ãŸã€‚
+     Ver173ã§ã‚‚ Leaflet æ¨™æº–ã® bindTooltip ã‚’ä½¿ç”¨ã—ã€ãƒã‚¦ã‚¹ã‚’è¿‘ã¥ã‘ã‚‹ã¨ã‚¢ã‚¤ã‚³ãƒ³ä¸Šéƒ¨ã¸ç¢ºå®Ÿã«è¡¨ç¤ºã™ã‚‹ã€‚ */
   .leaflet-tooltip.marker-name-tooltip-v159{
     background:rgba(30,30,30,.92);
     color:#fff;
@@ -223,97 +223,97 @@ if ('serviceWorker' in navigator) {
 <div id="err" class="err"></div>
 <div id="toast"></div>
 
-<button id="btnFabCollect" class="fab">‰ñûi‘I‘ğ 0j</button>
-<button id="btnFabSkip" class="fab-small">–³‰ñûi‘I‘ğ¨‰©j</button>
+<button id="btnFabCollect" class="fab">å›åï¼ˆé¸æŠ 0ï¼‰</button>
+<button id="btnFabSkip" class="fab-small">ç„¡å›åï¼ˆé¸æŠâ†’é»„ï¼‰</button>
 
-<button id="btnPanel" title="İ’è‚Ì•\¦/”ñ•\¦">İ’è</button>
+<button id="btnPanel" title="è¨­å®šã®è¡¨ç¤º/éè¡¨ç¤º">è¨­å®š</button>
 <div class="volbox">
-  <button id="volDown">‰¹—Ê-</button>
-  <button id="volUp">‰¹—Ê+</button>
+  <button id="volDown">éŸ³é‡-</button>
+  <button id="volUp">éŸ³é‡+</button>
 </div>
 <div class="course-readbox" id="courseReadBox">
-  <button id="btnCourseRead" title="ÀÔF–³Œø‚Ì‚Æ‚«AŒ»İ‚ÌƒR[ƒX‚ğ‡”Ô‚É“Ç‚İã‚°‚Ü‚·B’â~Œã‚Í‘±‚«‚©‚çÄŠJ‚µ‚Ü‚·B">ƒR[ƒXˆê——“Çã‚°</button>
-  <button id="btnCourseReadFromStart" title="’â~ˆÊ’u‚ÉŠÖŒW‚È‚­AƒR[ƒX‚ÌÅ‰‚©‚ç“Ç‚İã‚°‚Ü‚·B">ƒR[ƒX“Ç‚İã‚°(Å‰‚©‚ç)</button>
-  <button id="btnReadSlower" title="“Ç‚İã‚°ŠÔŠu‚ğ’·‚­‚µ‚Ü‚·">¤</button>
-  <button id="btnReadFaster" title="“Ç‚İã‚°ŠÔŠu‚ğ’Z‚­‚µ‚Ü‚·">¢</button>
+  <button id="btnCourseRead" title="å®Ÿè»Šï¼šç„¡åŠ¹ã®ã¨ãã€ç¾åœ¨ã®ã‚³ãƒ¼ã‚¹ã‚’é †ç•ªã«èª­ã¿ä¸Šã’ã¾ã™ã€‚åœæ­¢å¾Œã¯ç¶šãã‹ã‚‰å†é–‹ã—ã¾ã™ã€‚">ã‚³ãƒ¼ã‚¹ä¸€è¦§èª­ä¸Šã’</button>
+  <button id="btnCourseReadFromStart" title="åœæ­¢ä½ç½®ã«é–¢ä¿‚ãªãã€ã‚³ãƒ¼ã‚¹ã®æœ€åˆã‹ã‚‰èª­ã¿ä¸Šã’ã¾ã™ã€‚">ã‚³ãƒ¼ã‚¹èª­ã¿ä¸Šã’(æœ€åˆã‹ã‚‰)</button>
+  <button id="btnReadSlower" title="èª­ã¿ä¸Šã’é–“éš”ã‚’é•·ãã—ã¾ã™">â–½</button>
+  <button id="btnReadFaster" title="èª­ã¿ä¸Šã’é–“éš”ã‚’çŸ­ãã—ã¾ã™">â–³</button>
 </div>
-<div id="courseReadStatus">“Çã‚°ŠÔŠuF3.0•b</div>
+<div id="courseReadStatus">èª­ä¸Šã’é–“éš”ï¼š3.0ç§’</div>
 
 <div class="panel" id="panel">
   <h2 class="panel-title">
-    <span class="title-left">‰ñûŒ‹‰Ê” <span class="pill" id="pointCount">0 ‰ÓŠ(Ô0/‰©0)</span></span>
-    <button id="btnMyDriveSync" type="button" title="Google DriveƒtƒHƒ‹ƒ_‚ğŠJ‚«‚Ü‚·Bƒf[ƒ^“Ç‚Í]—ˆ‚Ç‚¨‚èŠeƒtƒ@ƒCƒ‹‘I‘ğƒ{ƒ^ƒ“‚Ås‚¢‚Ü‚·">MyDrive“¯Šú</button>
+    <span class="title-left">å›åçµæœæ•° <span class="pill" id="pointCount">0 ç®‡æ‰€(èµ¤0/é»„0)</span></span>
+    <button id="btnMyDriveSync" type="button" title="Google Driveãƒ•ã‚©ãƒ«ãƒ€ã‚’é–‹ãã¾ã™ã€‚ãƒ‡ãƒ¼ã‚¿èª­è¾¼ã¯å¾“æ¥ã©ãŠã‚Šå„ãƒ•ã‚¡ã‚¤ãƒ«é¸æŠãƒœã‚¿ãƒ³ã§è¡Œã„ã¾ã™">MyDriveåŒæœŸ</button>
   </h2>
   <div id="gasSyncStatus"></div>
 
   <div class="controls">
     <div class="row">
-      <div><label>Ô—¼ID<select id="vehicle"></select></label></div>
-      <div><label>‰^“]Ò<select id="driver"></select></label></div>
+      <div><label>è»Šä¸¡ID<select id="vehicle"></select></label></div>
+      <div><label>é‹è»¢è€…<select id="driver"></select></label></div>
     </div>
 
     <div>
-      <label>’n“_CSV“ÇiName,Latitude,Longitude,Description,Note,Speakj</label>
+      <label>åœ°ç‚¹CSVèª­è¾¼ï¼ˆName,Latitude,Longitude,Description,Note,Speakï¼‰</label>
       <div class="file-wrap"><input type="file" id="file" accept=".csv,.kml,.geojson,.json"></div>
-      <div class="small">CSV„§BKML/GeoJSON‚ÍŠÈˆÕ‘Î‰iƒ|ƒCƒ“ƒg‚Ì‚İjB</div>
+      <div class="small">CSVæ¨å¥¨ã€‚KML/GeoJSONã¯ç°¡æ˜“å¯¾å¿œï¼ˆãƒã‚¤ãƒ³ãƒˆã®ã¿ï¼‰ã€‚</div>
     </div>
 
     <div>
-      <label>Šî–{‰ñûƒ‹[ƒg“Çi.gpx / .xml / .geojson / .json / .csvj</label>
+      <label>åŸºæœ¬å›åãƒ«ãƒ¼ãƒˆèª­è¾¼ï¼ˆ.gpx / .xml / .geojson / .json / .csvï¼‰</label>
       <div class="file-wrap">
         <input type="file" id="fileRoute"
                accept=".gpx,.xml,.geojson,.json,.csv,application/gpx+xml,application/xml,text/xml,text/plain,*/*">
       </div>
       <div class="row" style="grid-template-columns:1fr 1fr">
-        <button id="btnRouteZoom" class="ghost" style="font-size:12px">ƒ‹[ƒg‚ÖƒY[ƒ€ƒAƒEƒg</button>
-        <button id="btnHeading" class="ghost" style="font-size:12px">ƒwƒfƒBƒ“ƒOFOFF</button>
+        <button id="btnRouteZoom" class="ghost" style="font-size:12px">ãƒ«ãƒ¼ãƒˆã¸ã‚ºãƒ¼ãƒ ã‚¢ã‚¦ãƒˆ</button>
+        <button id="btnHeading" class="ghost" style="font-size:12px">ãƒ˜ãƒ‡ã‚£ãƒ³ã‚°ï¼šOFF</button>
       </div>
     </div>
 
     <div>
-      <label>—áŠO“’…CSV“ÇiPlace,DeviceLat,DeviceLonj</label>
+      <label>ä¾‹å¤–åˆ°ç€CSVèª­è¾¼ï¼ˆPlace,DeviceLat,DeviceLonï¼‰</label>
       <div class="file-wrap"><input type="file" id="fileException" accept=".csv"></div>
-      <div class="small">—áŠO’n“_‚Í <b>20mˆÈ“à</b> ‚Å‰ñûÏ‚Æ‚µ‚Äˆµ‚¢‚Ü‚·B</div>
+      <div class="small">ä¾‹å¤–åœ°ç‚¹ã¯ <b>20mä»¥å†…</b> ã§å›åæ¸ˆã¨ã—ã¦æ‰±ã„ã¾ã™ã€‚</div>
     </div>
 
     <div class="row">
-      <label>‹ßÚ‚µ‚«‚¢’l(m)
+      <label>è¿‘æ¥ã—ãã„å€¤(m)
         <input type="text" id="thres" value="25" inputmode="numeric" autocomplete="off">
       </label>
-      <label>“’…”»’è(m)
+      <label>åˆ°ç€åˆ¤å®š(m)
         <input type="text" id="arrive" value="15" inputmode="numeric" autocomplete="off">
       </label>
     </div>
 
     <div class="row" style="align-items:end">
-      <label>‰“‹——£ƒI[ƒgƒY[ƒ€(m)
+      <label>é è·é›¢ã‚ªãƒ¼ãƒˆã‚ºãƒ¼ãƒ (m)
         <input type="text" id="farZoom" value="100" inputmode="numeric" autocomplete="off">
       </label>
       <div style="display:flex;align-items:end;">
-        <button id="btnClearAll" class="ghost" style="width:100%;">‰ñû’n“_‘SƒNƒŠƒA</button>
+        <button id="btnClearAll" class="ghost" style="width:100%;">å›ååœ°ç‚¹å…¨ã‚¯ãƒªã‚¢</button>
       </div>
     </div>
 
     <div class="row" style="grid-template-columns:1fr 1fr 1fr 1fr">
-      <button id="btnNavStart" class="primary">ƒiƒrŠJn</button>
-      <button id="btnNavStop" class="ghost">ˆê’â~</button>
-      <button id="btnNavResume" class="ghost">ÄŠJ</button>
-      <button id="btnPosFix" class="ghost">•â³</button>
+      <button id="btnNavStart" class="primary">ãƒŠãƒ“é–‹å§‹</button>
+      <button id="btnNavStop" class="ghost">ä¸€æ™‚åœæ­¢</button>
+      <button id="btnNavResume" class="ghost">å†é–‹</button>
+      <button id="btnPosFix" class="ghost">è£œæ­£</button>
     </div>
 
     <div class="row">
-      <button id="btnDownload" class="warn">CSVƒ_ƒEƒ“ƒ[ƒh</button>
-      <button id="btnPreview" class="ghost">CSV•\¦</button>
+      <button id="btnDownload" class="warn">CSVãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰</button>
+      <button id="btnPreview" class="ghost">CSVè¡¨ç¤º</button>
     </div>
 
     <div class="row">
-      <button id="btnRealToggle" class="ghost" title="ÀÔ‚Ì—LŒø/–³Œø‚ğØ‚è‘Ö‚¦‚Ü‚·">ÀÔF–³Œø</button>
-      <button id="btnLabelToggle" class="ghost" title="’n—‰@w•W€’n}‚Ì’‹Lxd‚Ë‡‚í‚¹‚ÌON/OFF">’‹LFON</button>
+      <button id="btnRealToggle" class="ghost" title="å®Ÿè»Šã®æœ‰åŠ¹/ç„¡åŠ¹ã‚’åˆ‡ã‚Šæ›¿ãˆã¾ã™">å®Ÿè»Šï¼šç„¡åŠ¹</button>
+      <button id="btnLabelToggle" class="ghost" title="åœ°ç†é™¢ã€æ¨™æº–åœ°å›³ã®æ³¨è¨˜ã€é‡ã­åˆã‚ã›ã®ON/OFF">æ³¨è¨˜ï¼šON</button>
     </div>
 
 
     <div id="legendLine" class="small" style="margin-top:6px;">
-      <span style="color:#111;">’n}ã‰ñûêŠ‚ÌFF‰ñûÏuÔv / –³‰ñûu‰©v / ‰ñû˜R‚êi–¢‘€ìjuÂv</span>
+      <span style="color:#111;">åœ°å›³ä¸Šå›åå ´æ‰€ã®è‰²ï¼šå›åæ¸ˆã€Œèµ¤ã€ / ç„¡å›åã€Œé»„ã€ / å›åæ¼ã‚Œï¼ˆæœªæ“ä½œï¼‰ã€Œé’ã€</span>
       <span id="legendVer" style="color:#c00; margin-left:6px;">Ver173</span>
     </div>
   </div>
@@ -322,14 +322,14 @@ if ('serviceWorker' in navigator) {
 <div id="csvOverlay" aria-modal="true" role="dialog">
   <div id="csvPanel">
     <div id="csvHead">
-      <h1>CSVƒvƒŒƒrƒ…[</h1>
+      <h1>CSVãƒ—ãƒ¬ãƒ“ãƒ¥ãƒ¼</h1>
       <div class="row">
-        <button id="csvBtnDownload" class="btn btn-primary">‚±‚ÌCSV‚ğƒ_ƒEƒ“ƒ[ƒh</button>
-        <button id="csvBtnShare" class="btn btn-share">gƒtƒ@ƒCƒ‹h‚É•Û‘¶ / ‹¤—L</button>
-        <button id="csvBtnClose" class="btn btn-ghost">•Â‚¶‚é</button>
+        <button id="csvBtnDownload" class="btn btn-primary">ã“ã®CSVã‚’ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰</button>
+        <button id="csvBtnShare" class="btn btn-share">â€œãƒ•ã‚¡ã‚¤ãƒ«â€ã«ä¿å­˜ / å…±æœ‰</button>
+        <button id="csvBtnClose" class="btn btn-ghost">é–‰ã˜ã‚‹</button>
       </div>
       <div class="hint">
-        iPhone ‚Íƒ_ƒEƒ“ƒ[ƒhŒã‚É gƒtƒ@ƒCƒ‹hƒAƒvƒŠ ¨ ƒ_ƒEƒ“ƒ[ƒh ‚ÅŠm”F‚Å‚«‚Ü‚·B
+        iPhone ã¯ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰å¾Œã« â€œãƒ•ã‚¡ã‚¤ãƒ«â€ã‚¢ãƒ—ãƒª â†’ ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰ ã§ç¢ºèªã§ãã¾ã™ã€‚
       </div>
     </div>
     <div id="csvBody"><pre id="csvPre"></pre></div>
@@ -338,12 +338,12 @@ if ('serviceWorker' in navigator) {
 
 <div id="resumeOverlay" aria-modal="true" role="dialog">
   <div id="resumePanel">
-    <h1>ÄŠJ’n“_‚Ì‘I‘ğ</h1>
-    <p>ÄŠJ‚µ‚½‚¢‰ñû’n“_–¼‚ğ‘I‘ğ‚µ‚Ä‚­‚¾‚³‚¢B</p>
+    <h1>å†é–‹åœ°ç‚¹ã®é¸æŠ</h1>
+    <p>å†é–‹ã—ãŸã„å›ååœ°ç‚¹åã‚’é¸æŠã—ã¦ãã ã•ã„ã€‚</p>
     <select id="resumeSelect"></select>
     <div class="row" style="grid-template-columns:1fr 1fr">
-      <button id="resumeOk" class="primary">‚±‚Ì’n“_‚©‚çÄŠJ</button>
-      <button id="resumeCancel" class="ghost">ƒLƒƒƒ“ƒZƒ‹</button>
+      <button id="resumeOk" class="primary">ã“ã®åœ°ç‚¹ã‹ã‚‰å†é–‹</button>
+      <button id="resumeCancel" class="ghost">ã‚­ãƒ£ãƒ³ã‚»ãƒ«</button>
     </div>
   </div>
 </div>
@@ -351,28 +351,28 @@ if ('serviceWorker' in navigator) {
 <script>
 (function(){
   const VERSION = 'Ver173';
-  document.title = `‰ñû“™—š—ğŠÇ—ƒVƒXƒeƒ€uæ‚è‚à‚ê`‚Êv${VERSION}`;
+  document.title = `å›åç­‰å±¥æ­´ç®¡ç†ã‚·ã‚¹ãƒ†ãƒ ã€Œå–ã‚Šã‚‚ã‚Œï½ã¬ã€${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
   const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwuekIevEuQLUYICI28_98J9I9ekYj04Das7KHONa5XqpDgazX3kUPtixWAzmSNDoGdVw/exec';
 
-  // Ver156: ‰ñûŒ‹‰Ê‚ÍGASŒo—R‚ÅGoogleƒXƒvƒŒƒbƒhƒV[ƒgucollection_results_datav‚ÉˆêŒ³•Û‘¶‚µ‚Ü‚·B
-  // GAS_ENDPOINT ‚Í collection_results_receiver_GAS_v5.gs ‚ÌWebƒAƒvƒŠURL‚ğİ’èÏ‚İ‚Å‚·B
-  // –¢İ’è‚Å‚à]—ˆ‚Ç‚¨‚è’[––“àlocalStorage‚É‚Íˆê•Û‘¶‚³‚ê‚Ü‚·B
+  // Ver156: å›åçµæœã¯GASçµŒç”±ã§Googleã‚¹ãƒ—ãƒ¬ãƒƒãƒ‰ã‚·ãƒ¼ãƒˆã€Œcollection_results_dataã€ã«ä¸€å…ƒä¿å­˜ã—ã¾ã™ã€‚
+  // GAS_ENDPOINT ã¯ collection_results_receiver_GAS_v5.gs ã®Webã‚¢ãƒ—ãƒªURLã‚’è¨­å®šæ¸ˆã¿ã§ã™ã€‚
+  // æœªè¨­å®šã§ã‚‚å¾“æ¥ã©ãŠã‚Šç«¯æœ«å†…localStorageã«ã¯ä¸€æ™‚ä¿å­˜ã•ã‚Œã¾ã™ã€‚
   const MYDRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
   const POINTS_DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/13ClA6ZaIiCtGrXbfLXbRcsRTYB1z94q4';
   const ROUTE_DRIVE_FOLDER_URL  = 'https://drive.google.com/drive/folders/1947oZh4-7rXJvrq0pYl17-TFwryTnL9O';
 
   async function sendRowToServer(payload){
     if(!GAS_ENDPOINT || !GAS_ENDPOINT.startsWith('https://')){
-      console.warn('GAS_ENDPOINT–¢İ’è‚Ì‚½‚ßA’[––“à‚É–¢‘—M•Û‘¶‚µ‚Ü‚·B');
-      throw new Error('GAS_ENDPOINT–¢İ’è');
+      console.warn('GAS_ENDPOINTæœªè¨­å®šã®ãŸã‚ã€ç«¯æœ«å†…ã«æœªé€ä¿¡ä¿å­˜ã—ã¾ã™ã€‚');
+      throw new Error('GAS_ENDPOINTæœªè¨­å®š');
     }
 
     // Ver156:
-    // æ‚è‚à‚ê[‚Ê‘¤‚Í fetch + no-cors ‚ÅGAS‚ÖPOST‚µ‚Ü‚·B
-    // “d”gŒ—ŠO‚â‘—M¸”s‚Í pushLogRow ‘¤‚Å pendingRows ‚É•Û‘¶‚³‚ê‚Ü‚·B
+    // å–ã‚Šã‚‚ã‚Œãƒ¼ã¬å´ã¯ fetch + no-cors ã§GASã¸POSTã—ã¾ã™ã€‚
+    // é›»æ³¢åœå¤–ã‚„é€ä¿¡å¤±æ•—æ™‚ã¯ pushLogRow å´ã§ pendingRows ã«ä¿å­˜ã•ã‚Œã¾ã™ã€‚
     await fetch(GAS_ENDPOINT, {
       method: 'POST',
       mode: 'no-cors',
@@ -380,7 +380,7 @@ if ('serviceWorker' in navigator) {
       body: JSON.stringify(payload)
     });
 
-    // no-cors‚Å‚ÍGAS‚©‚ç‚ÌJSON–{•¶‚ğ“Ç‚ß‚È‚¢‚½‚ßA‘—MŠ®—¹ˆµ‚¢‚Å•Ô‚µ‚Ü‚·B
+    // no-corsã§ã¯GASã‹ã‚‰ã®JSONæœ¬æ–‡ã‚’èª­ã‚ãªã„ãŸã‚ã€é€ä¿¡å®Œäº†æ‰±ã„ã§è¿”ã—ã¾ã™ã€‚
     return {ok:true, mode:'no-cors'};
   }
 
@@ -424,8 +424,8 @@ if ('serviceWorker' in navigator) {
   document.getElementById('btnMyDriveSync').addEventListener('click', syncMyDriveFromGas);
 
   let audioVol=parseFloat(localStorage.getItem('chimeVol')||'0.7');
-  document.getElementById('volDown').addEventListener('click', ()=>{ blurActiveInput(); audioVol=Math.max(0,audioVol-0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('‰¹—Ê: '+Math.round(audioVol*100)+'%'); });
-  document.getElementById('volUp').addEventListener('click',   ()=>{ blurActiveInput(); audioVol=Math.min(1,audioVol+0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('‰¹—Ê: '+Math.round(audioVol*100)+'%'); });
+  document.getElementById('volDown').addEventListener('click', ()=>{ blurActiveInput(); audioVol=Math.max(0,audioVol-0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('éŸ³é‡: '+Math.round(audioVol*100)+'%'); });
+  document.getElementById('volUp').addEventListener('click',   ()=>{ blurActiveInput(); audioVol=Math.min(1,audioVol+0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('éŸ³é‡: '+Math.round(audioVol*100)+'%'); });
   function blurActiveInput(){ const el=document.activeElement; if(!el) return; const tg=el.tagName; if(tg==='INPUT'||tg==='SELECT'||tg==='TEXTAREA'){ try{el.blur();}catch(_e){} } }
   function blurAllInputs(){ blurActiveInput(); document.querySelectorAll('input,select,textarea').forEach(el=>{ if(el===document.activeElement) try{el.blur();}catch(_e){} }); }
 
@@ -468,9 +468,9 @@ if ('serviceWorker' in navigator) {
   function normalizeSpeakText(s){
     s = String(s ?? '');
     s = s.replace(/\u3000/g, ' ');
-    s = s.replace(/[|??\-]/g, ' ‚Ì ');
-    s = s.replace(/([ˆê-ê‚Ÿ-ƒ”ƒ@-ƒ”[])(\d)/g, '$1 $2');
-    s = s.replace(/(\d)([ˆê-ê‚Ÿ-ƒ”ƒ@-ƒ”[])/g, '$1 $2');
+    s = s.replace(/[ï¼??\-]/g, ' ã® ');
+    s = s.replace(/([ä¸€-é¾ ã-ãƒ´ã‚¡-ãƒ´ãƒ¼])(\d)/g, '$1 $2');
+    s = s.replace(/(\d)([ä¸€-é¾ ã-ãƒ´ã‚¡-ãƒ´ãƒ¼])/g, '$1 $2');
     s = s.replace(/[{}[\]]/g, ' ');
     s = s.replace(/\s+/g, ' ').trim();
     return s;
@@ -482,7 +482,7 @@ if ('serviceWorker' in navigator) {
       if(!vs || !vs.length) return null;
       const ja = vs.filter(v=>/^ja/i.test(v.lang||''));
       if(ja.length){
-        const prefer = ja.find(v=>/Kyoko|Otoya|Google “ú–{Œê|Japanese/i.test(v.name||''));
+        const prefer = ja.find(v=>/Kyoko|Otoya|Google æ—¥æœ¬èª|Japanese/i.test(v.name||''));
         return prefer || ja[0];
       }
       return null;
@@ -506,7 +506,7 @@ if ('serviceWorker' in navigator) {
       if (speechSynthesis.speaking) speechSynthesis.cancel();
       speechSynthesis.speak(makeUtterance(t));
     }catch(e){
-      console.warn('‰¹ºÄ¶‚É¸”s:', e);
+      console.warn('éŸ³å£°å†ç”Ÿã«å¤±æ•—:', e);
     }
   }
 
@@ -524,7 +524,7 @@ if ('serviceWorker' in navigator) {
         speechSynthesis.speak(u);
         setTimeout(finish, Math.max(3500, normalizeSpeakText(t).length * 180));
       }catch(e){
-        console.warn('‰¹ºÄ¶‚É¸”s:', e);
+        console.warn('éŸ³å£°å†ç”Ÿã«å¤±æ•—:', e);
         resolve();
       }
     });
@@ -532,17 +532,17 @@ if ('serviceWorker' in navigator) {
 
   async function chime(){
     unlockAll();
-    const candidates = ['./quiz-correct3.mp3','./ƒNƒCƒYE³‰ğ3.mp3'];
+    const candidates = ['./quiz-correct3.mp3','./ã‚¯ã‚¤ã‚ºãƒ»æ­£è§£3.mp3'];
     for(const src of candidates){ try{ const a=new Audio(src); a.volume=audioVol; await a.play(); return true; }catch(_e){} }
     return false;
   }
 
 
 const FLEET={
-  "1772":["_R","‘åì","]“c"],
-  "4502":["ŒFâ","“c’[","“¡“c","•½–ì","‘åì","]“c"], // ©‚±‚±C³
-  "8792":["ŒFâ","”ª“c","•½–ì","“c’[","‘åì","]“c"],
-  "1771":["‰i‰Y","‹e’r","“ˆ“c","“c’[","”ª“c","“¡“c","ç—t","‘åì","]“c"]
+  "1772":["ç¥å±±","å¤§å·","æ±Ÿç”°"],
+  "4502":["ç†Šå‚","ç”°ç«¯","è—¤ç”°","å¹³é‡","å¤§å·","æ±Ÿç”°"], // â†ã“ã“ä¿®æ­£
+  "8792":["ç†Šå‚","å…«ç”°","å¹³é‡","ç”°ç«¯","å¤§å·","æ±Ÿç”°"],
+  "1771":["æ°¸æµ¦","èŠæ± ","å¶‹ç”°","ç”°ç«¯","å…«ç”°","è—¤ç”°","åƒè‘‰","å¤§å·","æ±Ÿç”°"]
 };
 
 
@@ -586,7 +586,7 @@ const FLEET={
 
   const btnLabelToggle = document.getElementById('btnLabelToggle');
   let labelOn = true;
-  function updateLabelButton(){ btnLabelToggle.textContent = '’‹LF' + (labelOn ? 'ON' : 'OFF'); }
+  function updateLabelButton(){ btnLabelToggle.textContent = 'æ³¨è¨˜ï¼š' + (labelOn ? 'ON' : 'OFF'); }
   btnLabelToggle.addEventListener('click', ()=>{
     labelOn = !labelOn;
     if(labelOn){ gsiLabel.addTo(map); } else { map.removeLayer(gsiLabel); }
@@ -596,7 +596,7 @@ const FLEET={
 
   const btnRealToggle = document.getElementById('btnRealToggle');
   let realMode = false;
-  function updateRealBtn(){ btnRealToggle.textContent = 'ÀÔF' + (realMode ? '—LŒø' : '–³Œø'); }
+  function updateRealBtn(){ btnRealToggle.textContent = 'å®Ÿè»Šï¼š' + (realMode ? 'æœ‰åŠ¹' : 'ç„¡åŠ¹'); }
   btnRealToggle.addEventListener('click', ()=>{
     realMode = !realMode;
     updateRealBtn();
@@ -633,10 +633,10 @@ const FLEET={
 
   function updateHeadingBtn(){
     if(!btnHeading) return;
-    btnHeading.textContent = 'ƒwƒfƒBƒ“ƒOF' + (headingMode ? 'ON' : 'OFF');
+    btnHeading.textContent = 'ãƒ˜ãƒ‡ã‚£ãƒ³ã‚°ï¼š' + (headingMode ? 'ON' : 'OFF');
     btnHeading.title = headingMode
-      ? '©ÔƒAƒCƒRƒ“‚ğis•ûŒü‚Ö‰ñ“]‚µ‚Ü‚·BGPS‚Ìheading‚ªæ‚ê‚È‚¢ê‡‚ÍˆÚ“®•ûŒü‚©‚ç„’è‚µ‚Ü‚·B'
-      : '’Êí’Ç]•\¦‚Å‚·B';
+      ? 'è‡ªè»Šã‚¢ã‚¤ã‚³ãƒ³ã‚’é€²è¡Œæ–¹å‘ã¸å›è»¢ã—ã¾ã™ã€‚GPSã®headingãŒå–ã‚Œãªã„å ´åˆã¯ç§»å‹•æ–¹å‘ã‹ã‚‰æ¨å®šã—ã¾ã™ã€‚'
+      : 'é€šå¸¸è¿½å¾“è¡¨ç¤ºã§ã™ã€‚';
   }
   function resetHeadingState(){
     lastGpsLat=null; lastGpsLon=null; lastHeadingDeg=null;
@@ -652,10 +652,10 @@ const FLEET={
   function bearingDeg(lat1, lon1, lat2, lon2){
     const toRad = d => d * Math.PI / 180;
     const toDeg = r => r * 180 / Math.PI;
-    const ƒÓ1 = toRad(lat1), ƒÓ2 = toRad(lat2);
-    const ƒ¢ƒÉ = toRad(lon2 - lon1);
-    const y = Math.sin(ƒ¢ƒÉ) * Math.cos(ƒÓ2);
-    const x = Math.cos(ƒÓ1)*Math.sin(ƒÓ2) - Math.sin(ƒÓ1)*Math.cos(ƒÓ2)*Math.cos(ƒ¢ƒÉ);
+    const Ï†1 = toRad(lat1), Ï†2 = toRad(lat2);
+    const Î”Î» = toRad(lon2 - lon1);
+    const y = Math.sin(Î”Î») * Math.cos(Ï†2);
+    const x = Math.cos(Ï†1)*Math.sin(Ï†2) - Math.sin(Ï†1)*Math.cos(Ï†2)*Math.cos(Î”Î»);
     return normalizeDeg(toDeg(Math.atan2(y,x)));
   }
   function getHeadingDeg(lat, lon, coords){
@@ -690,7 +690,7 @@ const FLEET={
     try{
       map.setView([lat,lon], map.getZoom(), {animate:false});
 
-      // Ver160: ’n}‘S‘Ì‚Í‰ñ“]‚³‚¹‚¸AƒwƒfƒBƒ“ƒOON‚Í©ÔˆÊ’u‚ğ‚â‚âŒã•û‚ÖŠñ‚¹‚Äis•ûŒü‚ğŒ©‚â‚·‚­‚·‚éB
+      // Ver160: åœ°å›³å…¨ä½“ã¯å›è»¢ã•ã›ãšã€ãƒ˜ãƒ‡ã‚£ãƒ³ã‚°ONæ™‚ã¯è‡ªè»Šä½ç½®ã‚’ã‚„ã‚„å¾Œæ–¹ã¸å¯„ã›ã¦é€²è¡Œæ–¹å‘ã‚’è¦‹ã‚„ã™ãã™ã‚‹ã€‚
       if(headingMode && headingDeg !== null && Number.isFinite(headingDeg)){
         const rad = headingDeg * Math.PI / 180;
         const px = -Math.sin(rad) * 70;
@@ -702,8 +702,8 @@ const FLEET={
   }
 
   btnHeading.addEventListener('click', ()=>{
-    // Ver160: uÀÔF–³Œøv‚Å‚àƒwƒfƒBƒ“ƒOƒ{ƒ^ƒ“‚ğ‰Ÿ‚¹‚é‚æ‚¤‚É‚·‚éB
-    // ƒwƒfƒBƒ“ƒOON‚ÍGPS’Ç]‚ª•K—v‚È‚½‚ßA©“®“I‚ÉÀÔƒ‚[ƒh‚ğ—LŒø‰»‚·‚éB
+    // Ver160: ã€Œå®Ÿè»Šï¼šç„¡åŠ¹ã€ã§ã‚‚ãƒ˜ãƒ‡ã‚£ãƒ³ã‚°ãƒœã‚¿ãƒ³ã‚’æŠ¼ã›ã‚‹ã‚ˆã†ã«ã™ã‚‹ã€‚
+    // ãƒ˜ãƒ‡ã‚£ãƒ³ã‚°ONæ™‚ã¯GPSè¿½å¾“ãŒå¿…è¦ãªãŸã‚ã€è‡ªå‹•çš„ã«å®Ÿè»Šãƒ¢ãƒ¼ãƒ‰ã‚’æœ‰åŠ¹åŒ–ã™ã‚‹ã€‚
     if(!realMode){
       realMode = true;
       updateRealBtn();
@@ -714,7 +714,7 @@ const FLEET={
     }
     updateHeadingBtn();
     rotateLocMarker(lastHeadingDeg);
-    showToast('ƒwƒfƒBƒ“ƒOF' + (headingMode ? 'ONi©ÔƒAƒCƒRƒ“‚ğis•ûŒü‚Ö‰ñ“]j' : 'OFF'), 1.5);
+    showToast('ãƒ˜ãƒ‡ã‚£ãƒ³ã‚°ï¼š' + (headingMode ? 'ONï¼ˆè‡ªè»Šã‚¢ã‚¤ã‚³ãƒ³ã‚’é€²è¡Œæ–¹å‘ã¸å›è»¢ï¼‰' : 'OFF'), 1.5);
   });
   btnHeading.disabled = false;
   updateHeadingBtn();
@@ -750,7 +750,7 @@ const FLEET={
   }
   function startGpsWatch(){
     if(!navigator.geolocation){
-      showToast('‚±‚Ì’[––‚Å‚ÍGPS‚ª—˜—p‚Å‚«‚Ü‚¹‚ñ', 2);
+      showToast('ã“ã®ç«¯æœ«ã§ã¯GPSãŒåˆ©ç”¨ã§ãã¾ã›ã‚“', 2);
       return;
     }
     if(gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
@@ -786,19 +786,19 @@ const FLEET={
     unlockAll();
 
     if(!realMode){
-      alert('uÀÔF—LŒøv‚É‚µ‚Ä‚©‚ç•â³‚µ‚Ä‚­‚¾‚³‚¢B');
+      alert('ã€Œå®Ÿè»Šï¼šæœ‰åŠ¹ã€ã«ã—ã¦ã‹ã‚‰è£œæ­£ã—ã¦ãã ã•ã„ã€‚');
       return;
     }
     if(!navigator.geolocation){
-      alert('‚±‚Ì’[––‚Å‚ÍˆÊ’uî•ñ‚ª—˜—p‚Å‚«‚Ü‚¹‚ñB');
+      alert('ã“ã®ç«¯æœ«ã§ã¯ä½ç½®æƒ…å ±ãŒåˆ©ç”¨ã§ãã¾ã›ã‚“ã€‚');
       return;
     }
 
     const btn = document.getElementById('btnPosFix');
     const oldText = btn.textContent;
     btn.disabled = true;
-    btn.textContent = '•â³’†c';
-    showToast('©ÔˆÊ’u‚ğ•â³‚µ‚Ä‚¢‚Ü‚·c', 1.2);
+    btn.textContent = 'è£œæ­£ä¸­â€¦';
+    showToast('è‡ªè»Šä½ç½®ã‚’è£œæ­£ã—ã¦ã„ã¾ã™â€¦', 1.2);
 
     const samples = [];
     async function oneShot(timeoutMs){
@@ -825,7 +825,7 @@ const FLEET={
       }
 
       if(samples.length===0){
-        throw new Error('ˆÊ’u‚ğæ“¾‚Å‚«‚Ü‚¹‚ñ‚Å‚µ‚½B');
+        throw new Error('ä½ç½®ã‚’å–å¾—ã§ãã¾ã›ã‚“ã§ã—ãŸã€‚');
       }
 
       samples.sort((a,b)=>a.acc-b.acc);
@@ -852,9 +852,9 @@ const FLEET={
         }
       }
 
-      showToast(`•â³Š®—¹i¸“x –ñ${Math.round(best.acc)}mj`, 2.5);
+      showToast(`è£œæ­£å®Œäº†ï¼ˆç²¾åº¦ ç´„${Math.round(best.acc)}mï¼‰`, 2.5);
     }catch(e){
-      alert('ˆÊ’u•â³‚É¸”s‚µ‚Ü‚µ‚½BˆÊ’uî•ñ‚Ì‹–‰Â‚â“d”gó‹µ‚ğ‚²Šm”F‚­‚¾‚³‚¢B');
+      alert('ä½ç½®è£œæ­£ã«å¤±æ•—ã—ã¾ã—ãŸã€‚ä½ç½®æƒ…å ±ã®è¨±å¯ã‚„é›»æ³¢çŠ¶æ³ã‚’ã”ç¢ºèªãã ã•ã„ã€‚');
       console.warn(e);
     }finally{
       btn.disabled = false;
@@ -890,7 +890,7 @@ const FLEET={
     }else{
       const svUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${p.lat},${p.lon}`;
       return `<b>${p.name}</b>${badge}<br>
-              <a class="link-sv" href="${svUrl}" target="_blank" rel="noopener">SViƒXƒgƒŠ[ƒgƒrƒ…[j</a>`;
+              <a class="link-sv" href="${svUrl}" target="_blank" rel="noopener">SVï¼ˆã‚¹ãƒˆãƒªãƒ¼ãƒˆãƒ“ãƒ¥ãƒ¼ï¼‰</a>`;
     }
   }
   function setPopupContent(p){ p.marker.bindPopup(popupHtmlFor(p)); }
@@ -910,7 +910,7 @@ const FLEET={
 
   function refreshFab(){
     const n = selected.size;
-    btnFabCollect.textContent = `‰ñûi‘I‘ğ ${n}j`;
+    btnFabCollect.textContent = `å›åï¼ˆé¸æŠ ${n}ï¼‰`;
     btnFabCollect.style.display = n>0 ? 'inline-block' : 'none';
     btnFabSkip.style.display    = n>0 ? 'inline-block' : 'none';
   }
@@ -921,24 +921,24 @@ const FLEET={
       return;
     }
     if(rec.status==='collected'){
-      if(confirm('ƒAƒCƒRƒ“F‚ğÔ‚©‚ç‰©(–³‰ñû)‚É•ÏX‚µ‚Ü‚·‚©H')){
+      if(confirm('ã‚¢ã‚¤ã‚³ãƒ³è‰²ã‚’èµ¤ã‹ã‚‰é»„(ç„¡å›å)ã«å¤‰æ›´ã—ã¾ã™ã‹ï¼Ÿ')){
         rec.status='skipped';
         rec.marker.setIcon(yellowIcon);
-        updateLastLogResultType(rec.name, '–³‰ñû');
+        updateLastLogResultType(rec.name, 'ç„¡å›å');
         if(rec.selRing){ try{ map.removeLayer(rec.selRing); }catch(_e){} rec.selRing=null; }
         updatePointCount();
-        showToast(`u${rec.name}v‚ğ–³‰ñûi‰©j‚É•ÏX‚µ‚Ü‚µ‚½`,2);
+        showToast(`ã€Œ${rec.name}ã€ã‚’ç„¡å›åï¼ˆé»„ï¼‰ã«å¤‰æ›´ã—ã¾ã—ãŸ`,2);
       }
       return;
     }
     if(rec.status==='skipped'){
-      if(confirm('ƒAƒCƒRƒ“F‚ğ‰©‚©‚çÔ(‰ñûÏ)‚É•ÏX‚µ‚Ü‚·‚©H')){
+      if(confirm('ã‚¢ã‚¤ã‚³ãƒ³è‰²ã‚’é»„ã‹ã‚‰èµ¤(å›åæ¸ˆ)ã«å¤‰æ›´ã—ã¾ã™ã‹ï¼Ÿ')){
         rec.status='collected';
         rec.marker.setIcon(redIcon);
-        updateLastLogResultType(rec.name, '‰ñû');
+        updateLastLogResultType(rec.name, 'å›å');
         if(rec.selRing){ try{ map.removeLayer(rec.selRing); }catch(_e){} rec.selRing=null; }
         updatePointCount();
-        showToast(`u${rec.name}v‚ğ‰ñûÏiÔj‚É–ß‚µ‚Ü‚µ‚½`,2);
+        showToast(`ã€Œ${rec.name}ã€ã‚’å›åæ¸ˆï¼ˆèµ¤ï¼‰ã«æˆ»ã—ã¾ã—ãŸ`,2);
       }
       return;
     }
@@ -960,7 +960,7 @@ const FLEET={
     refreshFab();
   }
 
-  /* ===== Ver173: PC—pƒzƒo[ƒc[ƒ‹ƒ`ƒbƒv ===== */
+  /* ===== Ver173: PCç”¨ãƒ›ãƒãƒ¼ãƒ„ãƒ¼ãƒ«ãƒãƒƒãƒ— ===== */
   function escapeTooltipText(v){
     return String(v ?? '')
       .replace(/&/g,'&amp;')
@@ -978,14 +978,14 @@ const FLEET={
       lat,lon,
       desc:(desc||'').toString().trim(),
       note:(note||'').toString().trim(),
-      speak:(speak||'').toString().replace(/@/g,' ').trim(),
+      speak:(speak||'').toString().replace(/ã€€/g,' ').trim(),
       marker:m,status:'normal',selRing:null,seq:undefined
     };
     setPopupContent(rec);
     m.on('click', ()=> onMarkerClick(rec));
 
-    // Leaflet•W€tooltip‚ÅAƒ}ƒEƒXƒI[ƒo[‚Ì‚İ’n“_–¼‚ğƒAƒCƒRƒ“ã•”‚É•\¦‚·‚éB
-    // Windows PC‚ªƒ^ƒbƒ`‘Î‰‚Ìê‡‚Å‚àƒ}ƒEƒX‘€ì‚Å•\¦‚³‚ê‚é‚æ‚¤Aƒ^ƒbƒ`”»’è‚ÅœŠO‚µ‚È‚¢B
+    // Leafletæ¨™æº–tooltipã§ã€ãƒã‚¦ã‚¹ã‚ªãƒ¼ãƒãƒ¼æ™‚ã®ã¿åœ°ç‚¹åã‚’ã‚¢ã‚¤ã‚³ãƒ³ä¸Šéƒ¨ã«è¡¨ç¤ºã™ã‚‹ã€‚
+    // Windows PCãŒã‚¿ãƒƒãƒå¯¾å¿œã®å ´åˆã§ã‚‚ãƒã‚¦ã‚¹æ“ä½œã§è¡¨ç¤ºã•ã‚Œã‚‹ã‚ˆã†ã€ã‚¿ãƒƒãƒåˆ¤å®šã§é™¤å¤–ã—ãªã„ã€‚
     m.bindTooltip(escapeTooltipText(rec.name), {
       direction:'top',
       offset:[0,-34],
@@ -994,7 +994,7 @@ const FLEET={
       permanent:false,
       className:'marker-name-tooltip-v159'
     });
-    /* ===== Ver160 ‚±‚±‚Ü‚Å ===== */
+    /* ===== Ver160 ã“ã“ã¾ã§ ===== */
 
     points.push(rec);
     nameIndex.set(name,rec);
@@ -1003,7 +1003,7 @@ const FLEET={
   function updatePointCount(){
     const nRed=points.filter(p=>p.status==='collected').length;
     const nYellow=points.filter(p=>p.status==='skipped').length;
-    document.getElementById('pointCount').textContent = `${points.length} ‰ÓŠ(Ô${nRed}/‰©${nYellow})`;
+    document.getElementById('pointCount').textContent = `${points.length} ç®‡æ‰€(èµ¤${nRed}/é»„${nYellow})`;
   }
 
   function clearSelection(){
@@ -1029,10 +1029,10 @@ const FLEET={
     strictOrder=[];
     nextDistByName.clear();
 
-    // Ver173: ’n“_CSV–¢“Ç‚â“Ç“r’†‚ÉAó‹µ•\¦XV‚¾‚¯‚ÅŒx‚ğo‚³‚È‚¢B
+    // Ver173: åœ°ç‚¹CSVæœªèª­è¾¼æ™‚ã‚„èª­è¾¼é€”ä¸­ã«ã€çŠ¶æ³è¡¨ç¤ºæ›´æ–°ã ã‘ã§è­¦å‘Šã‚’å‡ºã•ãªã„ã€‚
     if(points.length === 0){ return; }
     if(!firstLoadedName || !nameIndex.has(firstLoadedName)){
-      if(!silent) alert('æ“ªs‚Ì Name ‚ª³‚µ‚­“Ç‚İ‚ß‚Ä‚¢‚Ü‚¹‚ñB');
+      if(!silent) alert('å…ˆé ­è¡Œã® Name ãŒæ­£ã—ãèª­ã¿è¾¼ã‚ã¦ã„ã¾ã›ã‚“ã€‚');
       return;
     }
 
@@ -1040,12 +1040,12 @@ const FLEET={
     let cur = firstLoadedName;
     while(cur && !visited.has(cur)){
       const p = nameIndex.get(cur);
-      if(!p){ if(!silent) alert('‘¶İ‚µ‚È‚¢’n“_‚ªQÆ‚³‚ê‚Ü‚µ‚½: '+cur); break; }
+      if(!p){ if(!silent) alert('å­˜åœ¨ã—ãªã„åœ°ç‚¹ãŒå‚ç…§ã•ã‚Œã¾ã—ãŸ: '+cur); break; }
       strictOrder.push(cur);
       visited.add(cur);
       if(!p.desc) break;
       if(!nameIndex.has(p.desc)){
-        if(!silent) alert('Description ‚ª–¢’è‹`‚Ì’n“_‚ğQÆ‚µ‚Ä‚¢‚Ü‚·: '+p.name+' ¨ '+p.desc);
+        if(!silent) alert('Description ãŒæœªå®šç¾©ã®åœ°ç‚¹ã‚’å‚ç…§ã—ã¦ã„ã¾ã™: '+p.name+' â†’ '+p.desc);
         break;
       }
       const nx = p.desc;
@@ -1058,9 +1058,9 @@ const FLEET={
   }
 
 
-  // ===== Ver173: ÀÔ–³Œø‚ÌuƒR[ƒXˆê——“Çã‚°v =====
-  // Eƒ{ƒ^ƒ“‚Íİ’èƒpƒlƒ‹ŠOi‰¹—Ê-/‰¹—Ê+/İ’è‚Ì‰ºj‚Öí•\¦
-  // E’â~Œã‚ÍA’â~‚µ‚½Ÿ‚Ì‰ñû’n“_‚©‚çÄŠJ‚Å‚«‚é‚æ‚¤‚ÉŒ»İˆÊ’u‚ğ•Û
+  // ===== Ver173: å®Ÿè»Šç„¡åŠ¹æ™‚ã®ã€Œã‚³ãƒ¼ã‚¹ä¸€è¦§èª­ä¸Šã’ã€ =====
+  // ãƒ»ãƒœã‚¿ãƒ³ã¯è¨­å®šãƒ‘ãƒãƒ«å¤–ï¼ˆéŸ³é‡-/éŸ³é‡+/è¨­å®šã®ä¸‹ï¼‰ã¸å¸¸æ™‚è¡¨ç¤º
+  // ãƒ»åœæ­¢å¾Œã¯ã€åœæ­¢ã—ãŸæ¬¡ã®å›ååœ°ç‚¹ã‹ã‚‰å†é–‹ã§ãã‚‹ã‚ˆã†ã«ç¾åœ¨ä½ç½®ã‚’ä¿æŒ
   let courseReadActive = false;
   let courseReadIndex = parseInt(localStorage.getItem('courseReadIndex') || '0', 10);
   if(!Number.isFinite(courseReadIndex) || courseReadIndex < 0) courseReadIndex = 0;
@@ -1076,16 +1076,16 @@ const FLEET={
   function updateCourseReadStatus(){
     const st = document.getElementById('courseReadStatus');
     const orderLen = buildCourseReadOrder({silent:true}).length;
-    const posText = orderLen ? (' / Ÿ:' + Math.min(courseReadIndex + 1, orderLen) + '/' + orderLen) : '';
-    if(st) st.textContent = '“Çã‚°ŠÔŠuF' + (courseReadDelayMs/1000).toFixed(1) + '•b' + posText;
+    const posText = orderLen ? (' / æ¬¡:' + Math.min(courseReadIndex + 1, orderLen) + '/' + orderLen) : '';
+    if(st) st.textContent = 'èª­ä¸Šã’é–“éš”ï¼š' + (courseReadDelayMs/1000).toFixed(1) + 'ç§’' + posText;
     localStorage.setItem('courseReadDelayMs', String(courseReadDelayMs));
   }
   function updateCourseReadButton(){
     const b = document.getElementById('btnCourseRead');
-    if(b) b.textContent = courseReadActive ? '“Çã‚°’â~' : 'ƒR[ƒXˆê——“Çã‚°';
+    if(b) b.textContent = courseReadActive ? 'èª­ä¸Šã’åœæ­¢' : 'ã‚³ãƒ¼ã‚¹ä¸€è¦§èª­ä¸Šã’';
   }
   function stopCourseRead(){
-    // Œ»İ“Çã‚°’†‚Ì’n“_‚ğ’†’f‚µ‚½ê‡‚àAŸ‰ñ‚ÍuŸ‚Ì‰ñû’n“_v‚©‚çÄŠJ‚·‚é
+    // ç¾åœ¨èª­ä¸Šã’ä¸­ã®åœ°ç‚¹ã‚’ä¸­æ–­ã—ãŸå ´åˆã‚‚ã€æ¬¡å›ã¯ã€Œæ¬¡ã®å›ååœ°ç‚¹ã€ã‹ã‚‰å†é–‹ã™ã‚‹
     courseReadActive = false;
     updateCourseReadButton();
     updateCourseReadStatus();
@@ -1107,13 +1107,13 @@ const FLEET={
     unlockAll();
 
     if(realMode){
-      alert('uƒR[ƒXˆê——“Çã‚°v‚ÍAÀÔF–³Œø‚Ì‚Æ‚«‚¾‚¯g—p‚Å‚«‚Ü‚·B');
+      alert('ã€Œã‚³ãƒ¼ã‚¹ä¸€è¦§èª­ä¸Šã’ã€ã¯ã€å®Ÿè»Šï¼šç„¡åŠ¹ã®ã¨ãã ã‘ä½¿ç”¨ã§ãã¾ã™ã€‚');
       return;
     }
-    if(points.length===0){ alert('’n“_‚ª‚ ‚è‚Ü‚¹‚ñB'); return; }
+    if(points.length===0){ alert('åœ°ç‚¹ãŒã‚ã‚Šã¾ã›ã‚“ã€‚'); return; }
 
     const order = buildCourseReadOrder({silent:false});
-    if(!order.length){ alert('“Ç‚İã‚°‚Å‚«‚é’n“_‚ª‚ ‚è‚Ü‚¹‚ñB'); return; }
+    if(!order.length){ alert('èª­ã¿ä¸Šã’ã§ãã‚‹åœ°ç‚¹ãŒã‚ã‚Šã¾ã›ã‚“ã€‚'); return; }
     resetCourseReadIndexIfNeeded(order);
 
     courseReadActive = true;
@@ -1125,16 +1125,16 @@ const FLEET={
       for(let i=courseReadIndex; i<order.length && courseReadActive; i++){
         const nm = order[i];
         const p = nameIndex.get(nm);
-        // “Çã‚°’â~ƒ{ƒ^ƒ“‚ğ‰Ÿ‚µ‚½ê‡AŸ‰ñ‚Í‚±‚ÌŸ‚Ì’n“_‚©‚çÄŠJ‚·‚é
+        // èª­ä¸Šã’åœæ­¢ãƒœã‚¿ãƒ³ã‚’æŠ¼ã—ãŸå ´åˆã€æ¬¡å›ã¯ã“ã®æ¬¡ã®åœ°ç‚¹ã‹ã‚‰å†é–‹ã™ã‚‹
         saveCourseReadIndex(Math.min(i + 1, order.length));
         updateCourseReadStatus();
         if(!p) continue;
         focusTarget(nm);
-        await speakSafeAsync(getSpeakOf(p) + ' ‚ÉŒü‚©‚Á‚Ä‚­‚¾‚³‚¢B');
+        await speakSafeAsync(getSpeakOf(p) + ' ã«å‘ã‹ã£ã¦ãã ã•ã„ã€‚');
         if(i < order.length - 1 && courseReadActive) await waitMs(courseReadDelayMs);
       }
       if(courseReadActive){
-        await speakSafeAsync('ƒR[ƒXˆê——‚Ì“Ç‚İã‚°‚ªI—¹‚µ‚Ü‚µ‚½B');
+        await speakSafeAsync('ã‚³ãƒ¼ã‚¹ä¸€è¦§ã®èª­ã¿ä¸Šã’ãŒçµ‚äº†ã—ã¾ã—ãŸã€‚');
         saveCourseReadIndex(0);
       }
     }finally{
@@ -1158,12 +1158,12 @@ const FLEET={
   document.getElementById('btnReadSlower').addEventListener('click', ()=>{
     courseReadDelayMs = Math.min(10000, courseReadDelayMs + 500);
     updateCourseReadStatus();
-    showToast('“Çã‚°ŠÔŠuF' + (courseReadDelayMs/1000).toFixed(1) + '•b', 1.2);
+    showToast('èª­ä¸Šã’é–“éš”ï¼š' + (courseReadDelayMs/1000).toFixed(1) + 'ç§’', 1.2);
   });
   document.getElementById('btnReadFaster').addEventListener('click', ()=>{
     courseReadDelayMs = Math.max(700, courseReadDelayMs - 500);
     updateCourseReadStatus();
-    showToast('“Çã‚°ŠÔŠuF' + (courseReadDelayMs/1000).toFixed(1) + '•b', 1.2);
+    showToast('èª­ä¸Šã’é–“éš”ï¼š' + (courseReadDelayMs/1000).toFixed(1) + 'ç§’', 1.2);
   });
   updateCourseReadStatus();
   updateCourseReadButton();
@@ -1187,9 +1187,9 @@ const FLEET={
 
   function normalizeResultType(rt){
     const s = String(rt || '').trim();
-    if(s === '–³‰ñû' || s === 'no_collect' || s === 'skip' || s === 'skipped' || s === 'yellow') return '–³‰ñû';
-    if(s === '‰ñû' || s === 'collected' || s === 'auto' || s === 'manual' || s === 'red') return '‰ñû';
-    return s || '‰ñû';
+    if(s === 'ç„¡å›å' || s === 'no_collect' || s === 'skip' || s === 'skipped' || s === 'yellow') return 'ç„¡å›å';
+    if(s === 'å›å' || s === 'collected' || s === 'auto' || s === 'manual' || s === 'red') return 'å›å';
+    return s || 'å›å';
   }
 
   function findLastLogIndexByPlace(place){
@@ -1226,12 +1226,12 @@ const FLEET={
     const payload = makeCollectionPayload(row, row[6]);
     payload.updateReason = 'status-toggle';
     sendRowToServer(payload).then(res=>{
-      console.log('GASŒ‹‰Ê‹æ•ªXVOK:', res);
+      console.log('GASçµæœåŒºåˆ†æ›´æ–°OK:', res);
     }).catch(e=>{
-      console.warn('GASŒ‹‰Ê‹æ•ªXV‚É¸”sB–¢‘—MƒLƒ…[‚Ö•Û‘¶:', e);
+      console.warn('GASçµæœåŒºåˆ†æ›´æ–°ã«å¤±æ•—ã€‚æœªé€ä¿¡ã‚­ãƒ¥ãƒ¼ã¸ä¿å­˜:', e);
       pendingRows.push(payload);
       savePendingRows();
-      showToast('GAS‘—M¸”sFŒ‹‰Ê‹æ•ªXV‚ğ–¢‘—M•Û‘¶‚µ‚Ü‚µ‚½', 3);
+      showToast('GASé€ä¿¡å¤±æ•—ï¼šçµæœåŒºåˆ†æ›´æ–°ã‚’æœªé€ä¿¡ä¿å­˜ã—ã¾ã—ãŸ', 3);
     });
     return true;
   }
@@ -1243,7 +1243,7 @@ const FLEET={
 
   function makeCollectionPayload(row, resultType){
     const stamp = row[0] ?? nowStamp();
-    const rt = normalizeResultType(resultType || row[6] || '‰ñû');
+    const rt = normalizeResultType(resultType || row[6] || 'å›å');
     const recordId = ensureLogRowRecordId(row);
     const noteText = getNoteForPlace(row[1]) || row[9] || '';
 
@@ -1265,14 +1265,14 @@ const FLEET={
       pageUrl: location.href || '',
       note: noteText,
       remarks: noteText,
-      iconColor: rt === '–³‰ñû' ? 'yellow' : 'red'
+      iconColor: rt === 'ç„¡å›å' ? 'yellow' : 'red'
     };
   }
 
-  function pushLogRow(row, resultType='‰ñû'){
-    // ’[––“à‚É‚à]—ˆ‚Ç‚¨‚èc‚µ‚Ü‚·i’ÊMŒ—ŠOE‘—M¸”s‚Ì•ÛŒ¯j
+  function pushLogRow(row, resultType='å›å'){
+    // ç«¯æœ«å†…ã«ã‚‚å¾“æ¥ã©ãŠã‚Šæ®‹ã—ã¾ã™ï¼ˆé€šä¿¡åœå¤–ãƒ»é€ä¿¡å¤±æ•—æ™‚ã®ä¿é™ºï¼‰
     const row2 = Array.isArray(row) ? row.slice() : [];
-    const rt = normalizeResultType(resultType || row2[6] || '‰ñû');
+    const rt = normalizeResultType(resultType || row2[6] || 'å›å');
     row2[6] = rt;
     ensureLogRowRecordId(row2);
     if(!row2[8]) row2[8] = currentCourseName || '';
@@ -1283,12 +1283,12 @@ const FLEET={
 
     const payload = makeCollectionPayload(row2, rt);
     sendRowToServer(payload).then(res=>{
-      console.log('GASˆêŒ³•Û‘¶OK:', res);
+      console.log('GASä¸€å…ƒä¿å­˜OK:', res);
     }).catch(e=>{
-      console.warn('GASˆêŒ³•Û‘¶‚É¸”sB–¢‘—MƒLƒ…[‚Ö•Û‘¶:', e);
+      console.warn('GASä¸€å…ƒä¿å­˜ã«å¤±æ•—ã€‚æœªé€ä¿¡ã‚­ãƒ¥ãƒ¼ã¸ä¿å­˜:', e);
       pendingRows.push(payload);
       savePendingRows();
-      showToast('GAS‘—M¸”sF’[––“à‚É–¢‘—M•Û‘¶‚µ‚Ü‚µ‚½', 3);
+      showToast('GASé€ä¿¡å¤±æ•—ï¼šç«¯æœ«å†…ã«æœªé€ä¿¡ä¿å­˜ã—ã¾ã—ãŸ', 3);
     });
   }
 
@@ -1307,18 +1307,18 @@ const FLEET={
     }
     pendingRows = remain;
     savePendingRows();
-    if(ok>0) showToast(`–¢‘—MƒƒO ${ok} Œ‚ğGAS‚ÖÄ‘—‚µ‚Ü‚µ‚½`, 3);
+    if(ok>0) showToast(`æœªé€ä¿¡ãƒ­ã‚° ${ok} ä»¶ã‚’GASã¸å†é€ã—ã¾ã—ãŸ`, 3);
   }
   setTimeout(retryPendingRows, 2500);
   window.addEventListener('online', retryPendingRows);
 
   async function collectSelected(){
-    if(!confirm('–{“–‚É‰ñû‚µ‚Ü‚·‚©H')){ clearSelection(); return; }
+    if(!confirm('æœ¬å½“ã«å›åã—ã¾ã™ã‹ï¼Ÿ')){ clearSelection(); return; }
     if(selected.size===0) return;
 
-    // Ver173: ÀÔ—LŒø‚ÌŒ»İ’næ“¾‚ğ—áŠOˆÀ‘S‰»‚·‚éB
-    // Œ»İ’nƒ}[ƒJ[EGPS‚Ìæ“¾‚É¸”s‚µ‚Ä‚àAˆÜ“xŒo“x‚ğ‹ó—“‚Æ‚µ‚Ä
-    // •K‚¸Œã‘±‚Ì‰ñû‹L˜^‚¨‚æ‚ÑGAS‘—M‚Öi‚ŞB
+    // Ver173: å®Ÿè»Šæœ‰åŠ¹æ™‚ã®ç¾åœ¨åœ°å–å¾—ã‚’ä¾‹å¤–å®‰å…¨åŒ–ã™ã‚‹ã€‚
+    // ç¾åœ¨åœ°ãƒãƒ¼ã‚«ãƒ¼ãƒ»GPSã®å–å¾—ã«å¤±æ•—ã—ã¦ã‚‚ã€ç·¯åº¦çµŒåº¦ã‚’ç©ºæ¬„ã¨ã—ã¦
+    // å¿…ãšå¾Œç¶šã®å›åè¨˜éŒ²ãŠã‚ˆã³GASé€ä¿¡ã¸é€²ã‚€ã€‚
     let lat='', lon='';
     if(realMode){
       try{
@@ -1329,7 +1329,7 @@ const FLEET={
           lon = quick[1];
         }
       }catch(e){
-        console.warn('Œ»İ’nƒ}[ƒJ[‚©‚ç‚ÌˆÜ“xŒo“xæ“¾‚É¸”s‚µ‚Ü‚µ‚½B', e);
+        console.warn('ç¾åœ¨åœ°ãƒãƒ¼ã‚«ãƒ¼ã‹ã‚‰ã®ç·¯åº¦çµŒåº¦å–å¾—ã«å¤±æ•—ã—ã¾ã—ãŸã€‚', e);
       }
 
       if(lat === '' || lon === ''){
@@ -1341,7 +1341,7 @@ const FLEET={
             lon = latest[1];
           }
         }catch(e){
-          console.warn('GPSŒ»İ’n‚Ìæ“¾‚É¸”s‚µ‚Ü‚µ‚½BˆÜ“xŒo“x‚ğ‹ó—“‚Å‹L˜^‚µ‚Ü‚·B', e);
+          console.warn('GPSç¾åœ¨åœ°ã®å–å¾—ã«å¤±æ•—ã—ã¾ã—ãŸã€‚ç·¯åº¦çµŒåº¦ã‚’ç©ºæ¬„ã§è¨˜éŒ²ã—ã¾ã™ã€‚', e);
         }
       }
     }
@@ -1352,14 +1352,14 @@ const FLEET={
       const p=nameIndex.get(nm);
       if(!p || p.status!=='normal') continue;
       const vehicle=vehicleSel.value; const driver=driverSel.value;
-      pushLogRow([nowStamp(), p.name, lat, lon, vehicle, driver, '‰ñû'], '‰ñû');
+      pushLogRow([nowStamp(), p.name, lat, lon, vehicle, driver, 'å›å'], 'å›å');
       p.status='collected';
       p.marker.setIcon(redIcon);
       if(p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
       selected.delete(nm);
       done++;
     }
-    if(done>0){ if(realMode) chime(); showToast(`${done} Œi‰ñûj‚ğ‹L˜^‚µ‚Ü‚µ‚½`,2); updatePointCount(); }
+    if(done>0){ if(realMode) chime(); showToast(`${done} ä»¶ï¼ˆå›åï¼‰ã‚’è¨˜éŒ²ã—ã¾ã—ãŸ`,2); updatePointCount(); }
     refreshFab();
 
     if(done===1 && selectedNow.length===1){
@@ -1374,13 +1374,13 @@ const FLEET={
       const p=nameIndex.get(nm);
       if(!p || p.status!=='normal') continue;
       p.status='skipped';
-      try{ pushLogRow([nowStamp(), p.name, '', '', vehicleSel.value, driverSel.value, '–³‰ñû'], '–³‰ñû'); }catch(_e){}
+      try{ pushLogRow([nowStamp(), p.name, '', '', vehicleSel.value, driverSel.value, 'ç„¡å›å'], 'ç„¡å›å'); }catch(_e){}
       p.marker.setIcon(yellowIcon);
       if(p.selRing){ map.removeLayer(p.selRing); p.selRing=null; }
       selected.delete(nm);
       done++;
     }
-    if(done>0){ showToast(`${done} Œ‚ğu–³‰ñûv‚É‚µ‚Ü‚µ‚½`,2); updatePointCount(); }
+    if(done>0){ showToast(`${done} ä»¶ã‚’ã€Œç„¡å›åã€ã«ã—ã¾ã—ãŸ`,2); updatePointCount(); }
     refreshFab();
 
     if(done===1 && selectedNow.length===1){
@@ -1391,12 +1391,12 @@ const FLEET={
   document.getElementById('btnFabSkip').addEventListener('click',    skipSelected);
 
   function clearAllPoints(){
-    const ok = confirm('‰ñû’n“_EŠî–{‰ñûƒ‹[ƒg‚Ìƒf[ƒ^‚ğÁ‹‚µ‚Ü‚·‚©H'); if(!ok) return;
+    const ok = confirm('å›ååœ°ç‚¹ãƒ»åŸºæœ¬å›åãƒ«ãƒ¼ãƒˆã®ãƒ‡ãƒ¼ã‚¿ã‚’æ¶ˆå»ã—ã¾ã™ã‹ï¼Ÿ'); if(!ok) return;
     stopBlink();
     points.forEach(p=>{ if(p.selRing) map.removeLayer(p.selRing); map.removeLayer(p.marker); });
     stopCourseRead();
 
-    // Ver173: u‰ñû’n“_‘SƒNƒŠƒAv‚ÅA’n“_CSV‚¾‚¯‚Å‚È‚­Šî–{‰ñûƒ‹[ƒgiÔüj‚à‰Šúó‘Ô‚Ö–ß‚·B
+    // Ver173: ã€Œå›ååœ°ç‚¹å…¨ã‚¯ãƒªã‚¢ã€ã§ã€åœ°ç‚¹CSVã ã‘ã§ãªãåŸºæœ¬å›åãƒ«ãƒ¼ãƒˆï¼ˆèµ¤ç·šï¼‰ã‚‚åˆæœŸçŠ¶æ…‹ã¸æˆ»ã™ã€‚
     if(routeLayer){
       try{ map.removeLayer(routeLayer); }catch(_e){}
       routeLayer = null;
@@ -1409,7 +1409,7 @@ const FLEET={
     document.getElementById('fileRoute').value='';
     currentCourseName='';
     updatePointCount();
-    alert('‰ñû’n“_‚ÆŠî–{‰ñûƒ‹[ƒg‚ğ‘S‚ÄÁ‹‚µ‚Ü‚µ‚½B');
+    alert('å›ååœ°ç‚¹ã¨åŸºæœ¬å›åãƒ«ãƒ¼ãƒˆã‚’å…¨ã¦æ¶ˆå»ã—ã¾ã—ãŸã€‚');
   }
   document.getElementById('btnClearAll').addEventListener('click', clearAllPoints);
 
@@ -1439,22 +1439,22 @@ const FLEET={
   }
 
 
-  // ===== Ver156: MyDrive“¯Šú =====
-  // d—vFHTML/ƒuƒ‰ƒEƒU‚©‚çAndroidİ’è‚ÌuDrive“¯ŠúON/OFFv‚ğ’¼Ú‘€ì‚·‚é‚±‚Æ‚Í‚Å‚«‚Ü‚¹‚ñB
-  // ‚»‚Ì‚½‚ßA‚±‚Ìƒ{ƒ^ƒ“‚Å‚Íƒuƒ‰ƒEƒU‘¤ƒLƒƒƒbƒVƒ…‚ğŒy‚­Á‹‚µAGoogle DriveƒtƒHƒ‹ƒ_‚ğŠJ‚«‚Ü‚·B
-  // ’n“_CSVEŠî–{‰ñûƒ‹[ƒg‚Ì“Ç‚ÍA]—ˆ‚Ç‚¨‚è‰æ–Êã‚ÌŠeuƒtƒ@ƒCƒ‹‚ğ‘I‘ğvƒ{ƒ^ƒ“‚©‚çs‚¢‚Ü‚·B
+  // ===== Ver156: MyDriveåŒæœŸ =====
+  // é‡è¦ï¼šHTML/ãƒ–ãƒ©ã‚¦ã‚¶ã‹ã‚‰Androidè¨­å®šã®ã€ŒDriveåŒæœŸON/OFFã€ã‚’ç›´æ¥æ“ä½œã™ã‚‹ã“ã¨ã¯ã§ãã¾ã›ã‚“ã€‚
+  // ãã®ãŸã‚ã€ã“ã®ãƒœã‚¿ãƒ³ã§ã¯ãƒ–ãƒ©ã‚¦ã‚¶å´ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã‚’è»½ãæ¶ˆå»ã—ã€Google Driveãƒ•ã‚©ãƒ«ãƒ€ã‚’é–‹ãã¾ã™ã€‚
+  // åœ°ç‚¹CSVãƒ»åŸºæœ¬å›åãƒ«ãƒ¼ãƒˆã®èª­è¾¼ã¯ã€å¾“æ¥ã©ãŠã‚Šç”»é¢ä¸Šã®å„ã€Œãƒ•ã‚¡ã‚¤ãƒ«ã‚’é¸æŠã€ãƒœã‚¿ãƒ³ã‹ã‚‰è¡Œã„ã¾ã™ã€‚
   async function syncMyDriveFromGas(){
     blurAllInputs();
     unlockAll();
 
     const btn = document.getElementById('btnMyDriveSync');
-    const oldText = btn ? btn.textContent : 'MyDrive“¯Šú';
-    if(btn){ btn.disabled = true; btn.textContent = 'Drive‚ğŠJ‚­c'; }
+    const oldText = btn ? btn.textContent : 'MyDriveåŒæœŸ';
+    if(btn){ btn.disabled = true; btn.textContent = 'Driveã‚’é–‹ãâ€¦'; }
 
     try{
-      showToast('Google DriveƒtƒHƒ‹ƒ_‚ğŠJ‚«‚Ü‚·B“Ç‚ÍŠeƒtƒ@ƒCƒ‹‘I‘ğƒ{ƒ^ƒ“‚Ås‚Á‚Ä‚­‚¾‚³‚¢B', 3);
+      showToast('Google Driveãƒ•ã‚©ãƒ«ãƒ€ã‚’é–‹ãã¾ã™ã€‚èª­è¾¼ã¯å„ãƒ•ã‚¡ã‚¤ãƒ«é¸æŠãƒœã‚¿ãƒ³ã§è¡Œã£ã¦ãã ã•ã„ã€‚', 3);
 
-      // ƒuƒ‰ƒEƒU‘¤‚ÌƒLƒƒƒbƒVƒ…‚¾‚¯Œy‚­íœiAndroid OS‚ÌDrive“¯Šú‘€ì‚Å‚Í‚ ‚è‚Ü‚¹‚ñj
+      // ãƒ–ãƒ©ã‚¦ã‚¶å´ã®ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã ã‘è»½ãå‰Šé™¤ï¼ˆAndroid OSã®DriveåŒæœŸæ“ä½œã§ã¯ã‚ã‚Šã¾ã›ã‚“ï¼‰
       if('caches' in window){
         try{
           const names = await caches.keys();
@@ -1471,38 +1471,38 @@ const FLEET={
 
       const opened = window.open(MYDRIVE_FOLDER_URL, '_blank');
       if(!opened){
-        alert('Google DriveƒtƒHƒ‹ƒ_‚ğŠJ‚¯‚Ü‚¹‚ñ‚Å‚µ‚½B\nƒuƒ‰ƒEƒU‚Ìƒ|ƒbƒvƒAƒbƒvƒuƒƒbƒN‚ğ‰ğœ‚·‚é‚©A‰º‹LURL‚ğ’¼ÚŠJ‚¢‚Ä‚­‚¾‚³‚¢B\n\n' + MYDRIVE_FOLDER_URL);
+        alert('Google Driveãƒ•ã‚©ãƒ«ãƒ€ã‚’é–‹ã‘ã¾ã›ã‚“ã§ã—ãŸã€‚\nãƒ–ãƒ©ã‚¦ã‚¶ã®ãƒãƒƒãƒ—ã‚¢ãƒƒãƒ—ãƒ–ãƒ­ãƒƒã‚¯ã‚’è§£é™¤ã™ã‚‹ã‹ã€ä¸‹è¨˜URLã‚’ç›´æ¥é–‹ã„ã¦ãã ã•ã„ã€‚\n\n' + MYDRIVE_FOLDER_URL);
       }
     }catch(e){
       console.warn(e);
-      alert('MyDrive“¯Šúƒ{ƒ^ƒ“‚Ìˆ—‚ÅƒGƒ‰[‚ª”­¶‚µ‚Ü‚µ‚½B\n' + (e && e.message ? e.message : e));
+      alert('MyDriveåŒæœŸãƒœã‚¿ãƒ³ã®å‡¦ç†ã§ã‚¨ãƒ©ãƒ¼ãŒç™ºç”Ÿã—ã¾ã—ãŸã€‚\n' + (e && e.message ? e.message : e));
     }finally{
       if(btn){ btn.disabled = false; btn.textContent = oldText; }
     }
   }
 
 
-  // ===== Ver156: DriveƒtƒHƒ‹ƒ_•\¦•â• =====
-  // Android/Chrome‚Ìd—lãAƒtƒ@ƒCƒ‹‘I‘ğƒ_ƒCƒAƒƒO‚Ì‰ŠúƒtƒHƒ‹ƒ_‚ğHTML‚©‚çŒÅ’è‚·‚é‚±‚Æ‚Í‚Å‚«‚Ü‚¹‚ñB
-  // ‚»‚Ì‚½‚ßAƒtƒ@ƒCƒ‹‘I‘ğƒ{ƒ^ƒ“‚ğ‰Ÿ‚µ‚½‚Æ‚«‚ÍAŠY“–‚·‚éGoogle DriveƒtƒHƒ‹ƒ_‚ğ•Êƒ^ƒu‚ÅŠJ‚­‚¾‚¯‚É‚µ‚Ü‚·B
-  // ÀÛ‚Ì“Ç‚ÍA]—ˆ‚Ç‚¨‚èƒtƒ@ƒCƒ‹‘I‘ğƒ_ƒCƒAƒƒO‚Åƒtƒ@ƒCƒ‹‚ğ‘I‚ñ‚¾‚ ‚Æ‚ÉÀs‚³‚ê‚Ü‚·B
+  // ===== Ver156: Driveãƒ•ã‚©ãƒ«ãƒ€è¡¨ç¤ºè£œåŠ© =====
+  // Android/Chromeã®ä»•æ§˜ä¸Šã€ãƒ•ã‚¡ã‚¤ãƒ«é¸æŠãƒ€ã‚¤ã‚¢ãƒ­ã‚°ã®åˆæœŸãƒ•ã‚©ãƒ«ãƒ€ã‚’HTMLã‹ã‚‰å›ºå®šã™ã‚‹ã“ã¨ã¯ã§ãã¾ã›ã‚“ã€‚
+  // ãã®ãŸã‚ã€ãƒ•ã‚¡ã‚¤ãƒ«é¸æŠãƒœã‚¿ãƒ³ã‚’æŠ¼ã—ãŸã¨ãã¯ã€è©²å½“ã™ã‚‹Google Driveãƒ•ã‚©ãƒ«ãƒ€ã‚’åˆ¥ã‚¿ãƒ–ã§é–‹ãã ã‘ã«ã—ã¾ã™ã€‚
+  // å®Ÿéš›ã®èª­è¾¼ã¯ã€å¾“æ¥ã©ãŠã‚Šãƒ•ã‚¡ã‚¤ãƒ«é¸æŠãƒ€ã‚¤ã‚¢ãƒ­ã‚°ã§ãƒ•ã‚¡ã‚¤ãƒ«ã‚’é¸ã‚“ã ã‚ã¨ã«å®Ÿè¡Œã•ã‚Œã¾ã™ã€‚
   function openDriveFolderForFileInput(kind){
     try{
       const url = (kind === 'route') ? ROUTE_DRIVE_FOLDER_URL : POINTS_DRIVE_FOLDER_URL;
-      const label = (kind === 'route') ? 'Šî–{‰ñûƒ‹[ƒg' : '’n“_CSV';
+      const label = (kind === 'route') ? 'åŸºæœ¬å›åãƒ«ãƒ¼ãƒˆ' : 'åœ°ç‚¹CSV';
       if(!url){ return; }
 
-      showToast(label + '—p‚ÌGoogle DriveƒtƒHƒ‹ƒ_‚ğŠJ‚«‚Ü‚·Bƒtƒ@ƒCƒ‹‘I‘ğ‚Í]—ˆ‚Ç‚¨‚ès‚Á‚Ä‚­‚¾‚³‚¢B', 2.5);
+      showToast(label + 'ç”¨ã®Google Driveãƒ•ã‚©ãƒ«ãƒ€ã‚’é–‹ãã¾ã™ã€‚ãƒ•ã‚¡ã‚¤ãƒ«é¸æŠã¯å¾“æ¥ã©ãŠã‚Šè¡Œã£ã¦ãã ã•ã„ã€‚', 2.5);
 
-      // ƒtƒ@ƒCƒ‹‘I‘ğƒ_ƒCƒAƒƒO‚ğ–W‚°‚È‚¢‚æ‚¤A­‚µ’x‚ç‚¹‚Ä•Êƒ^ƒu‚ğŠJ‚­
+      // ãƒ•ã‚¡ã‚¤ãƒ«é¸æŠãƒ€ã‚¤ã‚¢ãƒ­ã‚°ã‚’å¦¨ã’ãªã„ã‚ˆã†ã€å°‘ã—é…ã‚‰ã›ã¦åˆ¥ã‚¿ãƒ–ã‚’é–‹ã
       setTimeout(()=>{
         try{
           const opened = window.open(url, '_blank');
           if(!opened){
-            console.warn('DriveƒtƒHƒ‹ƒ_‚ğŠJ‚¯‚Ü‚¹‚ñ‚Å‚µ‚½:', url);
+            console.warn('Driveãƒ•ã‚©ãƒ«ãƒ€ã‚’é–‹ã‘ã¾ã›ã‚“ã§ã—ãŸ:', url);
           }
         }catch(e){
-          console.warn('DriveƒtƒHƒ‹ƒ_‚ğŠJ‚­ˆ—‚ÅƒGƒ‰[:', e);
+          console.warn('Driveãƒ•ã‚©ãƒ«ãƒ€ã‚’é–‹ãå‡¦ç†ã§ã‚¨ãƒ©ãƒ¼:', e);
         }
       }, 250);
     }catch(e){
@@ -1516,7 +1516,7 @@ const FLEET={
     s = s.replace(/\.[^.]+$/,'');
     s = s.replace(/CSV$/i,'');
     s = s.replace(/collection_log.*$/i,'');
-    s = s.replace(/’n“_$/,'');
+    s = s.replace(/åœ°ç‚¹$/,'');
     return s.trim();
   }
 
@@ -1540,23 +1540,23 @@ const FLEET={
 
             const seen=new Set(), dups=new Set();
             for(const r of rows){
-              const nm=(r.Name||r.name||r['–¼Ì']||r['ƒ^ƒCƒgƒ‹']||r.title||r.id||'').toString().trim();
+              const nm=(r.Name||r.name||r['åç§°']||r['ã‚¿ã‚¤ãƒˆãƒ«']||r.title||r.id||'').toString().trim();
               if(!nm) continue;
               if(seen.has(nm)) dups.add(nm); else seen.add(nm);
             }
             if(dups.size>0){
-              alert('’n“_‚Ì–¼Ì‚Éd•¡‚ª‚ ‚è‚Ü‚·Bˆ—‚ğ’†~‚µ‚Ü‚·B\nd•¡: '+Array.from(dups).join(', '));
+              alert('åœ°ç‚¹ã®åç§°ã«é‡è¤‡ãŒã‚ã‚Šã¾ã™ã€‚å‡¦ç†ã‚’ä¸­æ­¢ã—ã¾ã™ã€‚\né‡è¤‡: '+Array.from(dups).join(', '));
               return;
             }
 
             let added=0, speakCount=0;
             for(const r of rows){
-              const name=(r.Name||r.name||r['–¼Ì']||r['ƒ^ƒCƒgƒ‹']||r.title||r.id||'').toString().trim();
-              const lat =parseFloat(r.Latitude||r.lat||r.Lat||r['ˆÜ“x']);
-              const lon =parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r['Œo“x']);
-              const desc=(r.Description||r.desc||r['à–¾']||'').toString().trim();
-              const note=(r.Note||r.note||r['”õl']||r.Remarks||r.remarks||r.Memo||r.memo||'').toString().trim();
-              const speak=(r.Speak||r.speak||r['“Ç‚İ']||r['ƒˆƒ~']||r['Yomi']||'').toString().replace(/\u3000/g,' ').trim();
+              const name=(r.Name||r.name||r['åç§°']||r['ã‚¿ã‚¤ãƒˆãƒ«']||r.title||r.id||'').toString().trim();
+              const lat =parseFloat(r.Latitude||r.lat||r.Lat||r['ç·¯åº¦']);
+              const lon =parseFloat(r.Longitude||r.lon||r.Lon||r.Lng||r['çµŒåº¦']);
+              const desc=(r.Description||r.desc||r['èª¬æ˜']||'').toString().trim();
+              const note=(r.Note||r.note||r['å‚™è€ƒ']||r.Remarks||r.remarks||r.Memo||r.memo||'').toString().trim();
+              const speak=(r.Speak||r.speak||r['èª­ã¿']||r['ãƒ¨ãƒŸ']||r['Yomi']||'').toString().replace(/\u3000/g,' ').trim();
 
               if(name && Number.isFinite(lat)&&Number.isFinite(lon)){
                 addPoint(name,lat,lon,desc,speak,note);
@@ -1569,9 +1569,9 @@ const FLEET={
               buildStrictOrderFromFirst();
               map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
               updatePointCount();
-              showToast(`${added} “_“Çi${d.enc} / speak${speakCount} / ƒR[ƒX:${currentCourseName || '–¢İ’è'}j`,2);
+              showToast(`${added} ç‚¹èª­è¾¼ï¼ˆ${d.enc} / speak${speakCount} / ã‚³ãƒ¼ã‚¹:${currentCourseName || 'æœªè¨­å®š'}ï¼‰`,2);
             }else{
-              alert('—LŒø‚È—ñ(Name,Latitude,Longitude)‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ');
+              alert('æœ‰åŠ¹ãªåˆ—(Name,Latitude,Longitude)ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“');
             }
           }catch(e){ showErr(e); }
         },
@@ -1634,22 +1634,22 @@ const FLEET={
       complete:(res)=>{
         let added=0;
         (res.data||[]).forEach(r=>{
-          const name=(r.Place||r.place||r['–¼Ì']||r['Place']||'').toString().trim();
-          const la=parseFloat(r.DeviceLat||r.deviceLat||r['ˆÜ“x']);
-          const lo=parseFloat(r.DeviceLon||r.deviceLon||r['Œo“x']);
+          const name=(r.Place||r.place||r['åç§°']||r['Place']||'').toString().trim();
+          const la=parseFloat(r.DeviceLat||r.deviceLat||r['ç·¯åº¦']);
+          const lo=parseFloat(r.DeviceLon||r.deviceLon||r['çµŒåº¦']);
           if(name && Number.isFinite(la) && Number.isFinite(lo)){
             exceptions.set(String(name), {lat:la, lon:lo});
             added++;
           }
         });
-        showToast(`—áŠO’n“_ ${added} Œ“Ç‚İ‚İi20m‚Å“’…ˆµ‚¢j`,2);
+        showToast(`ä¾‹å¤–åœ°ç‚¹ ${added} ä»¶èª­ã¿è¾¼ã¿ï¼ˆ20mã§åˆ°ç€æ‰±ã„ï¼‰`,2);
       }
     });
   }
   document.getElementById('fileException').addEventListener('change',(e)=>{
     const f=e.target.files[0]; if(!f) return;
     blurAllInputs();
-    if(!/\.csv$/i.test(f.name)){ alert('CSVƒtƒ@ƒCƒ‹‚ğ‘I‘ğ‚µ‚Ä‚­‚¾‚³‚¢'); return; }
+    if(!/\.csv$/i.test(f.name)){ alert('CSVãƒ•ã‚¡ã‚¤ãƒ«ã‚’é¸æŠã—ã¦ãã ã•ã„'); return; }
     importExceptionCSV(f);
   });
 
@@ -1697,7 +1697,7 @@ const FLEET={
       a.href = blobUrl; a.download = fileName; a.rel = 'noopener';
       document.body.appendChild(a);
       setTimeout(()=>{ a.click(); a.remove(); }, 0);
-      setTimeout(()=>showToast('•Û‘¶‚µ‚Ü‚µ‚½igƒtƒ@ƒCƒ‹hƒAƒvƒŠ‚Ìƒ_ƒEƒ“ƒ[ƒh“à‚È‚Çj'), 300);
+      setTimeout(()=>showToast('ä¿å­˜ã—ã¾ã—ãŸï¼ˆâ€œãƒ•ã‚¡ã‚¤ãƒ«â€ã‚¢ãƒ—ãƒªã®ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰å†…ãªã©ï¼‰'), 300);
     };
 
     document.getElementById('csvBtnShare').onclick = async ()=>{
@@ -1706,7 +1706,7 @@ const FLEET={
         const b = await resp.blob();
         const f = new File([b], fileName, {type: b.type || 'text/csv'});
         if(navigator.canShare && navigator.canShare({files:[f]})){
-          await navigator.share({ files:[f], title:fileName, text:'‰ñûƒƒOCSV' });
+          await navigator.share({ files:[f], title:fileName, text:'å›åãƒ­ã‚°CSV' });
           return;
         }
         if(navigator.share){
@@ -1721,9 +1721,9 @@ const FLEET={
   document.getElementById('btnPreview').addEventListener('click', ()=>{ blurAllInputs(); previewCSV(); });
 
 
-  // ===== Ver173: “_–Å§Œä‚Ì‹¤’ÊŠÖ” =====
-  // Ver163‚ÅŒÄ‚Ño‚µ‚¾‚¯c‚Á‚Ä‚¢‚½ stopBlink/startBlinkFor ‚ğ–¾¦’è‹`‚µA
-  // ’n“_CSV“Ç‚ÌustopBlink is not definedv‚ğ–h~‚·‚éB
+  // ===== Ver173: ç‚¹æ»…åˆ¶å¾¡ã®å…±é€šé–¢æ•° =====
+  // Ver163ã§å‘¼ã³å‡ºã—ã ã‘æ®‹ã£ã¦ã„ãŸ stopBlink/startBlinkFor ã‚’æ˜ç¤ºå®šç¾©ã—ã€
+  // åœ°ç‚¹CSVèª­è¾¼æ™‚ã®ã€ŒstopBlink is not definedã€ã‚’é˜²æ­¢ã™ã‚‹ã€‚
   let blinkTimer = null;
   let blinkIconEl = null;
 
@@ -1790,8 +1790,8 @@ const FLEET={
       if(!p) return;
       const seq = (typeof p.seq==='number') ? p.seq : (idx+1);
       let status='';
-      if(p.status==='collected') status='Ï';
-      else if(p.status==='skipped') status='–³';
+      if(p.status==='collected') status='æ¸ˆ';
+      else if(p.status==='skipped') status='ç„¡';
       const label = `#${seq} {${p.name}}${status ? ' ' + status : ''}`;
       items.push({seq,label});
     });
@@ -1806,7 +1806,7 @@ const FLEET={
 
     const opts = buildResumeOptions();
     if(!opts.length){
-      alert('ÄŠJ‚Å‚«‚é’n“_‚ª‚ ‚è‚Ü‚¹‚ñB');
+      alert('å†é–‹ã§ãã‚‹åœ°ç‚¹ãŒã‚ã‚Šã¾ã›ã‚“ã€‚');
       return;
     }
 
@@ -1864,13 +1864,13 @@ const FLEET={
     blurAllInputs();
     unlockAll();
 
-    if(points.length===0){ alert('’n“_‚ª‚ ‚è‚Ü‚¹‚ñ'); return; }
+    if(points.length===0){ alert('åœ°ç‚¹ãŒã‚ã‚Šã¾ã›ã‚“'); return; }
     const v=parseFloat(document.getElementById('thres').value); if(Number.isFinite(v)) nav.thresholdM=v;
     const a=parseFloat(document.getElementById('arrive').value); if(Number.isFinite(a)) nav.arriveM=a;
     const fz=parseFloat(document.getElementById('farZoom').value); if(Number.isFinite(fz)) nav.farZoomM=fz;
 
     if(strictOrder.length===0){
-      alert('Description ‚É‚æ‚é½‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñiæ“ªs‚©‚ç’H‚ê‚Ü‚¹‚ñ‚Å‚µ‚½j');
+      alert('Description ã«ã‚ˆã‚‹é–ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ï¼ˆå…ˆé ­è¡Œã‹ã‚‰è¾¿ã‚Œã¾ã›ã‚“ã§ã—ãŸï¼‰');
       return;
     }
     rebuildOrderFromStrictChain();
@@ -1880,12 +1880,12 @@ const FLEET={
       const p=nameIndex.get(nav.order[i]);
       if(p && p.status!=='collected'){ startIdx=i; break; }
     }
-    if(startIdx<0){ alert('–¢‰ñû‚Ì’n“_‚ª‚ ‚è‚Ü‚¹‚ñ'); return; }
+    if(startIdx<0){ alert('æœªå›åã®åœ°ç‚¹ãŒã‚ã‚Šã¾ã›ã‚“'); return; }
 
     nav.idx=startIdx; nav.active=true; togglePanel(false);
 
     const cur=nav.order[nav.idx];
-    speakSafe('ƒiƒr‚ğŠJn‚µ‚Ü‚·B‚Ü‚¸‚Í ' + getSpeakOf(cur) + ' ‚ÉŒü‚©‚Á‚Ä‚­‚¾‚³‚¢B');
+    speakSafe('ãƒŠãƒ“ã‚’é–‹å§‹ã—ã¾ã™ã€‚ã¾ãšã¯ ' + getSpeakOf(cur) + ' ã«å‘ã‹ã£ã¦ãã ã•ã„ã€‚');
     nav.lastAnnounceTarget = cur;
     focusTarget(cur);
 
@@ -1903,7 +1903,7 @@ const FLEET={
     stopBlink();
 
     const maxSeq = getMaxCollectedSeq();
-    const msg = `ˆê’â~‚µ‚Ü‚·B#${maxSeq}”Ô–Ú‚Ü‚Å‰ñû‚ÍÏ‚ñ‚Å‚¢‚Ü‚·B`;
+    const msg = `ä¸€æ™‚åœæ­¢ã—ã¾ã™ã€‚#${maxSeq}ç•ªç›®ã¾ã§å›åã¯æ¸ˆã‚“ã§ã„ã¾ã™ã€‚`;
     speakSafe(msg);
     alert(msg);
   }
@@ -1912,9 +1912,9 @@ const FLEET={
     blurAllInputs();
     unlockAll();
 
-    if(points.length===0){ alert('’n“_‚ª‚ ‚è‚Ü‚¹‚ñ'); return; }
+    if(points.length===0){ alert('åœ°ç‚¹ãŒã‚ã‚Šã¾ã›ã‚“'); return; }
     if(strictOrder.length===0){
-      alert('Description ‚É‚æ‚é½‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñiæ“ªs‚©‚ç’H‚ê‚Ü‚¹‚ñ‚Å‚µ‚½j');
+      alert('Description ã«ã‚ˆã‚‹é–ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ï¼ˆå…ˆé ­è¡Œã‹ã‚‰è¾¿ã‚Œã¾ã›ã‚“ã§ã—ãŸï¼‰');
       return;
     }
     rebuildOrderFromStrictChain();
@@ -1925,7 +1925,7 @@ const FLEET={
 
     openResumeDialog(suggestedSeq, (startSeq)=>{
       if(!Number.isFinite(startSeq) || startSeq < 1 || startSeq > strictOrder.length){
-        alert('ÄŠJ’n“_‚ª•s³‚Å‚·B');
+        alert('å†é–‹åœ°ç‚¹ãŒä¸æ­£ã§ã™ã€‚');
         return;
       }
       nav.idx = startSeq - 1;
@@ -1935,11 +1935,11 @@ const FLEET={
 
       const cur = nav.order[nav.idx];
       if(!cur || !nameIndex.has(cur)){
-        alert('ÄŠJ’n“_‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñB');
+        alert('å†é–‹åœ°ç‚¹ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã€‚');
         return;
       }
 
-      speakSafe(`ÄŠJ‚µ‚Ü‚·B‚Ü‚¸‚Í ${getSpeakOf(cur)} ‚ÉŒü‚©‚Á‚Ä‚­‚¾‚³‚¢B`);
+      speakSafe(`å†é–‹ã—ã¾ã™ã€‚ã¾ãšã¯ ${getSpeakOf(cur)} ã«å‘ã‹ã£ã¦ãã ã•ã„ã€‚`);
       nav.lastAnnounceTarget = cur;
       focusTarget(cur);
 
@@ -1985,7 +1985,7 @@ const FLEET={
     if(nx){
       nav.active=true;
       nav.lastAnnounceTarget = nx;
-      speakSafe(getSpeakOf(nx)+' ‚ÉŒü‚©‚Á‚Ä‚­‚¾‚³‚¢B');
+      speakSafe(getSpeakOf(nx)+' ã«å‘ã‹ã£ã¦ãã ã•ã„ã€‚');
       focusTarget(nx);
       autoZoomForNext(doneName, nx);
 
@@ -1993,7 +1993,7 @@ const FLEET={
       if(j>=0){ nav.order = strictOrder.slice(); nav.idx = j; }
     }else{
       if(nav.active){
-        speakSafe('‚±‚Ìƒ‹[ƒg‚ÍŠ®—¹‚µ‚Ü‚µ‚½B');
+        speakSafe('ã“ã®ãƒ«ãƒ¼ãƒˆã¯å®Œäº†ã—ã¾ã—ãŸã€‚');
         nav.active=false;
         if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
         nav.watchId=null;
@@ -2018,14 +2018,14 @@ const FLEET={
 
     if(arrived){
       const vehicle=vehicleSel.value; const driver=driverSel.value;
-      pushLogRow([nowStamp(),p.name,lat,lon,vehicle,driver,'‰ñû'], '‰ñû');
+      pushLogRow([nowStamp(),p.name,lat,lon,vehicle,driver,'å›å'], 'å›å');
 
       p.status='collected';
       p.marker.setIcon(redIcon);
       updatePointCount();
 
       chime();
-      showToast(`1Œi‰ñûj‚ğ‹L˜^‚µ‚Ü‚µ‚½F${p.name}`,2);
+      showToast(`1ä»¶ï¼ˆå›åï¼‰ã‚’è¨˜éŒ²ã—ã¾ã—ãŸï¼š${p.name}`,2);
 
       guideNextAfter(p.name);
       return true;
@@ -2048,13 +2048,13 @@ const FLEET={
         nav.idx = k+1; cur = nav.order[nav.idx] = strictOrder[nav.idx];
         currentPoint = nameIndex.get(cur);
         if(currentPoint){
-          speakSafe(getSpeakOf(currentPoint)+' ‚ÉŒü‚©‚Á‚Ä‚­‚¾‚³‚¢B');
+          speakSafe(getSpeakOf(currentPoint)+' ã«å‘ã‹ã£ã¦ãã ã•ã„ã€‚');
           nav.lastAnnounceTarget=cur;
           focusTarget(cur);
           autoZoomForNext(prev, cur);
         }
       }else{
-        speakSafe('‚·‚×‚ÄŠ®—¹‚µ‚Ü‚µ‚½B');
+        speakSafe('ã™ã¹ã¦å®Œäº†ã—ã¾ã—ãŸã€‚');
         nav.active=false;
         if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
         nav.watchId=null;
@@ -2085,7 +2085,7 @@ const FLEET={
   }
   function fitRoute(){
     if(routeLatLngs.length>=2){ map.fitBounds(L.latLngBounds(routeLatLngs),{padding:[30,30]}); }
-    else { alert('ƒ‹[ƒg‚ª–¢“Ç‚Å‚·'); }
+    else { alert('ãƒ«ãƒ¼ãƒˆãŒæœªèª­è¾¼ã§ã™'); }
   }
   document.getElementById('btnRouteZoom').addEventListener('click',()=>{
     togglePanel(false);
@@ -2115,23 +2115,23 @@ const FLEET={
         if(latlngs.length>=2){
           setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
         }else{
-          setRouteLatLngs([]); showToast('GPX/XML‚Í“Ç‚İ‚İ‚Ü‚µ‚½iü‚ğˆø‚­“_‚ª•s‘«j',3);
+          setRouteLatLngs([]); showToast('GPX/XMLã¯èª­ã¿è¾¼ã¿ã¾ã—ãŸï¼ˆç·šã‚’å¼•ãç‚¹ãŒä¸è¶³ï¼‰',3);
         }
       }else if(/\.(geojson|json)$/i.test(f.name)){
         const gj=JSON.parse(await f.text()); const latlngs=[];
         if(gj.type==='FeatureCollection'){ gj.features.forEach(feat=>{ if(feat.geometry&&feat.geometry.type==='LineString'){ feat.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); } }); }
         else if(gj.type==='Feature'&&gj.geometry&&gj.geometry.type==='LineString'){ gj.geometry.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
         else if(gj.type==='LineString'){ gj.coordinates.forEach(c=>latlngs.push([c[1],c[0]])); }
-        if(latlngs.length<2){ showErr('GeoJSON“à‚ÉLineString‚ª‚ ‚è‚Ü‚¹‚ñ'); return; }
+        if(latlngs.length<2){ showErr('GeoJSONå†…ã«LineStringãŒã‚ã‚Šã¾ã›ã‚“'); return; }
         setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
       }else if(/\.csv$/i.test(f.name)){
         Papa.parse(f,{header:true,skipEmptyLines:true,complete:(res)=>{
-          const latlngs=[]; res.data.forEach(r=>{ const la=parseFloat(r.Latitude||r['ˆÜ“x']); const lo=parseFloat(r.Longitude||r['Œo“x']); if(Number.isFinite(la)&&Number.isFinite(lo)) latlngs.push([la,lo]); });
-          if(latlngs.length<2){ showErr('CSV‚Ìs‚ª­‚È‚¢/—ñ–¼•sˆê’v'); return; }
+          const latlngs=[]; res.data.forEach(r=>{ const la=parseFloat(r.Latitude||r['ç·¯åº¦']); const lo=parseFloat(r.Longitude||r['çµŒåº¦']); if(Number.isFinite(la)&&Number.isFinite(lo)) latlngs.push([la,lo]); });
+          if(latlngs.length<2){ showErr('CSVã®è¡ŒãŒå°‘ãªã„/åˆ—åä¸ä¸€è‡´'); return; }
           setRouteLatLngs(latlngs); togglePanel(false); setTimeout(fitRoute,50);
         }});
       }else{
-        alert('‘Î‰ŠOF.gpx/.xml/.geojson/.json/.csv ‚ğ‘I‘ğ');
+        alert('å¯¾å¿œå¤–ï¼š.gpx/.xml/.geojson/.json/.csv ã‚’é¸æŠ');
       }
     }catch(err){ showErr(err); }
   });
@@ -2141,8 +2141,8 @@ const FLEET={
 
 
 // =====================================================
-// Ver156 masterƒV[ƒg˜AŒg
-// collection_results_data ‚Ì master ƒV[ƒg‚©‚çÔ—¼”Ô†E‰^“]Ò–¼Œó•â‚ğæ“¾
+// Ver156 masterã‚·ãƒ¼ãƒˆé€£æº
+// collection_results_data ã® master ã‚·ãƒ¼ãƒˆã‹ã‚‰è»Šä¸¡ç•ªå·ãƒ»é‹è»¢è€…åå€™è£œã‚’å–å¾—
 // =====================================================
 const MASTER_ENDPOINT = (typeof GAS_ENDPOINT !== 'undefined' && GAS_ENDPOINT) ? GAS_ENDPOINT : 'https://script.google.com/macros/s/AKfycbwuekIevEuQLUYICI28_98J9I9ekYj04Das7KHONa5XqpDgazX3kUPtixWAzmSNDoGdVw/exec';
 
@@ -2155,7 +2155,7 @@ async function loadMasterOptionsFromServer() {
     const data = await res.json();
 
     if(!data || !data.ok) {
-      console.warn('masteræ“¾¸”s', data);
+      console.warn('masterå–å¾—å¤±æ•—', data);
       return false;
     }
 
@@ -2163,7 +2163,7 @@ async function loadMasterOptionsFromServer() {
     return true;
 
   } catch(e) {
-    console.warn('masteræ“¾ƒGƒ‰[', e);
+    console.warn('masterå–å¾—ã‚¨ãƒ©ãƒ¼', e);
     return false;
   }
 }
