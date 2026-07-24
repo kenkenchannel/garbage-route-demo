@@ -350,12 +350,19 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver173';
+  const VERSION = 'Ver174';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
   const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwuekIevEuQLUYICI28_98J9I9ekYj04Das7KHONa5XqpDgazX3kUPtixWAzmSNDoGdVw/exec';
+
+  // Ver174: センター監視用ハートビート
+  const HEARTBEAT_INTERVAL_MS = 60 * 1000;
+  const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
+  const HEARTBEAT_LAST_PLACE_KEY = 'torimorenuHeartbeatLastPlace';
+  const HEARTBEAT_LAST_COLLECTION_TIME_KEY = 'torimorenuHeartbeatLastCollectionTime';
+  const HEARTBEAT_LAST_RESULT_KEY = 'torimorenuHeartbeatLastResult';
 
   // Ver156: 回収結果はGAS経由でGoogleスプレッドシート「collection_results_data」に一元保存します。
   // GAS_ENDPOINT は collection_results_receiver_GAS_v5.gs のWebアプリURLを設定済みです。
@@ -422,6 +429,165 @@ if ('serviceWorker' in navigator) {
   }
   btnPanel.addEventListener('click',()=>{ suppressFollow(); togglePanel(); });
   document.getElementById('btnMyDriveSync').addEventListener('click', syncMyDriveFromGas);
+
+  // =====================================================
+  // Ver174 ハートビート（生存監視）
+  // =====================================================
+  let heartbeatTimer = null;
+  let heartbeatSending = false;
+  let heartbeatLastSentAt = 0;
+
+  function getHeartbeatDeviceId(){
+    let id = localStorage.getItem(HEARTBEAT_DEVICE_ID_KEY) || '';
+    if(!id){
+      id = 'TAB-' + Date.now() + '-' + Math.floor(Math.random() * 1000000);
+      localStorage.setItem(HEARTBEAT_DEVICE_ID_KEY, id);
+    }
+    return id;
+  }
+
+  function getHeartbeatLastPlace(){
+    return localStorage.getItem(HEARTBEAT_LAST_PLACE_KEY) || '';
+  }
+
+  function getHeartbeatLastCollectionTime(){
+    return localStorage.getItem(HEARTBEAT_LAST_COLLECTION_TIME_KEY) || '';
+  }
+
+  function getHeartbeatLastResult(){
+    return localStorage.getItem(HEARTBEAT_LAST_RESULT_KEY) || '';
+  }
+
+  function rememberHeartbeatCollection(row, resultType){
+    try{
+      const place = Array.isArray(row) ? String(row[1] ?? '') : '';
+      const stamp = Array.isArray(row) ? String(row[0] ?? nowStamp()) : nowStamp();
+      const rt = normalizeResultType(resultType || (Array.isArray(row) ? row[6] : '') || '');
+      localStorage.setItem(HEARTBEAT_LAST_PLACE_KEY, place);
+      localStorage.setItem(HEARTBEAT_LAST_COLLECTION_TIME_KEY, stamp);
+      localStorage.setItem(HEARTBEAT_LAST_RESULT_KEY, rt);
+    }catch(e){
+      console.warn('ハートビート用最終回収情報の保存に失敗しました。', e);
+    }
+  }
+
+  async function getBatterySnapshot(){
+    try{
+      if(!navigator.getBattery) return {level:'', charging:''};
+      const battery = await navigator.getBattery();
+      return {
+        level: Number.isFinite(Number(battery.level))
+          ? Math.round(Number(battery.level) * 100)
+          : '',
+        charging: typeof battery.charging === 'boolean'
+          ? battery.charging
+          : ''
+      };
+    }catch(_e){
+      return {level:'', charging:''};
+    }
+  }
+
+  function getHeartbeatLatLon(){
+    try{
+      const quick = getLatLngFromLocMarker();
+      if(Array.isArray(quick) && quick.length >= 2 &&
+         Number.isFinite(Number(quick[0])) &&
+         Number.isFinite(Number(quick[1]))){
+        return {lat:Number(quick[0]), lon:Number(quick[1])};
+      }
+    }catch(_e){}
+
+    if(Number.isFinite(Number(lastGpsLat)) && Number.isFinite(Number(lastGpsLon))){
+      return {lat:Number(lastGpsLat), lon:Number(lastGpsLon)};
+    }
+    return {lat:'', lon:''};
+  }
+
+  async function makeHeartbeatPayload(reason){
+    const battery = await getBatterySnapshot();
+    const pos = getHeartbeatLatLon();
+    const vehicle = vehicleSel ? String(vehicleSel.value || '') : '';
+    const driver = driverSel ? String(driverSel.value || '') : '';
+
+    return {
+      payloadType: 'heartbeat',
+      heartbeatVersion: 'Ver1',
+      appVersion: VERSION,
+      deviceId: getHeartbeatDeviceId(),
+      deviceTime: nowStamp(),
+      vehicle: vehicle,
+      driver: driver,
+      courseName: currentCourseName || '',
+      lastPlace: getHeartbeatLastPlace(),
+      lastCollectionTime: getHeartbeatLastCollectionTime(),
+      lastResultType: getHeartbeatLastResult(),
+      lat: pos.lat,
+      lon: pos.lon,
+      batteryLevel: battery.level,
+      charging: battery.charging,
+      online: navigator.onLine !== false,
+      visibilityState: document.visibilityState || '',
+      realMode: !!realMode,
+      pendingCount: Array.isArray(pendingRows) ? pendingRows.length : 0,
+      reason: String(reason || 'interval'),
+      userAgent: navigator.userAgent || '',
+      pageUrl: location.href || ''
+    };
+  }
+
+  async function sendHeartbeat(reason, force){
+    if(heartbeatSending) return;
+    if(!GAS_ENDPOINT || !GAS_ENDPOINT.startsWith('https://')) return;
+
+    const now = Date.now();
+    if(!force && (now - heartbeatLastSentAt) < 15000) return;
+
+    heartbeatSending = true;
+    try{
+      const payload = await makeHeartbeatPayload(reason);
+      await fetch(GAS_ENDPOINT, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      heartbeatLastSentAt = Date.now();
+      console.log('ハートビート送信:', payload.reason, payload.vehicle, payload.lastPlace);
+    }catch(e){
+      // ハートビート失敗では回収処理を止めない
+      console.warn('ハートビート送信失敗:', e);
+    }finally{
+      heartbeatSending = false;
+    }
+  }
+
+  function startHeartbeat(){
+    if(heartbeatTimer) clearInterval(heartbeatTimer);
+    setTimeout(function(){ sendHeartbeat('startup', true); }, 1500);
+    heartbeatTimer = setInterval(function(){
+      sendHeartbeat('interval', false);
+    }, HEARTBEAT_INTERVAL_MS);
+  }
+
+  window.addEventListener('online', function(){
+    sendHeartbeat('online', true);
+  });
+
+  window.addEventListener('offline', function(){
+    console.warn('端末がオフラインになりました。');
+  });
+
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'visible'){
+      sendHeartbeat('visible', true);
+    }
+  });
+
+  window.addEventListener('pagehide', function(){
+    // pagehide時は完了を待てないため、送信を試行するだけ
+    sendHeartbeat('pagehide', true);
+  });
 
   let audioVol=parseFloat(localStorage.getItem('chimeVol')||'0.7');
   document.getElementById('volDown').addEventListener('click', ()=>{ blurActiveInput(); audioVol=Math.max(0,audioVol-0.1); localStorage.setItem('chimeVol', audioVol.toFixed(2)); showToast('音量: '+Math.round(audioVol*100)+'%'); });
@@ -560,8 +726,8 @@ const FLEET={
     list.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; driverSel.appendChild(o); });
     const saved=localStorage.getItem('driver'); if(saved && list.includes(saved)) driverSel.value=saved;
   }
-  vehicleSel.addEventListener('change', ()=>{ localStorage.setItem('vehicle',vehicleSel.value); populateDrivers(); });
-  driverSel .addEventListener('change', ()=>{ localStorage.setItem('driver' ,driverSel.value ); });
+  vehicleSel.addEventListener('change', ()=>{ localStorage.setItem('vehicle',vehicleSel.value); populateDrivers(); sendHeartbeat('vehicle-change', true); });
+  driverSel .addEventListener('change', ()=>{ localStorage.setItem('driver' ,driverSel.value ); sendHeartbeat('driver-change', true); });
   populateVehicles();
 
   const map=L.map('map',{zoomControl:false});
@@ -1281,9 +1447,13 @@ const FLEET={
     logRows.push(row2);
     localStorage.setItem('collectionLog',JSON.stringify(logRows));
 
+    // Ver174: センター監視に表示する最終回収地点・時刻を保存
+    rememberHeartbeatCollection(row2, rt);
+
     const payload = makeCollectionPayload(row2, rt);
     sendRowToServer(payload).then(res=>{
       console.log('GAS一元保存OK:', res);
+      sendHeartbeat('collection', true);
     }).catch(e=>{
       console.warn('GAS一元保存に失敗。未送信キューへ保存:', e);
       pendingRows.push(payload);
@@ -1311,6 +1481,9 @@ const FLEET={
   }
   setTimeout(retryPendingRows, 2500);
   window.addEventListener('online', retryPendingRows);
+
+  // Ver174: 1分間隔の生存監視を開始
+  startHeartbeat();
 
   async function collectSelected(){
     if(!confirm('本当に回収しますか？')){ clearSelection(); return; }
