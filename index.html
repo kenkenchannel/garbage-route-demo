@@ -350,7 +350,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver175';
+  const VERSION = 'Ver176';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -498,24 +498,57 @@ if ('serviceWorker' in navigator) {
     return true;
   }
 
-  function getHeartbeatLatLon(){
+  async function getHeartbeatLatLon(){
+    // 1. 地図上の現在地マーカーを最優先
     try{
       const quick = getLatLngFromLocMarker();
       if(Array.isArray(quick) && quick.length >= 2 &&
          isValidHeartbeatCoordinate(quick[0], quick[1])){
-        return {lat:Number(quick[0]), lon:Number(quick[1])};
+        return {
+          lat:Number(quick[0]),
+          lon:Number(quick[1]),
+          source:'location-marker'
+        };
       }
-    }catch(_e){}
-
-    if(isValidHeartbeatCoordinate(lastGpsLat, lastGpsLon)){
-      return {lat:Number(lastGpsLat), lon:Number(lastGpsLon)};
+    }catch(e){
+      console.warn('現在地マーカーの参照に失敗しました。', e);
     }
-    return {lat:'', lon:''};
+
+    // 2. アプリ内で保持している直近GPSを利用
+    if(isValidHeartbeatCoordinate(lastGpsLat, lastGpsLon)){
+      return {
+        lat:Number(lastGpsLat),
+        lon:Number(lastGpsLon),
+        source:'cached-gps'
+      };
+    }
+
+    // 3. Ver175.1: ハートビート自身が現在位置を直接取得
+    //    ナビ開始・実車モードの状態には依存しない
+    try{
+      const latest = await getCurrentLatLng(8000);
+      if(Array.isArray(latest) && latest.length >= 2 &&
+         isValidHeartbeatCoordinate(latest[0], latest[1])){
+        return {
+          lat:Number(latest[0]),
+          lon:Number(latest[1]),
+          accuracy:Number.isFinite(Number(latest[2]))
+            ? Number(latest[2])
+            : '',
+          source:'heartbeat-geolocation'
+        };
+      }
+    }catch(e){
+      // GPS取得失敗でもハートビートと通常回収は止めない
+      console.warn('ハートビート独立GPS取得に失敗しました。', e);
+    }
+
+    return {lat:'', lon:'', accuracy:'', source:'unavailable'};
   }
 
   async function makeHeartbeatPayload(reason){
     const battery = await getBatterySnapshot();
-    const pos = getHeartbeatLatLon();
+    const pos = await getHeartbeatLatLon();
     const vehicle = vehicleSel ? String(vehicleSel.value || '') : '';
     const driver = driverSel ? String(driverSel.value || '') : '';
 
@@ -533,6 +566,8 @@ if ('serviceWorker' in navigator) {
       lastResultType: getHeartbeatLastResult(),
       lat: pos.lat,
       lon: pos.lon,
+      gpsAccuracy: pos.accuracy ?? '',
+      gpsSource: pos.source || '',
       batteryLevel: battery.level,
       charging: battery.charging,
       online: navigator.onLine !== false,
