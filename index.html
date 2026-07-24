@@ -350,7 +350,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver174.2';
+  const VERSION = 'Ver175';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -488,17 +488,26 @@ if ('serviceWorker' in navigator) {
     }
   }
 
+  function isValidHeartbeatCoordinate(lat, lon){
+    const la = Number(lat);
+    const lo = Number(lon);
+    if(!Number.isFinite(la) || !Number.isFinite(lo)) return false;
+    if(Math.abs(la) > 90 || Math.abs(lo) > 180) return false;
+    // 未初期化値として入りやすい 0,0 は送らない
+    if(la === 0 && lo === 0) return false;
+    return true;
+  }
+
   function getHeartbeatLatLon(){
     try{
       const quick = getLatLngFromLocMarker();
       if(Array.isArray(quick) && quick.length >= 2 &&
-         Number.isFinite(Number(quick[0])) &&
-         Number.isFinite(Number(quick[1]))){
+         isValidHeartbeatCoordinate(quick[0], quick[1])){
         return {lat:Number(quick[0]), lon:Number(quick[1])};
       }
     }catch(_e){}
 
-    if(Number.isFinite(Number(lastGpsLat)) && Number.isFinite(Number(lastGpsLon))){
+    if(isValidHeartbeatCoordinate(lastGpsLat, lastGpsLon)){
       return {lat:Number(lastGpsLat), lon:Number(lastGpsLon)};
     }
     return {lat:'', lon:''};
