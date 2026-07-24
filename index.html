@@ -350,12 +350,12 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver174.1';
+  const VERSION = 'Ver174.2';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
 
-  const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxA4Pxg2gVcWz8TWL680zJ7bBGh4K9CcBox2kmZBGrWIXBNsfdTb79eOQGvOBIGURfNIg/exec';
+  const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxA4Pxg2gVcWz8TWL680zJ7bBGh4K9CcBox2kmZBGrWlXBNsfdTb79eOQGvOBIGURfNlg/exec';
 
   // Ver174: センター監視用ハートビート
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
@@ -2317,7 +2317,7 @@ const FLEET={
 // Ver156 masterシート連携
 // collection_results_data の master シートから車両番号・運転者名候補を取得
 // =====================================================
-const MASTER_ENDPOINT = (typeof GAS_ENDPOINT !== 'undefined' && GAS_ENDPOINT) ? GAS_ENDPOINT : 'https://script.google.com/macros/s/AKfycbxA4Pxg2gVcWz8TWL680zJ7bBGh4K9CcBox2kmZBGrWIXBNsfdTb79eOQGvOBIGURfNIg/exec';
+const MASTER_ENDPOINT = (typeof GAS_ENDPOINT !== 'undefined' && GAS_ENDPOINT) ? GAS_ENDPOINT : 'https://script.google.com/macros/s/AKfycbxA4Pxg2gVcWz8TWL680zJ7bBGh4K9CcBox2kmZBGrWlXBNsfdTb79eOQGvOBIGURfNlg/exec';
 
 async function loadMasterOptionsFromServer() {
   try {
