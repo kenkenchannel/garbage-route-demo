@@ -350,7 +350,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver179T.1.1';
+  const VERSION = 'Ver180';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -364,7 +364,7 @@ if ('serviceWorker' in navigator) {
   const HEARTBEAT_LAST_COLLECTION_TIME_KEY = 'torimorenuHeartbeatLastCollectionTime';
   const HEARTBEAT_LAST_RESULT_KEY = 'torimorenuHeartbeatLastResult';
 
-  // Ver179T.1: docomo dtab 1台限定・遠隔操作テスト
+  // Ver180: docomo dtab 1台限定・遠隔操作テスト
   const REMOTE_COMMAND_POLL_INTERVAL_MS = 10 * 1000;
   const REMOTE_COMMAND_LAST_ID_KEY = 'torimorenuRemoteCommandLastId';
 
@@ -811,9 +811,22 @@ const FLEET={
   const btnRealToggle = document.getElementById('btnRealToggle');
   let realMode = false;
   function updateRealBtn(){ btnRealToggle.textContent = '実車：' + (realMode ? '有効' : '無効'); }
-  btnRealToggle.addEventListener('click', ()=>{
-    realMode = !realMode;
+
+  function setRealModeEnabled(enabled, options){
+    const target = !!enabled;
+    const isRemote = !!(options && options.remote === true);
+
+    if(realMode === target){
+      return {
+        ok:true,
+        realMode:realMode,
+        message:'実車はすでに' + (realMode ? '有効' : '無効') + 'です。'
+      };
+    }
+
+    realMode = target;
     updateRealBtn();
+
     if(realMode){
       stopCourseRead();
       startGpsWatch();
@@ -826,7 +839,22 @@ const FLEET={
       btnHeading.disabled=false;
       updateHeadingBtn();
     }
+
     points.forEach(p=> setPopupContent(p));
+
+    if(isRemote){
+      showToast('センター指示：実車を' + (realMode ? '有効' : '無効') + 'にしました', 5);
+    }
+
+    return {
+      ok:true,
+      realMode:realMode,
+      message:'実車を' + (realMode ? '有効' : '無効') + 'にしました。'
+    };
+  }
+
+  btnRealToggle.addEventListener('click', ()=>{
+    setRealModeEnabled(!realMode, {remote:false});
   });
   updateRealBtn();
 
@@ -2222,7 +2250,7 @@ const FLEET={
   }
 
   // =====================================================
-  // Ver179T.1 docomo dtab 1台限定・遠隔指示受信
+  // Ver180 docomo dtab 1台限定・遠隔指示受信
   // =====================================================
   let remoteCommandTimer = null;
   let remoteCommandBusy = false;
@@ -2281,7 +2309,55 @@ const FLEET={
       }
 
       if(type === 'resume'){
-        return resumeGuidanceAtSeq(Number(command.targetSeq), {remote:true});
+        const realResult = setRealModeEnabled(true, {remote:true});
+        if(!realResult.ok) return realResult;
+
+        const resumeResult = resumeGuidanceAtSeq(
+          Number(command.targetSeq),
+          {remote:true}
+        );
+
+        if(resumeResult && resumeResult.ok){
+          resumeResult.code = 'REAL_ON_AND_RESUMED';
+          resumeResult.message =
+            '実車を有効にし、' + resumeResult.message;
+        }
+        return resumeResult;
+      }
+
+      if(type === 'real_on'){
+        const result = setRealModeEnabled(true, {remote:true});
+        return {
+          ok:result.ok,
+          code:'REAL_MODE_ON',
+          message:result.message
+        };
+      }
+
+      if(type === 'real_off'){
+        const result = setRealModeEnabled(false, {remote:true});
+        return {
+          ok:result.ok,
+          code:'REAL_MODE_OFF',
+          message:result.message
+        };
+      }
+
+      if(type === 'gps_refresh'){
+        try{
+          startGpsWatch();
+          return {
+            ok:true,
+            code:'GPS_REFRESH_STARTED',
+            message:'GPSの再取得を開始しました。'
+          };
+        }catch(error){
+          return {
+            ok:false,
+            code:'GPS_REFRESH_FAILED',
+            message:String(error && error.message ? error.message : error)
+          };
+        }
       }
 
       return {
