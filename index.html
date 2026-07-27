@@ -350,7 +350,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver178';
+  const VERSION = 'Ver179T.1.1';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -363,6 +363,10 @@ if ('serviceWorker' in navigator) {
   const HEARTBEAT_LAST_PLACE_KEY = 'torimorenuHeartbeatLastPlace';
   const HEARTBEAT_LAST_COLLECTION_TIME_KEY = 'torimorenuHeartbeatLastCollectionTime';
   const HEARTBEAT_LAST_RESULT_KEY = 'torimorenuHeartbeatLastResult';
+
+  // Ver179T.1: docomo dtab 1台限定・遠隔操作テスト
+  const REMOTE_COMMAND_POLL_INTERVAL_MS = 10 * 1000;
+  const REMOTE_COMMAND_LAST_ID_KEY = 'torimorenuRemoteCommandLastId';
 
   // Ver156: 回収結果はGAS経由でGoogleスプレッドシート「collection_results_data」に一元保存します。
   // GAS_ENDPOINT は collection_results_receiver_GAS_v5.gs のWebアプリURLを設定済みです。
@@ -2113,7 +2117,9 @@ const FLEET={
     }
   }
 
-  function pauseGuidance(){
+  function pauseGuidance(options){
+    const isRemote = !!(options && options.remote === true);
+
     nav.active=false;
     if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
     nav.watchId=null;
@@ -2122,18 +2128,87 @@ const FLEET={
     const maxSeq = getMaxCollectedSeq();
     const msg = `一時停止します。#${maxSeq}番目まで回収は済んでいます。`;
     speakSafe(msg);
-    alert(msg);
+
+    if(isRemote){
+      showToast('センター指示により一時停止しました', 5);
+    }else{
+      alert(msg);
+    }
+
+    return {
+      ok:true,
+      maxCollectedSeq:maxSeq,
+      message:msg
+    };
   }
 
-  function resumeGuidance(){
+  function resumeGuidanceAtSeq(startSeq, options){
+    const isRemote = !!(options && options.remote === true);
+
     blurAllInputs();
     unlockAll();
 
+    if(points.length===0){
+      return {ok:false, code:'NO_POINTS', message:'地点データが読み込まれていません。'};
+    }
+    if(strictOrder.length===0){
+      return {ok:false, code:'NO_ROUTE_ORDER', message:'回収順序を確認できません。'};
+    }
+
+    rebuildOrderFromStrictChain();
+
+    const seq = Number(startSeq);
+    if(!Number.isFinite(seq) || seq < 1 || seq > strictOrder.length){
+      return {
+        ok:false,
+        code:'INVALID_SEQUENCE',
+        message:`再開地点番号が不正です。入力可能範囲は1～${strictOrder.length}です。`
+      };
+    }
+
+    nav.idx = Math.floor(seq) - 1;
+    nav.order = strictOrder.slice();
+
+    const cur = nav.order[nav.idx];
+    if(!cur || !nameIndex.has(cur)){
+      return {ok:false, code:'POINT_NOT_FOUND', message:'指定された再開地点が見つかりません。'};
+    }
+
+    nav.active = true;
+    togglePanel(false);
+    speakSafe(`再開します。まずは ${getSpeakOf(cur)} に向かってください。`);
+    nav.lastAnnounceTarget = cur;
+    focusTarget(cur);
+
+    if(realMode){
+      if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
+      nav.watchId = navigator.geolocation.watchPosition(
+        onPos,
+        ()=>{},
+        {enableHighAccuracy:true,maximumAge:0,timeout:15000}
+      );
+      if(!gpsWatchId) startGpsWatch();
+    }
+
+    if(isRemote){
+      showToast(`センター指示：#${seq} ${cur} から再開しました`, 6);
+    }
+
+    return {
+      ok:true,
+      startSeq:seq,
+      place:cur,
+      message:`#${seq} ${cur} から再開しました。`
+    };
+  }
+
+  function resumeGuidance(){
     if(points.length===0){ alert('地点がありません'); return; }
     if(strictOrder.length===0){
       alert('Description による鎖が見つかりません（先頭行から辿れませんでした）');
       return;
     }
+
     rebuildOrderFromStrictChain();
 
     const maxSeq = getMaxCollectedSeq();
@@ -2141,32 +2216,129 @@ const FLEET={
     if(maxSeq>0 && maxSeq < strictOrder.length) suggestedSeq = maxSeq+1;
 
     openResumeDialog(suggestedSeq, (startSeq)=>{
-      if(!Number.isFinite(startSeq) || startSeq < 1 || startSeq > strictOrder.length){
-        alert('再開地点が不正です。');
-        return;
-      }
-      nav.idx = startSeq - 1;
-      nav.order = strictOrder.slice();
-      nav.active = true;
-      togglePanel(false);
-
-      const cur = nav.order[nav.idx];
-      if(!cur || !nameIndex.has(cur)){
-        alert('再開地点が見つかりません。');
-        return;
-      }
-
-      speakSafe(`再開します。まずは ${getSpeakOf(cur)} に向かってください。`);
-      nav.lastAnnounceTarget = cur;
-      focusTarget(cur);
-
-      if(realMode){
-        if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
-        nav.watchId = navigator.geolocation.watchPosition(onPos,()=>{}, {enableHighAccuracy:true,maximumAge:0,timeout:15000});
-        if(!gpsWatchId) startGpsWatch();
-      }
+      const result = resumeGuidanceAtSeq(startSeq, {remote:false});
+      if(!result.ok) alert(result.message);
     });
   }
+
+  // =====================================================
+  // Ver179T.1 docomo dtab 1台限定・遠隔指示受信
+  // =====================================================
+  let remoteCommandTimer = null;
+  let remoteCommandBusy = false;
+
+  async function fetchRemoteCommand(){
+    if(remoteCommandBusy || !GAS_ENDPOINT || !navigator.onLine) return;
+
+    const deviceId = getHeartbeatDeviceId();
+    if(!deviceId) return;
+
+    remoteCommandBusy = true;
+    try{
+      const params = new URLSearchParams({
+        action:'pollRemoteCommand',
+        deviceId:deviceId,
+        vehicle:String(vehicleSel.value || ''),
+        t:String(Date.now())
+      });
+      const response = await fetch(`${GAS_ENDPOINT}?${params.toString()}`, {
+        method:'GET',
+        cache:'no-store'
+      });
+      if(!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+      if(!data || !data.ok || !data.command) return;
+
+      const command = data.command;
+      const lastId = localStorage.getItem(REMOTE_COMMAND_LAST_ID_KEY) || '';
+      if(lastId === String(command.commandId || '')){
+        return;
+      }
+
+      const result = executeRemoteCommand(command);
+      localStorage.setItem(REMOTE_COMMAND_LAST_ID_KEY, String(command.commandId || ''));
+      await sendRemoteCommandAck(command, result);
+    }catch(error){
+      console.warn('遠隔指示の確認に失敗しました。', error);
+    }finally{
+      remoteCommandBusy = false;
+    }
+  }
+
+  function executeRemoteCommand(command){
+    try{
+      const type = String(command.commandType || '').toLowerCase();
+
+      if(type === 'pause'){
+        const result = pauseGuidance({remote:true});
+        return {
+          ok:true,
+          code:'PAUSED',
+          message:result.message,
+          maxCollectedSeq:result.maxCollectedSeq
+        };
+      }
+
+      if(type === 'resume'){
+        return resumeGuidanceAtSeq(Number(command.targetSeq), {remote:true});
+      }
+
+      return {
+        ok:false,
+        code:'UNKNOWN_COMMAND',
+        message:'未対応の遠隔指示です。'
+      };
+    }catch(error){
+      return {
+        ok:false,
+        code:'EXECUTION_ERROR',
+        message:String(error && error.message ? error.message : error)
+      };
+    }
+  }
+
+  async function sendRemoteCommandAck(command, result){
+    const payload = {
+      payloadType:'remoteCommandAck',
+      commandId:String(command.commandId || ''),
+      deviceId:getHeartbeatDeviceId(),
+      vehicle:String(vehicleSel.value || ''),
+      driver:String(driverSel.value || ''),
+      appVersion:VERSION,
+      deviceTime:nowStamp(),
+      success:!!(result && result.ok),
+      resultCode:String(result && result.code ? result.code : ''),
+      resultMessage:String(result && result.message ? result.message : ''),
+      currentCourse:String(currentCourseName || ''),
+      currentPlace:(nav.order && nav.idx >= 0) ? String(nav.order[nav.idx] || '') : '',
+      navActive:!!nav.active
+    };
+
+    try{
+      await fetch(GAS_ENDPOINT, {
+        method:'POST',
+        mode:'no-cors',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
+      });
+    }catch(error){
+      console.warn('遠隔指示結果の返信に失敗しました。', error);
+    }
+  }
+
+  function startRemoteCommandPolling(){
+    if(remoteCommandTimer) clearInterval(remoteCommandTimer);
+    setTimeout(fetchRemoteCommand, 2500);
+    remoteCommandTimer = setInterval(fetchRemoteCommand, REMOTE_COMMAND_POLL_INTERVAL_MS);
+  }
+
+  window.addEventListener('online', ()=>setTimeout(fetchRemoteCommand, 1000));
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'visible') setTimeout(fetchRemoteCommand, 500);
+  });
+
+  startRemoteCommandPolling();
 
   document.getElementById('btnNavStart').addEventListener('click', startGuidance);
   document.getElementById('btnNavStop').addEventListener('click',  pauseGuidance);
