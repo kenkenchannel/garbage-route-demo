@@ -350,7 +350,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver180.1';
+  const VERSION = 'Ver180.2';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -567,6 +567,14 @@ if ('serviceWorker' in navigator) {
       courseName: currentCourseName || '',
       lastPlace: getHeartbeatLastPlace(),
       lastCollectionTime: getHeartbeatLastCollectionTime(),
+
+      // Ver180.2: dtab側と同じ再開候補をセンターへ送信
+      routeOptionsJson: JSON.stringify(buildResumeOptions()),
+      suggestedResumeSeq: (function(){
+        const maxSeq = getMaxCollectedSeq();
+        if(maxSeq > 0 && maxSeq < strictOrder.length) return maxSeq + 1;
+        return strictOrder.length > 0 ? 1 : '';
+      })(),
       lastResultType: getHeartbeatLastResult(),
       lat: pos.lat,
       lon: pos.lon,
