@@ -351,7 +351,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver182';
+  const VERSION = 'Ver183';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -1644,7 +1644,12 @@ const FLEET={
       selected.delete(nm);
       done++;
     }
-    if(done>0){ if(realMode) chime(); showToast(`${done} 件（回収）を記録しました`,2); updatePointCount(); }
+    if(done>0){
+      if(realMode) chime();
+      showToast(`${done} 件（回収）を記録しました`,2);
+      updatePointCount();
+      sendHeartbeat('point-status-collected', true);
+    }
     refreshFab();
 
     if(done===1 && selectedNow.length===1){
@@ -1665,7 +1670,11 @@ const FLEET={
       selected.delete(nm);
       done++;
     }
-    if(done>0){ showToast(`${done} 件を「無回収」にしました`,2); updatePointCount(); }
+    if(done>0){
+      showToast(`${done} 件を「無回収」にしました`,2);
+      updatePointCount();
+      sendHeartbeat('point-status-skipped', true);
+    }
     refreshFab();
 
     if(done===1 && selectedNow.length===1){
@@ -2771,6 +2780,7 @@ const FLEET={
 
       chime();
       showToast(`1件（回収）を記録しました：${p.name}`,2);
+      sendHeartbeat('auto-collected', true);
 
       guideNextAfter(p.name);
       return true;
