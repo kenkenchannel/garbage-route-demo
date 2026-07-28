@@ -351,7 +351,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver181T.1';
+  const VERSION = 'Ver182';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -557,6 +557,25 @@ if ('serviceWorker' in navigator) {
     return {lat:'', lon:'', accuracy:'', source:'unavailable'};
   }
 
+  // Ver182: センター運行管理用データ
+  function buildCenterPointSnapshot(){
+    const order=strictOrder.length?strictOrder.slice():points.map(p=>p.name);
+    return order.map((name,index)=>{
+      const p=nameIndex.get(name); if(!p) return null;
+      return {seq:index+1,name:String(p.name||''),lat:Number(p.lat),lon:Number(p.lon),status:String(p.status||'normal'),note:String(p.note||'').substring(0,120)};
+    }).filter(x=>x&&Number.isFinite(x.lat)&&Number.isFinite(x.lon)).slice(0,500);
+  }
+
+  function buildCenterRouteSnapshot(){
+    const source=Array.isArray(routeLatLngs)?routeLatLngs:[];
+    if(source.length<2) return [];
+    const maxPoints=500;
+    if(source.length<=maxPoints) return source.map(v=>[Number(v[0]),Number(v[1])]).filter(v=>Number.isFinite(v[0])&&Number.isFinite(v[1]));
+    const result=[],step=(source.length-1)/(maxPoints-1);
+    for(let i=0;i<maxPoints;i++){ const v=source[Math.min(source.length-1,Math.round(i*step))]; const lat=Number(v&&v[0]),lon=Number(v&&v[1]); if(Number.isFinite(lat)&&Number.isFinite(lon)) result.push([lat,lon]); }
+    return result;
+  }
+
   async function makeHeartbeatPayload(reason){
     const battery = await getBatterySnapshot();
     const pos = await getHeartbeatLatLon();
@@ -582,6 +601,8 @@ if ('serviceWorker' in navigator) {
         if(maxSeq > 0 && maxSeq < strictOrder.length) return maxSeq + 1;
         return strictOrder.length > 0 ? 1 : '';
       })(),
+      centerPointsJson: JSON.stringify(buildCenterPointSnapshot()),
+      centerRouteJson: JSON.stringify(buildCenterRouteSnapshot()),
       lastResultType: getHeartbeatLastResult(),
       lat: pos.lat,
       lon: pos.lon,
