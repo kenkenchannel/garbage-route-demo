@@ -351,7 +351,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.2';
+  const VERSION = 'Ver189.3';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -369,6 +369,14 @@ if ('serviceWorker' in navigator) {
   const REMOTE_COMMAND_POLL_INTERVAL_MS = 10 * 1000;
   const AUDIO_CALL_POLL_INTERVAL_MS = 3000;
   const AUDIO_STANDBY_KEY = 'torimorenuAudioStandbyEnabled';
+
+  // Ver189.3：大音量呼出・音声検知自動応答
+  const AUDIO_RING_TIMEOUT_MS = 35000;
+  const AUDIO_RING_ON_MS = 1500;
+  const AUDIO_LISTEN_MS = 1400;
+  const AUDIO_VOICE_FRAME_MS = 100;
+  const AUDIO_VOICE_REQUIRED_FRAMES = 4;
+  const AUDIO_MIN_VOICE_RMS = 0.028;
   const AUDIO_ICE_SERVERS = [
     {urls:'stun:stun.l.google.com:19302'},
     {urls:'stun:stun1.l.google.com:19302'}
@@ -2471,6 +2479,9 @@ const FLEET={
   let audioLocalStream = null;
   let activeAudioCallId = '';
   let remoteCenterAudio = null;
+  let audioRingContext = null;
+  let audioRingStopped = false;
+  let audioWakeLock = null;
   const processedAudioCalls = new Set();
 
   function updateAudioStandbyButton(){
@@ -2595,20 +2606,272 @@ const FLEET={
     }
   }
 
+  function sleepAudio_(ms){
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function acquireAudioWakeLock_(){
+    try{
+      if('wakeLock' in navigator){
+        audioWakeLock = await navigator.wakeLock.request('screen');
+      }
+    }catch(error){
+      console.warn('音声着信用WakeLock取得失敗', error);
+    }
+  }
+
+  async function releaseAudioWakeLock_(){
+    try{
+      if(audioWakeLock){
+        await audioWakeLock.release();
+      }
+    }catch(_e){}
+    audioWakeLock = null;
+  }
+
+  function stopIncomingAlarm_(){
+    audioRingStopped = true;
+    try{
+      if(audioRingContext){
+        audioRingContext.close().catch(()=>{});
+      }
+    }catch(_e){}
+    audioRingContext = null;
+    try{ speechSynthesis.cancel(); }catch(_e){}
+    try{
+      if(navigator.vibrate) navigator.vibrate(0);
+    }catch(_e){}
+  }
+
+  async function playIncomingAlarmBurst_(){
+    stopIncomingAlarm_();
+    audioRingStopped = false;
+
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+
+    audioRingContext = new Ctx();
+    if(audioRingContext.state === 'suspended'){
+      try{ await audioRingContext.resume(); }catch(_e){}
+    }
+
+    const master = audioRingContext.createGain();
+    master.gain.value = 0.95;
+    master.connect(audioRingContext.destination);
+
+    const start = audioRingContext.currentTime;
+    const pattern = [
+      {at:0.00, frequency:880, duration:0.22},
+      {at:0.30, frequency:1175, duration:0.22},
+      {at:0.60, frequency:880, duration:0.22},
+      {at:0.90, frequency:1175, duration:0.34}
+    ];
+
+    pattern.forEach(item => {
+      const osc = audioRingContext.createOscillator();
+      const gain = audioRingContext.createGain();
+      osc.type = 'square';
+      osc.frequency.value = item.frequency;
+      gain.gain.setValueAtTime(0.0001, start + item.at);
+      gain.gain.exponentialRampToValueAtTime(0.85, start + item.at + 0.015);
+      gain.gain.setValueAtTime(0.85, start + item.at + item.duration - 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + item.at + item.duration);
+      osc.connect(gain);
+      gain.connect(master);
+      osc.start(start + item.at);
+      osc.stop(start + item.at + item.duration + 0.03);
+    });
+
+    try{
+      if(navigator.vibrate){
+        navigator.vibrate([350,120,350,120,550]);
+      }
+    }catch(_e){}
+
+    await sleepAudio_(AUDIO_RING_ON_MS);
+    try{
+      await audioRingContext.close();
+    }catch(_e){}
+    audioRingContext = null;
+  }
+
+  function speakIncomingPrompt_(){
+    try{
+      speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(
+        'センターから呼び出しです。応答する場合は、はい、と声を出してください。'
+      );
+      utterance.lang = 'ja-JP';
+      utterance.rate = 0.92;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      speechSynthesis.speak(utterance);
+    }catch(error){
+      console.warn('着信音声案内エラー', error);
+    }
+  }
+
+  function createVoiceDetector_(stream){
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) throw new Error('AudioContextを利用できません。');
+
+    const context = new Ctx();
+    const source = context.createMediaStreamSource(stream);
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.25;
+    source.connect(analyser);
+
+    const data = new Float32Array(analyser.fftSize);
+
+    return {
+      context,
+      getRms(){
+        analyser.getFloatTimeDomainData(data);
+        let sum = 0;
+        for(let i=0;i<data.length;i++) sum += data[i] * data[i];
+        return Math.sqrt(sum / data.length);
+      },
+      async close(){
+        try{ source.disconnect(); }catch(_e){}
+        try{ analyser.disconnect(); }catch(_e){}
+        try{ await context.close(); }catch(_e){}
+      }
+    };
+  }
+
+  async function calibrateVoiceThreshold_(detector){
+    const samples = [];
+    const until = Date.now() + 700;
+    while(Date.now() < until){
+      samples.push(detector.getRms());
+      await sleepAudio_(70);
+    }
+    samples.sort((a,b)=>a-b);
+    const median = samples.length ? samples[Math.floor(samples.length / 2)] : 0;
+    return Math.max(AUDIO_MIN_VOICE_RMS, median * 3.2);
+  }
+
+  async function waitForDriverVoice_(stream, callId){
+    const detector = createVoiceDetector_(stream);
+    const startedAt = Date.now();
+    let threshold = AUDIO_MIN_VOICE_RMS;
+    let voiceFrames = 0;
+
+    try{
+      threshold = await calibrateVoiceThreshold_(detector);
+
+      await postAudioSignal({
+        action:'status',
+        callId:callId,
+        status:'RINGING',
+        message:'端末で大音量呼出を開始'
+      });
+
+      while(
+        !audioRingStopped &&
+        activeAudioCallId === callId &&
+        Date.now() - startedAt < AUDIO_RING_TIMEOUT_MS
+      ){
+        showToast('センターから呼び出しです。声を出してください', 4);
+        await playIncomingAlarmBurst_();
+        if(audioRingStopped || activeAudioCallId !== callId) return false;
+
+        speakIncomingPrompt_();
+
+        // 音声案内をマイクが拾わないよう、案内後に少し待ってから判定します。
+        await sleepAudio_(900);
+
+        await postAudioSignal({
+          action:'status',
+          callId:callId,
+          status:'VOICE_WAIT',
+          message:'ドライバーの発声を待っています'
+        });
+
+        const listenUntil = Date.now() + AUDIO_LISTEN_MS;
+        voiceFrames = 0;
+
+        while(
+          Date.now() < listenUntil &&
+          !audioRingStopped &&
+          activeAudioCallId === callId
+        ){
+          const rms = detector.getRms();
+
+          if(rms >= threshold){
+            voiceFrames++;
+          }else{
+            voiceFrames = Math.max(0, voiceFrames - 1);
+          }
+
+          if(voiceFrames >= AUDIO_VOICE_REQUIRED_FRAMES){
+            stopIncomingAlarm_();
+
+            await postAudioSignal({
+              action:'status',
+              callId:callId,
+              status:'VOICE_DETECTED',
+              message:'ドライバーの音声を検知。自動応答します'
+            });
+
+            showToast('音声を確認しました。センターへ接続します', 5);
+            return true;
+          }
+
+          await sleepAudio_(AUDIO_VOICE_FRAME_MS);
+        }
+
+        await sleepAudio_(250);
+      }
+
+      return false;
+    }finally{
+      await detector.close();
+    }
+  }
+
   async function answerAudioCall(call){
     await closeDeviceAudioCall('new-call', false);
     activeAudioCallId = String(call.callId);
-    showToast('センターから音声着信。自動応答します', 5);
+    audioRingStopped = false;
+    await acquireAudioWakeLock_();
 
     let audioStage = '着信受付';
 
     try{
       audioStage = 'マイク取得';
-      showToast('音声着信：マイクを準備しています', 4);
       audioLocalStream = await navigator.mediaDevices.getUserMedia({
-        audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true},
+        audio:{
+          echoCancellation:true,
+          noiseSuppression:true,
+          autoGainControl:true
+        },
         video:false
       });
+
+      audioStage = '大音量呼出・音声検知';
+      const voiceDetected = await waitForDriverVoice_(
+        audioLocalStream,
+        activeAudioCallId
+      );
+
+      if(!voiceDetected){
+        const noAnswerId = activeAudioCallId;
+
+        stopIncomingAlarm_();
+        showToast('応答する声を確認できませんでした', 7);
+
+        await postAudioSignal({
+          action:'status',
+          callId:noAnswerId,
+          status:'NO_ANSWER',
+          message:'35秒以内にドライバーの音声を検知できませんでした'
+        });
+
+        await closeDeviceAudioCall('no-answer', false);
+        return;
+      }
 
       audioStage = 'PeerConnection作成';
       audioPeer = new RTCPeerConnection({
@@ -2617,15 +2880,20 @@ const FLEET={
       });
 
       audioStage = 'マイクトラック追加';
-      audioLocalStream.getTracks().forEach(track => audioPeer.addTrack(track, audioLocalStream));
+      audioLocalStream.getTracks().forEach(track => {
+        audioPeer.addTrack(track, audioLocalStream);
+      });
 
       audioPeer.ontrack = event => {
         const audio = ensureRemoteCenterAudio();
         audio.srcObject = event.streams[0];
         audio.play().catch(error => {
           console.warn('センター音声再生エラー', error);
-          showToast('センター音声の再生に失敗しました：' +
-            String(error && error.message ? error.message : error), 8);
+          showToast(
+            'センター音声の再生に失敗しました：' +
+            String(error && error.message ? error.message : error),
+            8
+          );
         });
       };
 
@@ -2674,7 +2942,7 @@ const FLEET={
         callId:activeAudioCallId,
         answerSdp:audioPeer.localDescription.sdp,
         status:'ANSWERED',
-        message:'端末自動応答完了'
+        message:'音声検知による自動応答完了'
       });
 
       showToast('センターへ応答しました。接続中です', 5);
@@ -2684,6 +2952,7 @@ const FLEET={
       const detail = audioStage + '段階｜' + errorName + '｜' + errorMessage;
       const failedCallId = activeAudioCallId;
 
+      stopIncomingAlarm_();
       console.error('端末側音声応答エラー', detail, error);
       showToast('音声通話エラー：' + detail, 12);
 
@@ -2698,7 +2967,6 @@ const FLEET={
         console.error('音声エラー詳細の送信失敗', postError);
       }
 
-      // FAILEDを保持するため、終了通知を送らずローカル資源だけ解放します。
       await closeDeviceAudioCall('failed', false);
     }
   }
@@ -2706,6 +2974,8 @@ const FLEET={
   async function closeDeviceAudioCall(reason, notifyServer = true){
     const oldId = activeAudioCallId;
     activeAudioCallId = '';
+    stopIncomingAlarm_();
+    await releaseAudioWakeLock_();
 
     if(audioPeer){
       try{ audioPeer.close(); }catch(_e){}
