@@ -12,39 +12,22 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  let answerBoundaryWatchdogTimer_ = null;
-
-  function startAnswerBoundaryWatchdog_(callId, stage){
+  // Ver189.5.7: 呼び出し処理を妨げない非同期トレース
+  function fireAudioTrace_(stage, callId, detail, payload){
     try{
-      if(answerBoundaryWatchdogTimer_){
-        clearTimeout(answerBoundaryWatchdogTimer_);
-      }
-      const watchCallId = String(callId || '');
-      const watchStage = String(stage || '');
-      answerBoundaryWatchdogTimer_ = setTimeout(() => {
-        void sendAudioTrace_(
-          'ANSWER_BOUNDARY_WATCHDOG_TIMEOUT',
-          watchCallId,
-          '自動応答境界で15秒以上進行なし',
-          {
-            stage:watchStage,
-            activeAudioCallId:String(activeAudioCallId || ''),
-            audioRingStopped:Boolean(audioRingStopped),
-            audioPeerExists:Boolean(audioPeer),
-            visibilityState:String(document.visibilityState || '')
-          }
-        );
-      },15000);
-    }catch(_e){}
-  }
-
-  function clearAnswerBoundaryWatchdog_(){
-    try{
-      if(answerBoundaryWatchdogTimer_){
-        clearTimeout(answerBoundaryWatchdogTimer_);
-      }
-      answerBoundaryWatchdogTimer_ = null;
-    }catch(_e){}
+      Promise.resolve(
+        sendAudioTrace_(
+          String(stage || ''),
+          String(callId || ''),
+          String(detail || ''),
+          payload || {}
+        )
+      ).catch(error => {
+        try{ console.warn('[ASYNC_AUDIO_TRACE_FAILED]', stage, error); }catch(_e){}
+      });
+    }catch(error){
+      try{ console.warn('[ASYNC_AUDIO_TRACE_THROW]', stage, error); }catch(_e){}
+    }
   }
 
 </script>
@@ -387,7 +370,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.6';
+  const VERSION = 'Ver189.5.7';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -2620,7 +2603,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.6\n' +
+      '音声待受診断 Ver189.5.7\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -2737,7 +2720,7 @@ const FLEET={
         '確認音：再生済み\n待受準備：正常'
       );
 
-      void sendAudioTrace_(
+      fireAudioTrace_(
         'DEVICE_STANDBY_READY',
         '',
         '確認音再生済み・音声待受開始',
@@ -2851,7 +2834,7 @@ const FLEET={
       updateAudioDiagnosticPanel_();
 
       if(data && data.command === 'hangup'){
-        void sendAudioTrace_(
+        fireAudioTrace_(
           'DEVICE_HANGUP_COMMAND',
           data.callId || '',
           'GASから終了指示を受信',
@@ -2866,7 +2849,7 @@ const FLEET={
       if(processedAudioCalls.has(call.callId)) return;
 
       audioLastIncomingAt = nowStamp();
-      void sendAudioTrace_(
+      fireAudioTrace_(
         'DEVICE_CALL_DETECTED',
         call.callId,
         '回収端末が着信データを取得',
@@ -2877,37 +2860,19 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-
-      startAnswerBoundaryWatchdog_(
-        String(call && call.callId || ''),
-        'CALL_SITE_BEFORE'
-      );
-
-      void sendAudioTrace_(
-        'ANSWER_BOUNDARY_CALL_SITE_BEFORE',
-        String(call && call.callId || ''),
-        'answerAudioCall呼び出し直前',
-        {
-          callId:String(call && call.callId || ''),
-          status:String(call && call.status || ''),
-          activeAudioCallId:String(activeAudioCallId || ''),
-          audioStandbyEnabled:Boolean(audioStandbyEnabled)
-        }
-      );
-
-      await answerAudioCall(call);
-
-      clearAnswerBoundaryWatchdog_();
-
-      void sendAudioTrace_(
-        'ANSWER_BOUNDARY_CALL_SITE_AFTER',
-        String(call && call.callId || ''),
-        'answerAudioCall呼び出しから復帰',
-        {
-          callId:String(call && call.callId || ''),
-          activeAudioCallId:String(activeAudioCallId || '')
-        }
-      );
+      // Ver189.5.7: 着信処理を直ちに開始。診断通信は待たない。
+      answerAudioCall(call).catch(error => {
+        fireAudioTrace_(
+          'RING_FIRST_ANSWER_CALL_REJECTED',
+          String(call && call.callId || ''),
+          'answerAudioCallが例外終了',
+          {
+            name:String(error && error.name || ''),
+            message:String(error && error.message || error),
+            stack:String(error && error.stack || '').slice(0,1500)
+          }
+        );
+      });
     }catch(error){
       console.warn('音声着信確認エラー', error);
     }finally{
@@ -2951,7 +2916,7 @@ const FLEET={
   async function playIncomingAlarmBurst_(){
     audioRingStopped = false;
     try{
-      void sendAudioTrace_(
+      fireAudioTrace_(
         'DEVICE_RING_START',
         activeAudioCallId || '',
         '回収端末で呼出音を開始',
@@ -3028,7 +2993,7 @@ const FLEET={
     if(!Ctx) throw new Error('AudioContextを利用できません。');
 
     const tracks = stream && stream.getAudioTracks ? stream.getAudioTracks() : [];
-    void sendAudioTrace_(
+    fireAudioTrace_(
       'DRIVER_VOICE_DETECTOR_CREATE',
       callId,
       '音声検知器を作成',
@@ -3052,7 +3017,7 @@ const FLEET={
     analyser.smoothingTimeConstant = 0.25;
     source.connect(analyser);
 
-    void sendAudioTrace_(
+    fireAudioTrace_(
       'DRIVER_VOICE_AUDIO_CONTEXT',
       callId,
       'AudioContext・Analyser準備完了',
@@ -3076,7 +3041,7 @@ const FLEET={
         return Math.sqrt(sum / data.length);
       },
       async close(){
-        void sendAudioTrace_(
+        fireAudioTrace_(
           'DRIVER_VOICE_DETECTOR_CLOSE',
           callId,
           '音声検知器を終了',
@@ -3093,7 +3058,7 @@ const FLEET={
     const samples = [];
     const until = Date.now() + 700;
 
-    void sendAudioTrace_(
+    fireAudioTrace_(
       'DRIVER_VOICE_CALIBRATION_START',
       callId,
       '周囲音の基準値測定を開始',
@@ -3114,7 +3079,7 @@ const FLEET={
       : 0;
     const threshold = Math.max(AUDIO_MIN_VOICE_RMS, median * 3.2);
 
-    void sendAudioTrace_(
+    fireAudioTrace_(
       'DRIVER_VOICE_CALIBRATION_RESULT',
       callId,
       '周囲音の基準値測定完了',
@@ -3142,7 +3107,7 @@ const FLEET={
     let listenCycle = 0;
     let overallPeak = 0;
 
-    void sendAudioTrace_(
+    fireAudioTrace_(
       'DRIVER_VOICE_WAIT_START',
       callId,
       'ドライバー音声検知処理を開始',
@@ -3160,7 +3125,7 @@ const FLEET={
       detector = createVoiceDetector_(stream, callId);
 
       if(detector.context && detector.context.state === 'suspended'){
-        void sendAudioTrace_(
+        fireAudioTrace_(
           'DRIVER_VOICE_CONTEXT_RESUME_REQUEST',
           callId,
           'AudioContext再開を要求',
@@ -3168,14 +3133,14 @@ const FLEET={
         );
         try{
           await detector.context.resume();
-          void sendAudioTrace_(
+          fireAudioTrace_(
             'DRIVER_VOICE_CONTEXT_RESUME_RESULT',
             callId,
             'AudioContext再開結果',
             {afterState:String(detector.context.state || '')}
           );
         }catch(error){
-          void sendAudioTrace_(
+          fireAudioTrace_(
             'DRIVER_VOICE_CONTEXT_RESUME_ERROR',
             callId,
             'AudioContext再開失敗',
@@ -3203,7 +3168,7 @@ const FLEET={
       ){
         listenCycle++;
 
-        void sendAudioTrace_(
+        fireAudioTrace_(
           'DRIVER_VOICE_RING_CYCLE_START',
           callId,
           '呼び出し・音声待機サイクル開始',
@@ -3216,9 +3181,42 @@ const FLEET={
         );
 
         showToast('センターから呼び出しです。声を出してください', 4);
-        await playIncomingAlarmBurst_();
 
-        void sendAudioTrace_(
+        fireAudioTrace_(
+          'RING_FIRST_ALARM_START',
+          callId,
+          '大音量呼出を最優先で開始',
+          {
+            cycle:listenCycle,
+            elapsedMs:Date.now()-startedAt,
+            ringContextState:String(audioRingContext && audioRingContext.state || '')
+          }
+        );
+
+        try{
+          await playIncomingAlarmBurst_();
+          fireAudioTrace_(
+            'RING_FIRST_ALARM_SUCCESS',
+            callId,
+            '大音量呼出の再生完了',
+            {cycle:listenCycle,elapsedMs:Date.now()-startedAt}
+          );
+        }catch(error){
+          fireAudioTrace_(
+            'RING_FIRST_ALARM_ERROR',
+            callId,
+            '大音量呼出の再生失敗',
+            {
+              cycle:listenCycle,
+              name:String(error && error.name || ''),
+              message:String(error && error.message || error),
+              stack:String(error && error.stack || '').slice(0,1200)
+            }
+          );
+          throw error;
+        }
+
+        fireAudioTrace_(
           'DRIVER_VOICE_ALARM_BURST_END',
           callId,
           '大音量呼出区間が終了',
@@ -3226,7 +3224,7 @@ const FLEET={
         );
 
         if(audioRingStopped || activeAudioCallId !== callId){
-          void sendAudioTrace_(
+          fireAudioTrace_(
             'DRIVER_VOICE_CANCELLED_AFTER_ALARM',
             callId,
             '呼出音後に検知処理が中止',
@@ -3259,7 +3257,7 @@ const FLEET={
         let cycleSum = 0;
         const frameSamples = [];
 
-        void sendAudioTrace_(
+        fireAudioTrace_(
           'DRIVER_VOICE_LISTEN_START',
           callId,
           'マイク音量判定区間を開始',
@@ -3300,7 +3298,7 @@ const FLEET={
           if(voiceFrames >= AUDIO_VOICE_REQUIRED_FRAMES){
             stopIncomingAlarm_();
 
-            void sendAudioTrace_(
+            fireAudioTrace_(
               'DRIVER_VOICE_DETECTED',
               callId,
               'ドライバー音声を検知',
@@ -3331,7 +3329,7 @@ const FLEET={
           await sleepAudio_(AUDIO_VOICE_FRAME_MS);
         }
 
-        void sendAudioTrace_(
+        fireAudioTrace_(
           'DRIVER_VOICE_LISTEN_END',
           callId,
           '今回のマイク音量判定区間では検知なし',
@@ -3359,7 +3357,7 @@ const FLEET={
         await sleepAudio_(250);
       }
 
-      void sendAudioTrace_(
+      fireAudioTrace_(
         'DRIVER_VOICE_TIMEOUT',
         callId,
         '35秒以内に規定音量を連続検知できず終了',
@@ -3375,7 +3373,7 @@ const FLEET={
 
       return false;
     }catch(error){
-      void sendAudioTrace_(
+      fireAudioTrace_(
         'DRIVER_VOICE_EXCEPTION',
         callId,
         '音声検知処理で例外',
@@ -3395,83 +3393,16 @@ const FLEET={
   }
 
   async function answerAudioCall(call){
-    const boundaryCallId = String(call && call.callId || '');
-
-    void sendAudioTrace_(
-      'ANSWER_BOUNDARY_FUNCTION_ENTRY',
-      boundaryCallId,
-      'answerAudioCall関数へ入った',
-      {
-        incomingCallId:boundaryCallId,
-        incomingStatus:String(call && call.status || ''),
-        hasOfferBase64:Boolean(call && call.offerSdpBase64),
-        offerBase64Length:String(call && call.offerSdpBase64 || '').length,
-        activeAudioCallIdBefore:String(activeAudioCallId || ''),
-        audioStandbyEnabled:Boolean(audioStandbyEnabled)
-      }
-    );
-
-    void sendAudioTrace_(
-      'ANSWER_BOUNDARY_CLOSE_PREVIOUS_START',
-      boundaryCallId,
-      '既存通話のクローズ開始',
-      {activeAudioCallIdBefore:String(activeAudioCallId || '')}
-    );
-
     await closeDeviceAudioCall('new-call', false);
-
-    void sendAudioTrace_(
-      'ANSWER_BOUNDARY_CLOSE_PREVIOUS_END',
-      boundaryCallId,
-      '既存通話のクローズ完了',
-      {activeAudioCallIdAfter:String(activeAudioCallId || '')}
-    );
-
     activeAudioCallId = String(call.callId);
-
-    void sendAudioTrace_(
-      'ANSWER_BOUNDARY_CALL_ID_SET',
-      activeAudioCallId,
-      'activeAudioCallId設定完了',
-      {}
-    );
-
     audioRingStopped = false;
-
-    void sendAudioTrace_(
-      'ANSWER_BOUNDARY_WAKELOCK_START',
-      activeAudioCallId,
-      'WakeLock取得開始',
-      {}
-    );
-
     await acquireAudioWakeLock_();
-
-    void sendAudioTrace_(
-      'ANSWER_BOUNDARY_WAKELOCK_END',
-      activeAudioCallId,
-      'WakeLock取得処理完了',
-      {}
-    );
 
     let audioStage = '着信受付';
 
     try{
       audioStage = 'マイク取得';
-      void sendAudioTrace_(
-        'ANSWER_BOUNDARY_GET_USER_MEDIA_BEFORE',
-        activeAudioCallId,
-        'getUserMedia呼び出し直前',
-        {
-          mediaDevicesAvailable:Boolean(navigator.mediaDevices),
-          getUserMediaAvailable:Boolean(
-            navigator.mediaDevices && navigator.mediaDevices.getUserMedia
-          ),
-          visibilityState:String(document.visibilityState || '')
-        }
-      );
-
-      void sendAudioTrace_(
+      fireAudioTrace_(
         'DRIVER_VOICE_GET_USER_MEDIA_REQUEST',
         activeAudioCallId,
         'マイク取得を要求',
@@ -3493,18 +3424,7 @@ const FLEET={
         video:false
       });
 
-      void sendAudioTrace_(
-        'ANSWER_BOUNDARY_GET_USER_MEDIA_AFTER',
-        activeAudioCallId,
-        'getUserMediaから復帰',
-        {
-          streamActive:Boolean(audioLocalStream && audioLocalStream.active),
-          audioTrackCount:audioLocalStream && audioLocalStream.getAudioTracks
-            ? audioLocalStream.getAudioTracks().length : 0
-        }
-      );
-
-      void sendAudioTrace_(
+      fireAudioTrace_(
         'DRIVER_VOICE_GET_USER_MEDIA_SUCCESS',
         activeAudioCallId,
         'マイク取得成功',
@@ -3524,27 +3444,9 @@ const FLEET={
       );
 
       audioStage = '大音量呼出・音声検知';
-      void sendAudioTrace_(
-        'ANSWER_BOUNDARY_WAIT_FOR_VOICE_CALL',
-        activeAudioCallId,
-        'waitForDriverVoice呼び出し直前',
-        {}
-      );
-
       const voiceDetected = await waitForDriverVoice_(
         audioLocalStream,
         activeAudioCallId
-      );
-
-      void sendAudioTrace_(
-        'ANSWER_BOUNDARY_WAIT_FOR_VOICE_RETURN',
-        activeAudioCallId,
-        'waitForDriverVoiceから復帰',
-        {
-          voiceDetected:Boolean(voiceDetected),
-          activeAudioCallId:String(activeAudioCallId || ''),
-          audioRingStopped:Boolean(audioRingStopped)
-        }
       );
 
       if(!voiceDetected){
@@ -3564,19 +3466,8 @@ const FLEET={
         return;
       }
 
-      void sendAudioTrace_(
-        'ANSWER_BOUNDARY_AFTER_VOICE_DETECTED',
-        activeAudioCallId,
-        '音声検知成功後、WebRTC処理へ移行',
-        {
-          streamActive:Boolean(audioLocalStream && audioLocalStream.active),
-          trackCount:audioLocalStream && audioLocalStream.getAudioTracks
-            ? audioLocalStream.getAudioTracks().length : 0
-        }
-      );
-
       audioStage = 'PeerConnection作成';
-      void sendAudioTrace_('DRIVER_WEBRTC_PEER_CREATE_START', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_PEER_CREATE_START', activeAudioCallId,
         'RTCPeerConnection作成開始', {iceServers:Array.isArray(call.iceServers) && call.iceServers.length ? call.iceServers : AUDIO_ICE_SERVERS});
 
       audioPeer = new RTCPeerConnection({
@@ -3584,7 +3475,7 @@ const FLEET={
           ? call.iceServers : AUDIO_ICE_SERVERS
       });
 
-      void sendAudioTrace_('DRIVER_WEBRTC_PEER_CREATE_SUCCESS', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_PEER_CREATE_SUCCESS', activeAudioCallId,
         'RTCPeerConnection作成成功', {
           signalingState:String(audioPeer.signalingState||''),
           iceGatheringState:String(audioPeer.iceGatheringState||''),
@@ -3592,16 +3483,16 @@ const FLEET={
           connectionState:String(audioPeer.connectionState||'')
         });
 
-      audioPeer.onsignalingstatechange = () => audioPeer && void sendAudioTrace_(
+      audioPeer.onsignalingstatechange = () => audioPeer && fireAudioTrace_(
         'DRIVER_WEBRTC_SIGNALING_STATE', activeAudioCallId, 'signalingState変更',
         {state:String(audioPeer.signalingState||'')});
-      audioPeer.onicegatheringstatechange = () => audioPeer && void sendAudioTrace_(
+      audioPeer.onicegatheringstatechange = () => audioPeer && fireAudioTrace_(
         'DRIVER_WEBRTC_ICE_GATHERING_STATE', activeAudioCallId, 'iceGatheringState変更',
         {state:String(audioPeer.iceGatheringState||'')});
-      audioPeer.oniceconnectionstatechange = () => audioPeer && void sendAudioTrace_(
+      audioPeer.oniceconnectionstatechange = () => audioPeer && fireAudioTrace_(
         'DRIVER_WEBRTC_ICE_CONNECTION_STATE', activeAudioCallId, 'iceConnectionState変更',
         {state:String(audioPeer.iceConnectionState||'')});
-      audioPeer.onicecandidate = event => void sendAudioTrace_(
+      audioPeer.onicecandidate = event => fireAudioTrace_(
         'DRIVER_WEBRTC_ICE_CANDIDATE', activeAudioCallId,
         event && event.candidate ? 'ICE候補取得' : 'ICE候補収集完了',
         {hasCandidate:Boolean(event&&event.candidate), candidate:event&&event.candidate ? String(event.candidate.candidate||'') : ''});
@@ -3610,7 +3501,7 @@ const FLEET={
       audioLocalStream.getTracks().forEach(track => {
         audioPeer.addTrack(track, audioLocalStream);
       });
-      void sendAudioTrace_('DRIVER_WEBRTC_TRACKS_ADDED', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_TRACKS_ADDED', activeAudioCallId,
         'マイクトラック追加完了', {trackCount:audioLocalStream.getTracks().length});
 
       audioPeer.ontrack = event => {
@@ -3629,7 +3520,7 @@ const FLEET={
       audioPeer.onconnectionstatechange = () => {
         if(!audioPeer) return;
         const state = String(audioPeer.connectionState || '');
-        void sendAudioTrace_('DRIVER_WEBRTC_CONNECTION_STATE', activeAudioCallId,
+        fireAudioTrace_('DRIVER_WEBRTC_CONNECTION_STATE', activeAudioCallId,
           'connectionState変更', {
             state:state,
             signalingState:String(audioPeer.signalingState||''),
@@ -3658,48 +3549,48 @@ const FLEET={
       };
 
       audioStage = 'Offer Base64復号・検査';
-      void sendAudioTrace_('DRIVER_WEBRTC_OFFER_DECODE_START', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_OFFER_DECODE_START', activeAudioCallId,
         'Offer Base64復号開始', {offerBase64Length:String(call.offerSdpBase64||'').length});
       const decodedOfferSdp = decodeSdpBase64_(call.offerSdpBase64, 'Offer SDP');
-      void sendAudioTrace_('DRIVER_WEBRTC_OFFER_DECODE_SUCCESS', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_OFFER_DECODE_SUCCESS', activeAudioCallId,
         'Offer Base64復号成功', {offerSdpLength:decodedOfferSdp.length, firstLine:decodedOfferSdp.split(/\r?\n/)[0]||''});
 
       audioStage = 'Offer設定';
-      void sendAudioTrace_('DRIVER_WEBRTC_SET_REMOTE_START', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_SET_REMOTE_START', activeAudioCallId,
         'setRemoteDescription開始', {offerSdpLength:decodedOfferSdp.length});
       await audioPeer.setRemoteDescription({type:'offer', sdp:decodedOfferSdp});
-      void sendAudioTrace_('DRIVER_WEBRTC_SET_REMOTE_SUCCESS', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_SET_REMOTE_SUCCESS', activeAudioCallId,
         'setRemoteDescription成功', {signalingState:String(audioPeer.signalingState||'')});
 
       audioStage = 'Answer作成';
-      void sendAudioTrace_('DRIVER_WEBRTC_CREATE_ANSWER_START', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_CREATE_ANSWER_START', activeAudioCallId,
         'createAnswer開始', {signalingState:String(audioPeer.signalingState||'')});
       const answer = await audioPeer.createAnswer();
-      void sendAudioTrace_('DRIVER_WEBRTC_CREATE_ANSWER_SUCCESS', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_CREATE_ANSWER_SUCCESS', activeAudioCallId,
         'createAnswer成功', {answerSdpLength:String(answer&&answer.sdp||'').length});
 
       audioStage = 'Answerローカル設定';
-      void sendAudioTrace_('DRIVER_WEBRTC_SET_LOCAL_START', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_SET_LOCAL_START', activeAudioCallId,
         'setLocalDescription開始', {answerSdpLength:String(answer&&answer.sdp||'').length});
       await audioPeer.setLocalDescription(answer);
-      void sendAudioTrace_('DRIVER_WEBRTC_SET_LOCAL_SUCCESS', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_SET_LOCAL_SUCCESS', activeAudioCallId,
         'setLocalDescription成功', {signalingState:String(audioPeer.signalingState||''), iceGatheringState:String(audioPeer.iceGatheringState||'')});
 
       audioStage = 'ICE候補収集';
-      void sendAudioTrace_('DRIVER_WEBRTC_ICE_WAIT_START', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_ICE_WAIT_START', activeAudioCallId,
         'ICE候補収集待機開始', {timeoutMs:8000});
       await waitIceComplete(audioPeer, 8000);
-      void sendAudioTrace_('DRIVER_WEBRTC_ICE_WAIT_END', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_ICE_WAIT_END', activeAudioCallId,
         'ICE候補収集待機終了', {iceGatheringState:String(audioPeer.iceGatheringState||'')});
 
       audioStage = 'Answer Base64変換';
       const localAnswerSdp=String(audioPeer.localDescription&&audioPeer.localDescription.sdp||'');
       const answerSdpBase64 = encodeSdpBase64_(localAnswerSdp, 'Answer SDP');
-      void sendAudioTrace_('DRIVER_WEBRTC_ANSWER_ENCODED', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_ANSWER_ENCODED', activeAudioCallId,
         'Answer Base64変換完了', {answerSdpLength:localAnswerSdp.length, answerBase64Length:answerSdpBase64.length});
 
       audioStage = 'Answer送信';
-      void sendAudioTrace_('DRIVER_WEBRTC_ANSWER_SEND_START', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_ANSWER_SEND_START', activeAudioCallId,
         'Answer送信開始', {answerBase64Length:answerSdpBase64.length});
       await postAudioSignal({
         action:'answer',
@@ -3709,7 +3600,7 @@ const FLEET={
         status:'ANSWERED',
         message:'音声検知による自動応答完了（SDP Base64保護）'
       });
-      void sendAudioTrace_('DRIVER_WEBRTC_ANSWER_SEND_SUCCESS', activeAudioCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_ANSWER_SEND_SUCCESS', activeAudioCallId,
         'Answer送信成功', {answerBase64Length:answerSdpBase64.length});
 
       showToast('センターへ応答しました。接続中です', 5);
@@ -3718,7 +3609,7 @@ const FLEET={
       const errorMessage = String(error && error.message ? error.message : error);
       const detail = audioStage + '段階｜' + errorName + '｜' + errorMessage;
       const failedCallId = activeAudioCallId;
-      void sendAudioTrace_('DRIVER_WEBRTC_EXCEPTION', failedCallId,
+      fireAudioTrace_('DRIVER_WEBRTC_EXCEPTION', failedCallId,
         '自動応答・WebRTC処理で例外', {
           stage:String(audioStage||''), name:errorName, message:errorMessage,
           stack:String(error&&error.stack||'').slice(0,1800),
