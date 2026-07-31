@@ -351,7 +351,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.3';
+  const VERSION = 'Ver189.4';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -2482,12 +2482,108 @@ const FLEET={
   let audioRingContext = null;
   let audioRingStopped = false;
   let audioWakeLock = null;
+  let audioUnlockContext = null;
+  let audioUnlockReady = false;
+  let audioLastPollAt = '';
+  let audioLastIncomingAt = '';
+  let audioDiagnosticPanel = null;
   const processedAudioCalls = new Set();
+
+  function ensureAudioDiagnosticPanel_(){
+    if(audioDiagnosticPanel) return audioDiagnosticPanel;
+
+    const panel = document.createElement('div');
+    panel.id = 'audioStandbyDiagnosticPanel';
+    panel.style.cssText =
+      'position:fixed;right:8px;bottom:8px;z-index:99998;' +
+      'max-width:330px;padding:10px 12px;border-radius:10px;' +
+      'background:rgba(0,0,0,.82);color:#fff;font-size:12px;' +
+      'line-height:1.55;white-space:pre-line;box-shadow:0 4px 14px #0005';
+
+    document.body.appendChild(panel);
+    audioDiagnosticPanel = panel;
+    return panel;
+  }
+
+  function updateAudioDiagnosticPanel_(extra){
+    const panel = ensureAudioDiagnosticPanel_();
+    const contextState = audioUnlockContext
+      ? String(audioUnlockContext.state || 'unknown')
+      : '未作成';
+    const wakeState = audioWakeLock ? '取得済み' : '未取得';
+    const visibleState = document.visibilityState || 'unknown';
+
+    panel.textContent =
+      '音声待受診断 Ver189.4\n' +
+      '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
+      '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
+      'AudioContext：' + contextState + '\n' +
+      '画面スリープ抑止：' + wakeState + '\n' +
+      'ページ状態：' + visibleState + '\n' +
+      '最終着信確認：' + (audioLastPollAt || '未実行') + '\n' +
+      '最終着信検知：' + (audioLastIncomingAt || 'なし') +
+      (extra ? '\n' + extra : '');
+  }
+
+  async function ensureAudioUnlockContext_(){
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) throw new Error('AudioContextを利用できません。');
+
+    if(!audioUnlockContext || audioUnlockContext.state === 'closed'){
+      audioUnlockContext = new Ctx();
+    }
+
+    if(audioUnlockContext.state === 'suspended'){
+      await audioUnlockContext.resume();
+    }
+
+    audioUnlockReady = audioUnlockContext.state === 'running';
+    updateAudioDiagnosticPanel_();
+
+    if(!audioUnlockReady){
+      throw new Error(
+        '呼出音用AudioContextを開始できません。状態：' +
+        String(audioUnlockContext.state || 'unknown')
+      );
+    }
+
+    return audioUnlockContext;
+  }
+
+  async function playAudioStandbyTestTone_(){
+    const context = await ensureAudioUnlockContext_();
+    const start = context.currentTime + 0.03;
+
+    const master = context.createGain();
+    master.gain.value = 0.85;
+    master.connect(context.destination);
+
+    [880,1175].forEach((frequency,index) => {
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      const at = start + index * 0.32;
+
+      osc.type = 'square';
+      osc.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.exponentialRampToValueAtTime(0.7, at + 0.015);
+      gain.gain.setValueAtTime(0.7, at + 0.18);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.24);
+
+      osc.connect(gain);
+      gain.connect(master);
+      osc.start(at);
+      osc.stop(at + 0.27);
+    });
+
+    await sleepAudio_(800);
+  }
 
   function updateAudioStandbyButton(){
     if(btnAudioStandby){
       btnAudioStandby.textContent = '音声待受：' + (audioStandbyEnabled ? 'ON' : 'OFF');
     }
+    updateAudioDiagnosticPanel_();
   }
 
   function ensureRemoteCenterAudio(){
@@ -2502,36 +2598,76 @@ const FLEET={
 
   async function enableAudioStandby(){
     try{
+      // ユーザーのタップ操作中に呼出音用AudioContextを作成・開始します。
+      await ensureAudioUnlockContext_();
+
+      // 実際に確認音を鳴らし、自動再生制限が解除されたことを確認します。
+      await playAudioStandbyTestTone_();
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true},
         video:false
       });
       stream.getTracks().forEach(track => track.stop());
+
       ensureRemoteCenterAudio();
 
       audioStandbyEnabled = true;
       localStorage.setItem(AUDIO_STANDBY_KEY, '1');
+
+      await acquireAudioWakeLock_();
       updateAudioStandbyButton();
       startAudioCallPolling();
-      showToast('センター音声通話の待受を開始しました', 5);
+
+      showToast(
+        '確認音が鳴りました。センター音声待受を開始しました',
+        7
+      );
+
+      updateAudioDiagnosticPanel_(
+        '確認音：再生済み\n待受準備：正常'
+      );
     }catch(error){
       audioStandbyEnabled = false;
+      audioUnlockReady = false;
       localStorage.removeItem(AUDIO_STANDBY_KEY);
       updateAudioStandbyButton();
-      alert('マイクを使用できません。\nChromeのマイク権限を許可してください。\n\n' +
-        String(error && error.message ? error.message : error));
+
+      const detail = String(error && error.message ? error.message : error);
+
+      alert(
+        '音声待受を開始できません。\n\n' +
+        '呼出音またはマイクの準備に失敗しました。\n' +
+        detail
+      );
+
+      updateAudioDiagnosticPanel_(
+        '待受準備エラー：' + detail
+      );
     }
   }
 
   function disableAudioStandby(){
     audioStandbyEnabled = false;
+    audioUnlockReady = false;
     localStorage.removeItem(AUDIO_STANDBY_KEY);
     updateAudioStandbyButton();
     closeDeviceAudioCall('standby-off');
+
     if(audioCallTimer){
       clearInterval(audioCallTimer);
       audioCallTimer = null;
     }
+
+    try{
+      if(audioUnlockContext){
+        audioUnlockContext.close().catch(()=>{});
+      }
+    }catch(_e){}
+    audioUnlockContext = null;
+
+    releaseAudioWakeLock_();
+    updateAudioDiagnosticPanel_('待受を停止しました');
   }
 
   btnAudioStandby?.addEventListener('click', async ()=>{
@@ -2588,6 +2724,9 @@ const FLEET={
       const response = await fetch(url, {cache:'no-store'});
       const data = await response.json();
 
+      audioLastPollAt = nowStamp();
+      updateAudioDiagnosticPanel_();
+
       if(data && data.command === 'hangup'){
         await closeDeviceAudioCall('center-hangup');
         return;
@@ -2596,6 +2735,11 @@ const FLEET={
       const call = data && data.call;
       if(!call || !call.callId || !call.offerSdp) return;
       if(processedAudioCalls.has(call.callId)) return;
+
+      audioLastIncomingAt = nowStamp();
+      updateAudioDiagnosticPanel_(
+        '着信検知：' + String(call.callId)
+      );
 
       processedAudioCalls.add(call.callId);
       await answerAudioCall(call);
@@ -2631,35 +2775,25 @@ const FLEET={
 
   function stopIncomingAlarm_(){
     audioRingStopped = true;
-    try{
-      if(audioRingContext){
-        audioRingContext.close().catch(()=>{});
-      }
-    }catch(_e){}
     audioRingContext = null;
     try{ speechSynthesis.cancel(); }catch(_e){}
     try{
       if(navigator.vibrate) navigator.vibrate(0);
     }catch(_e){}
+    updateAudioDiagnosticPanel_('呼出音：停止');
   }
 
   async function playIncomingAlarmBurst_(){
-    stopIncomingAlarm_();
     audioRingStopped = false;
 
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if(!Ctx) return;
+    const context = await ensureAudioUnlockContext_();
+    audioRingContext = context;
 
-    audioRingContext = new Ctx();
-    if(audioRingContext.state === 'suspended'){
-      try{ await audioRingContext.resume(); }catch(_e){}
-    }
+    const master = context.createGain();
+    master.gain.value = 1.0;
+    master.connect(context.destination);
 
-    const master = audioRingContext.createGain();
-    master.gain.value = 0.95;
-    master.connect(audioRingContext.destination);
-
-    const start = audioRingContext.currentTime;
+    const start = context.currentTime + 0.02;
     const pattern = [
       {at:0.00, frequency:880, duration:0.22},
       {at:0.30, frequency:1175, duration:0.22},
@@ -2668,14 +2802,16 @@ const FLEET={
     ];
 
     pattern.forEach(item => {
-      const osc = audioRingContext.createOscillator();
-      const gain = audioRingContext.createGain();
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+
       osc.type = 'square';
       osc.frequency.value = item.frequency;
       gain.gain.setValueAtTime(0.0001, start + item.at);
-      gain.gain.exponentialRampToValueAtTime(0.85, start + item.at + 0.015);
-      gain.gain.setValueAtTime(0.85, start + item.at + item.duration - 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.95, start + item.at + 0.015);
+      gain.gain.setValueAtTime(0.95, start + item.at + item.duration - 0.025);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + item.at + item.duration);
+
       osc.connect(gain);
       gain.connect(master);
       osc.start(start + item.at);
@@ -2688,10 +2824,13 @@ const FLEET={
       }
     }catch(_e){}
 
+    updateAudioDiagnosticPanel_(
+      '呼出音：再生中\nAudioContext：' + context.state
+    );
+
     await sleepAudio_(AUDIO_RING_ON_MS);
-    try{
-      await audioRingContext.close();
-    }catch(_e){}
+
+    try{ master.disconnect(); }catch(_e){}
     audioRingContext = null;
   }
 
@@ -3015,6 +3154,19 @@ const FLEET={
   });
   window.addEventListener('online', ()=>{
     if(audioStandbyEnabled) setTimeout(pollAudioCall, 1000);
+  });
+
+  document.addEventListener('visibilitychange', async ()=>{
+    if(audioStandbyEnabled && document.visibilityState === 'visible'){
+      try{
+        await ensureAudioUnlockContext_();
+        await acquireAudioWakeLock_();
+      }catch(error){
+        console.warn('表示復帰時の音声再準備失敗', error);
+      }
+      setTimeout(pollAudioCall, 300);
+    }
+    updateAudioDiagnosticPanel_();
   });
 
   updateAudioStandbyButton();
