@@ -351,7 +351,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.1';
+  const VERSION = 'Ver189.2';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -2596,66 +2596,114 @@ const FLEET={
   }
 
   async function answerAudioCall(call){
-    await closeDeviceAudioCall('new-call');
+    await closeDeviceAudioCall('new-call', false);
     activeAudioCallId = String(call.callId);
     showToast('センターから音声着信。自動応答します', 5);
 
+    let audioStage = '着信受付';
+
     try{
+      audioStage = 'マイク取得';
+      showToast('音声着信：マイクを準備しています', 4);
       audioLocalStream = await navigator.mediaDevices.getUserMedia({
         audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true},
         video:false
       });
 
+      audioStage = 'PeerConnection作成';
       audioPeer = new RTCPeerConnection({
         iceServers:Array.isArray(call.iceServers) && call.iceServers.length
           ? call.iceServers : AUDIO_ICE_SERVERS
       });
 
+      audioStage = 'マイクトラック追加';
       audioLocalStream.getTracks().forEach(track => audioPeer.addTrack(track, audioLocalStream));
 
       audioPeer.ontrack = event => {
         const audio = ensureRemoteCenterAudio();
         audio.srcObject = event.streams[0];
-        audio.play().catch(console.warn);
+        audio.play().catch(error => {
+          console.warn('センター音声再生エラー', error);
+          showToast('センター音声の再生に失敗しました：' +
+            String(error && error.message ? error.message : error), 8);
+        });
       };
 
       audioPeer.onconnectionstatechange = () => {
         if(!audioPeer) return;
-        if(audioPeer.connectionState === 'connected'){
+        const state = String(audioPeer.connectionState || '');
+
+        if(state === 'connected'){
           showToast('センターと音声通話中です', 5);
           postAudioSignal({
             action:'status',
             callId:activeAudioCallId,
             status:'CONNECTED',
-            message:'dtab接続完了'
+            message:'端末接続完了'
+          });
+        }else if(state === 'failed'){
+          const message = '接続状態：failed';
+          showToast('音声通話接続エラー：' + message, 8);
+          postAudioSignal({
+            action:'status',
+            callId:activeAudioCallId,
+            status:'FAILED',
+            message:'接続監視段階｜' + message
           });
         }
       };
 
-      await audioPeer.setRemoteDescription({type:'offer', sdp:String(call.offerSdp)});
+      audioStage = 'Offer設定';
+      await audioPeer.setRemoteDescription({
+        type:'offer',
+        sdp:String(call.offerSdp)
+      });
+
+      audioStage = 'Answer作成';
       const answer = await audioPeer.createAnswer();
+
+      audioStage = 'Answerローカル設定';
       await audioPeer.setLocalDescription(answer);
+
+      audioStage = 'ICE候補収集';
       await waitIceComplete(audioPeer, 8000);
 
+      audioStage = 'Answer送信';
       await postAudioSignal({
         action:'answer',
         callId:activeAudioCallId,
         answerSdp:audioPeer.localDescription.sdp,
         status:'ANSWERED',
-        message:'dtab自動応答'
+        message:'端末自動応答完了'
       });
+
+      showToast('センターへ応答しました。接続中です', 5);
     }catch(error){
-      await postAudioSignal({
-        action:'status',
-        callId:activeAudioCallId,
-        status:'FAILED',
-        message:String(error && error.message ? error.message : error)
-      });
-      await closeDeviceAudioCall('failed');
+      const errorName = String(error && error.name ? error.name : 'Error');
+      const errorMessage = String(error && error.message ? error.message : error);
+      const detail = audioStage + '段階｜' + errorName + '｜' + errorMessage;
+      const failedCallId = activeAudioCallId;
+
+      console.error('端末側音声応答エラー', detail, error);
+      showToast('音声通話エラー：' + detail, 12);
+
+      try{
+        await postAudioSignal({
+          action:'status',
+          callId:failedCallId,
+          status:'FAILED',
+          message:detail
+        });
+      }catch(postError){
+        console.error('音声エラー詳細の送信失敗', postError);
+      }
+
+      // FAILEDを保持するため、終了通知を送らずローカル資源だけ解放します。
+      await closeDeviceAudioCall('failed', false);
     }
   }
 
-  async function closeDeviceAudioCall(reason){
+  async function closeDeviceAudioCall(reason, notifyServer = true){
     const oldId = activeAudioCallId;
     activeAudioCallId = '';
 
@@ -2672,13 +2720,13 @@ const FLEET={
       remoteCenterAudio.srcObject = null;
     }
 
-    if(oldId && reason !== 'new-call'){
+    if(oldId && reason !== 'new-call' && notifyServer){
       try{
         await postAudioSignal({
           action:'hangup',
           callId:oldId,
           status:'ENDED',
-          message:'dtab側終了: ' + reason
+          message:'端末側終了: ' + reason
         });
       }catch(_e){}
     }
