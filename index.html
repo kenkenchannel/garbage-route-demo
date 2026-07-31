@@ -12,7 +12,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.1: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.2: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -228,7 +228,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.1: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.2: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -410,7 +410,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.1';
+  const VERSION = 'Ver189.5.7.2';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -432,10 +432,10 @@ if ('serviceWorker' in navigator) {
   // Ver189.3：大音量呼出・音声検知自動応答
   const AUDIO_RING_TIMEOUT_MS = 35000;
   const AUDIO_RING_ON_MS = 1500;
-  const AUDIO_LISTEN_MS = 1400;
+  const AUDIO_LISTEN_MS = 3200;
   const AUDIO_VOICE_FRAME_MS = 100;
-  const AUDIO_VOICE_REQUIRED_FRAMES = 4;
-  const AUDIO_MIN_VOICE_RMS = 0.028;
+  const AUDIO_VOICE_REQUIRED_FRAMES = 2;
+  const AUDIO_MIN_VOICE_RMS = 0.012;
   const AUDIO_ICE_SERVERS = [
     {urls:'stun:stun.l.google.com:19302'},
     {urls:'stun:stun1.l.google.com:19302'}
@@ -2643,7 +2643,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.1\n' +
+      '音声待受診断 Ver189.5.7.2\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -2900,7 +2900,7 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.1: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.2: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -3144,20 +3144,21 @@ const FLEET={
     let detector = null;
     let threshold = AUDIO_MIN_VOICE_RMS;
     let voiceFrames = 0;
-    let listenCycle = 0;
+    let cycle = 0;
     let overallPeak = 0;
+    let lastCyclePeak = 0;
+    let lastThreshold = threshold;
 
     safeFireAudioTrace_(
-      'DRIVER_VOICE_WAIT_START',
+      'VOICE_GAP_WAIT_START',
       callId,
-      'ドライバー音声検知処理を開始',
+      '呼出音停止間隔方式の音声検知を開始',
       {
         timeoutMs:AUDIO_RING_TIMEOUT_MS,
-        ringOnMs:AUDIO_RING_ON_MS,
         listenMs:AUDIO_LISTEN_MS,
         frameMs:AUDIO_VOICE_FRAME_MS,
         requiredFrames:AUDIO_VOICE_REQUIRED_FRAMES,
-        minimumVoiceRms:AUDIO_MIN_VOICE_RMS
+        minimumRms:AUDIO_MIN_VOICE_RMS
       }
     );
 
@@ -3165,23 +3166,11 @@ const FLEET={
       detector = createVoiceDetector_(stream, callId);
 
       if(detector.context && detector.context.state === 'suspended'){
-        safeFireAudioTrace_(
-          'DRIVER_VOICE_CONTEXT_RESUME_REQUEST',
-          callId,
-          'AudioContext再開を要求',
-          {beforeState:String(detector.context.state || '')}
-        );
         try{
           await detector.context.resume();
-          safeFireAudioTrace_(
-            'DRIVER_VOICE_CONTEXT_RESUME_RESULT',
-            callId,
-            'AudioContext再開結果',
-            {afterState:String(detector.context.state || '')}
-          );
         }catch(error){
           safeFireAudioTrace_(
-            'DRIVER_VOICE_CONTEXT_RESUME_ERROR',
+            'VOICE_GAP_CONTEXT_RESUME_ERROR',
             callId,
             'AudioContext再開失敗',
             {
@@ -3192,101 +3181,88 @@ const FLEET={
         }
       }
 
+      // 初回校正は呼出音を鳴らす前に実施する。
       threshold = await calibrateVoiceThreshold_(detector, callId);
+      threshold = Math.max(
+        AUDIO_MIN_VOICE_RMS,
+        Math.min(threshold, 0.022)
+      );
+      lastThreshold = threshold;
 
-      await postAudioSignal({
-        action:'status',
-        callId:callId,
-        status:'RINGING',
-        message:'端末で大音量呼出を開始'
-      });
+      safeFireAudioTrace_(
+        'VOICE_GAP_CALIBRATION_READY',
+        callId,
+        '呼出音前の校正完了',
+        {
+          threshold:threshold,
+          minimumRms:AUDIO_MIN_VOICE_RMS,
+          maximumThreshold:0.022
+        }
+      );
 
       while(
         !audioRingStopped &&
         activeAudioCallId === callId &&
         Date.now() - startedAt < AUDIO_RING_TIMEOUT_MS
       ){
-        listenCycle++;
+        cycle++;
 
-        safeFireAudioTrace_(
-          'DRIVER_VOICE_RING_CYCLE_START',
-          callId,
-          '呼び出し・音声待機サイクル開始',
-          {
-            cycle:listenCycle,
-            elapsedMs:Date.now()-startedAt,
-            threshold:threshold,
-            contextState:String(detector.context && detector.context.state || '')
-          }
-        );
-
+        // 呼出フェーズ
         showToast('センターから呼び出しです。声を出してください', 4);
 
         safeFireAudioTrace_(
-          'RING_FIRST_ALARM_START',
+          'VOICE_GAP_RING_START',
           callId,
-          '大音量呼出を最優先で開始',
+          '呼出音を開始',
           {
-            cycle:listenCycle,
-            elapsedMs:Date.now()-startedAt,
-            ringContextState:String(audioRingContext && audioRingContext.state || '')
+            cycle:cycle,
+            elapsedMs:Date.now()-startedAt
           }
         );
 
         try{
           await playIncomingAlarmBurst_();
-          safeFireAudioTrace_(
-            'RING_FIRST_ALARM_SUCCESS',
-            callId,
-            '大音量呼出の再生完了',
-            {cycle:listenCycle,elapsedMs:Date.now()-startedAt}
-          );
         }catch(error){
           safeFireAudioTrace_(
-            'RING_FIRST_ALARM_ERROR',
+            'VOICE_GAP_RING_ERROR',
             callId,
-            '大音量呼出の再生失敗',
+            '呼出音再生失敗',
             {
-              cycle:listenCycle,
+              cycle:cycle,
               name:String(error && error.name || ''),
-              message:String(error && error.message || error),
-              stack:String(error && error.stack || '').slice(0,1200)
+              message:String(error && error.message || error)
             }
           );
-          throw error;
         }
 
+        // 必ず呼出音と読み上げを止めてから音声検知へ入る。
+        try{ stopIncomingAlarm_(); }catch(_e){}
+        try{
+          if(window.speechSynthesis){
+            window.speechSynthesis.cancel();
+          }
+        }catch(_e){}
+
         safeFireAudioTrace_(
-          'DRIVER_VOICE_ALARM_BURST_END',
+          'VOICE_GAP_RING_STOPPED',
           callId,
-          '大音量呼出区間が終了',
-          {cycle:listenCycle,elapsedMs:Date.now()-startedAt}
+          '呼出音を完全停止',
+          {cycle:cycle}
         );
 
         if(audioRingStopped || activeAudioCallId !== callId){
-          safeFireAudioTrace_(
-            'DRIVER_VOICE_CANCELLED_AFTER_ALARM',
-            callId,
-            '呼出音後に検知処理が中止',
-            {
-              cycle:listenCycle,
-              audioRingStopped:Boolean(audioRingStopped),
-              activeAudioCallId:String(activeAudioCallId || '')
-            }
-          );
           return false;
         }
 
-        speakIncomingPrompt_();
+        // スピーカー残響が消えるまで待つ。
+        await sleepAudio_(550);
 
-        await sleepAudio_(900);
-
-        await postAudioSignal({
+        postAudioSignal({
           action:'status',
           callId:callId,
           status:'VOICE_WAIT',
-          message:'ドライバーの発声を待っています'
-        });
+          message:'呼出音を停止してドライバーの発声を待っています'
+        }).catch(() => {});
 
         const listenStartedAt = Date.now();
         const listenUntil = listenStartedAt + AUDIO_LISTEN_MS;
@@ -3295,14 +3271,13 @@ const FLEET={
         let aboveCount = 0;
         let cyclePeak = 0;
         let cycleSum = 0;
-        const frameSamples = [];
 
         safeFireAudioTrace_(
-          'DRIVER_VOICE_LISTEN_START',
+          'VOICE_GAP_LISTEN_START',
           callId,
-          'マイク音量判定区間を開始',
+          '無音区間の音声検知を開始',
           {
-            cycle:listenCycle,
+            cycle:cycle,
             threshold:threshold,
             requiredFrames:AUDIO_VOICE_REQUIRED_FRAMES,
             listenMs:AUDIO_LISTEN_MS
@@ -3320,38 +3295,29 @@ const FLEET={
           cyclePeak = Math.max(cyclePeak, rms);
           overallPeak = Math.max(overallPeak, rms);
 
-          const above = rms >= threshold;
-          if(above){
+          if(rms >= threshold){
             aboveCount++;
             voiceFrames++;
           }else{
             voiceFrames = Math.max(0, voiceFrames - 1);
           }
 
-          frameSamples.push({
-            ms:Date.now()-listenStartedAt,
-            rms:rms,
-            above:above,
-            voiceFrames:voiceFrames
-          });
-
           if(voiceFrames >= AUDIO_VOICE_REQUIRED_FRAMES){
-            stopIncomingAlarm_();
+            try{ stopIncomingAlarm_(); }catch(_e){}
 
             safeFireAudioTrace_(
-              'DRIVER_VOICE_DETECTED',
+              'VOICE_GAP_DETECTED',
               callId,
               'ドライバー音声を検知',
               {
-                cycle:listenCycle,
+                cycle:cycle,
                 threshold:threshold,
-                detectedRms:rms,
+                rms:rms,
                 cyclePeak:cyclePeak,
                 overallPeak:overallPeak,
                 sampleCount:sampleCount,
                 aboveCount:aboveCount,
-                requiredFrames:AUDIO_VOICE_REQUIRED_FRAMES,
-                frameSamples:frameSamples
+                requiredFrames:AUDIO_VOICE_REQUIRED_FRAMES
               }
             );
 
@@ -3369,69 +3335,82 @@ const FLEET={
           await sleepAudio_(AUDIO_VOICE_FRAME_MS);
         }
 
+        lastCyclePeak = cyclePeak;
+
         safeFireAudioTrace_(
-          'DRIVER_VOICE_LISTEN_END',
+          'VOICE_GAP_LISTEN_END',
           callId,
-          '今回のマイク音量判定区間では検知なし',
+          '今回の無音区間では音声検知なし',
           {
-            cycle:listenCycle,
+            cycle:cycle,
             threshold:threshold,
             sampleCount:sampleCount,
             aboveCount:aboveCount,
-            finalVoiceFrames:voiceFrames,
-            cycleMinimum:frameSamples.length
-              ? Math.min(...frameSamples.map(row=>row.rms)) : 0,
             cycleAverage:sampleCount ? cycleSum/sampleCount : 0,
             cyclePeak:cyclePeak,
             overallPeak:overallPeak,
-            contextState:String(detector.context && detector.context.state || ''),
-            tracks:detector.tracks.map(track => ({
-              enabled:Boolean(track.enabled),
-              muted:Boolean(track.muted),
-              readyState:String(track.readyState || '')
-            })),
-            frameSamples:frameSamples
+            finalVoiceFrames:voiceFrames
           }
         );
+
+        // 診断画面へ現在の感度情報を表示。
+        try{
+          audioStandbyLastError =
+            '音声検知待機中：しきい値=' +
+            threshold.toFixed(4) +
+            ' / 最大RMS=' +
+            cyclePeak.toFixed(4) +
+            ' / 必要連続=' +
+            AUDIO_VOICE_REQUIRED_FRAMES;
+        }catch(_e){}
+
+        // 声がしきい値近くまで来ている場合、次サイクルだけ少し感度を上げる。
+        if(cyclePeak > 0 && cyclePeak < threshold){
+          threshold = Math.max(
+            AUDIO_MIN_VOICE_RMS,
+            Math.min(threshold * 0.85, 0.022)
+          );
+          lastThreshold = threshold;
+        }
 
         await sleepAudio_(250);
       }
 
       safeFireAudioTrace_(
-        'DRIVER_VOICE_TIMEOUT',
+        'VOICE_GAP_TIMEOUT',
         callId,
-        '35秒以内に規定音量を連続検知できず終了',
+        '35秒以内にドライバー音声を検知できず終了',
         {
           elapsedMs:Date.now()-startedAt,
-          cycles:listenCycle,
-          threshold:threshold,
-          overallPeak:overallPeak,
-          audioRingStopped:Boolean(audioRingStopped),
-          activeAudioCallId:String(activeAudioCallId || '')
+          cycles:cycle,
+          threshold:lastThreshold,
+          lastCyclePeak:lastCyclePeak,
+          overallPeak:overallPeak
         }
       );
 
       return false;
     }catch(error){
       safeFireAudioTrace_(
-        'DRIVER_VOICE_EXCEPTION',
+        'VOICE_GAP_EXCEPTION',
         callId,
-        '音声検知処理で例外',
+        '呼出音停止間隔方式で例外',
         {
           name:String(error && error.name || ''),
           message:String(error && error.message || error),
-          stack:String(error && error.stack || '').slice(0,1500),
-          elapsedMs:Date.now()-startedAt,
-          threshold:threshold,
-          overallPeak:overallPeak
+          stack:String(error && error.stack || '').slice(0,1500)
         }
       );
       throw error;
     }finally{
-      if(detector) await detector.close();
+      try{ stopIncomingAlarm_(); }catch(_e){}
+      if(detector){
+        try{ await detector.close(); }catch(_e){}
+      }
     }
   }
 
+  
   async function answerAudioCall(call){
     await closeDeviceAudioCall('new-call', false);
     activeAudioCallId = String(call.callId);
