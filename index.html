@@ -351,7 +351,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.4';
+  const VERSION = 'Ver189.5.5';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -2584,7 +2584,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.4\n' +
+      '音声待受診断 Ver189.5.5\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -3403,15 +3403,42 @@ const FLEET={
       }
 
       audioStage = 'PeerConnection作成';
+      void sendAudioTrace_('DRIVER_WEBRTC_PEER_CREATE_START', activeAudioCallId,
+        'RTCPeerConnection作成開始', {iceServers:Array.isArray(call.iceServers) && call.iceServers.length ? call.iceServers : AUDIO_ICE_SERVERS});
+
       audioPeer = new RTCPeerConnection({
         iceServers:Array.isArray(call.iceServers) && call.iceServers.length
           ? call.iceServers : AUDIO_ICE_SERVERS
       });
 
+      void sendAudioTrace_('DRIVER_WEBRTC_PEER_CREATE_SUCCESS', activeAudioCallId,
+        'RTCPeerConnection作成成功', {
+          signalingState:String(audioPeer.signalingState||''),
+          iceGatheringState:String(audioPeer.iceGatheringState||''),
+          iceConnectionState:String(audioPeer.iceConnectionState||''),
+          connectionState:String(audioPeer.connectionState||'')
+        });
+
+      audioPeer.onsignalingstatechange = () => audioPeer && void sendAudioTrace_(
+        'DRIVER_WEBRTC_SIGNALING_STATE', activeAudioCallId, 'signalingState変更',
+        {state:String(audioPeer.signalingState||'')});
+      audioPeer.onicegatheringstatechange = () => audioPeer && void sendAudioTrace_(
+        'DRIVER_WEBRTC_ICE_GATHERING_STATE', activeAudioCallId, 'iceGatheringState変更',
+        {state:String(audioPeer.iceGatheringState||'')});
+      audioPeer.oniceconnectionstatechange = () => audioPeer && void sendAudioTrace_(
+        'DRIVER_WEBRTC_ICE_CONNECTION_STATE', activeAudioCallId, 'iceConnectionState変更',
+        {state:String(audioPeer.iceConnectionState||'')});
+      audioPeer.onicecandidate = event => void sendAudioTrace_(
+        'DRIVER_WEBRTC_ICE_CANDIDATE', activeAudioCallId,
+        event && event.candidate ? 'ICE候補取得' : 'ICE候補収集完了',
+        {hasCandidate:Boolean(event&&event.candidate), candidate:event&&event.candidate ? String(event.candidate.candidate||'') : ''});
+
       audioStage = 'マイクトラック追加';
       audioLocalStream.getTracks().forEach(track => {
         audioPeer.addTrack(track, audioLocalStream);
       });
+      void sendAudioTrace_('DRIVER_WEBRTC_TRACKS_ADDED', activeAudioCallId,
+        'マイクトラック追加完了', {trackCount:audioLocalStream.getTracks().length});
 
       audioPeer.ontrack = event => {
         const audio = ensureRemoteCenterAudio();
@@ -3429,6 +3456,13 @@ const FLEET={
       audioPeer.onconnectionstatechange = () => {
         if(!audioPeer) return;
         const state = String(audioPeer.connectionState || '');
+        void sendAudioTrace_('DRIVER_WEBRTC_CONNECTION_STATE', activeAudioCallId,
+          'connectionState変更', {
+            state:state,
+            signalingState:String(audioPeer.signalingState||''),
+            iceGatheringState:String(audioPeer.iceGatheringState||''),
+            iceConnectionState:String(audioPeer.iceConnectionState||'')
+          });
 
         if(state === 'connected'){
           showToast('センターと音声通話中です', 5);
@@ -3451,24 +3485,49 @@ const FLEET={
       };
 
       audioStage = 'Offer Base64復号・検査';
+      void sendAudioTrace_('DRIVER_WEBRTC_OFFER_DECODE_START', activeAudioCallId,
+        'Offer Base64復号開始', {offerBase64Length:String(call.offerSdpBase64||'').length});
       const decodedOfferSdp = decodeSdpBase64_(call.offerSdpBase64, 'Offer SDP');
+      void sendAudioTrace_('DRIVER_WEBRTC_OFFER_DECODE_SUCCESS', activeAudioCallId,
+        'Offer Base64復号成功', {offerSdpLength:decodedOfferSdp.length, firstLine:decodedOfferSdp.split(/\r?\n/)[0]||''});
 
       audioStage = 'Offer設定';
+      void sendAudioTrace_('DRIVER_WEBRTC_SET_REMOTE_START', activeAudioCallId,
+        'setRemoteDescription開始', {offerSdpLength:decodedOfferSdp.length});
       await audioPeer.setRemoteDescription({type:'offer', sdp:decodedOfferSdp});
+      void sendAudioTrace_('DRIVER_WEBRTC_SET_REMOTE_SUCCESS', activeAudioCallId,
+        'setRemoteDescription成功', {signalingState:String(audioPeer.signalingState||'')});
 
       audioStage = 'Answer作成';
+      void sendAudioTrace_('DRIVER_WEBRTC_CREATE_ANSWER_START', activeAudioCallId,
+        'createAnswer開始', {signalingState:String(audioPeer.signalingState||'')});
       const answer = await audioPeer.createAnswer();
+      void sendAudioTrace_('DRIVER_WEBRTC_CREATE_ANSWER_SUCCESS', activeAudioCallId,
+        'createAnswer成功', {answerSdpLength:String(answer&&answer.sdp||'').length});
 
       audioStage = 'Answerローカル設定';
+      void sendAudioTrace_('DRIVER_WEBRTC_SET_LOCAL_START', activeAudioCallId,
+        'setLocalDescription開始', {answerSdpLength:String(answer&&answer.sdp||'').length});
       await audioPeer.setLocalDescription(answer);
+      void sendAudioTrace_('DRIVER_WEBRTC_SET_LOCAL_SUCCESS', activeAudioCallId,
+        'setLocalDescription成功', {signalingState:String(audioPeer.signalingState||''), iceGatheringState:String(audioPeer.iceGatheringState||'')});
 
       audioStage = 'ICE候補収集';
+      void sendAudioTrace_('DRIVER_WEBRTC_ICE_WAIT_START', activeAudioCallId,
+        'ICE候補収集待機開始', {timeoutMs:8000});
       await waitIceComplete(audioPeer, 8000);
+      void sendAudioTrace_('DRIVER_WEBRTC_ICE_WAIT_END', activeAudioCallId,
+        'ICE候補収集待機終了', {iceGatheringState:String(audioPeer.iceGatheringState||'')});
 
       audioStage = 'Answer Base64変換';
-      const answerSdpBase64 = encodeSdpBase64_(audioPeer.localDescription.sdp, 'Answer SDP');
+      const localAnswerSdp=String(audioPeer.localDescription&&audioPeer.localDescription.sdp||'');
+      const answerSdpBase64 = encodeSdpBase64_(localAnswerSdp, 'Answer SDP');
+      void sendAudioTrace_('DRIVER_WEBRTC_ANSWER_ENCODED', activeAudioCallId,
+        'Answer Base64変換完了', {answerSdpLength:localAnswerSdp.length, answerBase64Length:answerSdpBase64.length});
 
       audioStage = 'Answer送信';
+      void sendAudioTrace_('DRIVER_WEBRTC_ANSWER_SEND_START', activeAudioCallId,
+        'Answer送信開始', {answerBase64Length:answerSdpBase64.length});
       await postAudioSignal({
         action:'answer',
         callId:activeAudioCallId,
@@ -3477,6 +3536,8 @@ const FLEET={
         status:'ANSWERED',
         message:'音声検知による自動応答完了（SDP Base64保護）'
       });
+      void sendAudioTrace_('DRIVER_WEBRTC_ANSWER_SEND_SUCCESS', activeAudioCallId,
+        'Answer送信成功', {answerBase64Length:answerSdpBase64.length});
 
       showToast('センターへ応答しました。接続中です', 5);
     }catch(error){
@@ -3484,6 +3545,15 @@ const FLEET={
       const errorMessage = String(error && error.message ? error.message : error);
       const detail = audioStage + '段階｜' + errorName + '｜' + errorMessage;
       const failedCallId = activeAudioCallId;
+      void sendAudioTrace_('DRIVER_WEBRTC_EXCEPTION', failedCallId,
+        '自動応答・WebRTC処理で例外', {
+          stage:String(audioStage||''), name:errorName, message:errorMessage,
+          stack:String(error&&error.stack||'').slice(0,1800),
+          signalingState:audioPeer?String(audioPeer.signalingState||''):'',
+          iceGatheringState:audioPeer?String(audioPeer.iceGatheringState||''):'',
+          iceConnectionState:audioPeer?String(audioPeer.iceConnectionState||''):'',
+          connectionState:audioPeer?String(audioPeer.connectionState||''):''
+        });
 
       stopIncomingAlarm_();
       console.error('端末側音声応答エラー', detail, error);
