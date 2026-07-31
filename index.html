@@ -351,7 +351,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.4';
+  const VERSION = 'Ver189.5';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -2486,8 +2486,36 @@ const FLEET={
   let audioUnlockReady = false;
   let audioLastPollAt = '';
   let audioLastIncomingAt = '';
+  let audioLastPollResult = '未取得';
+  let audioLastTraceStage = '';
+  let audioLastTraceCallId = '';
   let audioDiagnosticPanel = null;
   const processedAudioCalls = new Set();
+
+  async function sendAudioTrace_(stage, callId, detail, payload){
+    audioLastTraceStage = String(stage || '');
+    audioLastTraceCallId = String(callId || '');
+    updateAudioDiagnosticPanel_();
+
+    try{
+      const params = new URLSearchParams();
+      params.set('payloadType', 'audioTrace');
+      params.set('stage', String(stage || ''));
+      params.set('deviceId', String(DEVICE_ID || ''));
+      params.set('callId', String(callId || ''));
+      params.set('detail', String(detail || ''));
+      params.set('payload', JSON.stringify(payload || {}).slice(0,3000));
+
+      await fetch(GAS_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+        body:params.toString(),
+        cache:'no-store'
+      });
+    }catch(error){
+      console.warn('音声トレース送信失敗', stage, error);
+    }
+  }
 
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -2514,14 +2542,17 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.4\n' +
+      '音声待受診断 Ver189.5\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
       '画面スリープ抑止：' + wakeState + '\n' +
       'ページ状態：' + visibleState + '\n' +
       '最終着信確認：' + (audioLastPollAt || '未実行') + '\n' +
-      '最終着信検知：' + (audioLastIncomingAt || 'なし') +
+      '最終確認結果：' + (audioLastPollResult || '未取得') + '\n' +
+      '最終着信検知：' + (audioLastIncomingAt || 'なし') + '\n' +
+      '最終トレース：' + (audioLastTraceStage || 'なし') + '\n' +
+      '通話ID：' + (audioLastTraceCallId || 'なし') +
       (extra ? '\n' + extra : '');
   }
 
@@ -2627,6 +2658,13 @@ const FLEET={
       updateAudioDiagnosticPanel_(
         '確認音：再生済み\n待受準備：正常'
       );
+
+      sendAudioTrace_(
+        'DEVICE_STANDBY_READY',
+        '',
+        '確認音再生済み・音声待受開始',
+        {audioContext:audioUnlockContext && audioUnlockContext.state}
+      );
     }catch(error){
       audioStandbyEnabled = false;
       audioUnlockReady = false;
@@ -2725,9 +2763,22 @@ const FLEET={
       const data = await response.json();
 
       audioLastPollAt = nowStamp();
+      audioLastPollResult =
+        'ok=' + String(!!(data && data.ok)) +
+        ' / allowed=' + String(data && data.allowed) +
+        ' / call=' + String(!!(data && data.call)) +
+        ' / trace=' + String(data && data.traceStage ? data.traceStage : 'なし') +
+        (data && data.traceReason ? ' / reason=' + String(data.traceReason) : '') +
+        (data && data.error ? ' / error=' + String(data.error) : '');
       updateAudioDiagnosticPanel_();
 
       if(data && data.command === 'hangup'){
+        sendAudioTrace_(
+          'DEVICE_HANGUP_COMMAND',
+          data.callId || '',
+          'GASから終了指示を受信',
+          data
+        );
         await closeDeviceAudioCall('center-hangup');
         return;
       }
@@ -2737,6 +2788,12 @@ const FLEET={
       if(processedAudioCalls.has(call.callId)) return;
 
       audioLastIncomingAt = nowStamp();
+      sendAudioTrace_(
+        'DEVICE_CALL_DETECTED',
+        call.callId,
+        '回収端末が着信データを取得',
+        {hasOffer:!!call.offerSdp}
+      );
       updateAudioDiagnosticPanel_(
         '着信検知：' + String(call.callId)
       );
@@ -2785,6 +2842,12 @@ const FLEET={
 
   async function playIncomingAlarmBurst_(){
     audioRingStopped = false;
+    sendAudioTrace_(
+      'DEVICE_RING_START',
+      activeAudioCall && activeAudioCall.callId || '',
+      '回収端末で呼出音を開始',
+      {}
+    );
 
     const context = await ensureAudioUnlockContext_();
     audioRingContext = context;
