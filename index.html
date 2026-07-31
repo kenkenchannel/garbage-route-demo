@@ -351,7 +351,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.1';
+  const VERSION = 'Ver189.5.2';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
   if(legendVerEl) legendVerEl.textContent = VERSION;
@@ -2492,6 +2492,34 @@ const FLEET={
   let audioDiagnosticPanel = null;
   const processedAudioCalls = new Set();
 
+  function normalizeSdp_(sdp){
+    let text=String(sdp||'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+    text=text.split('\n').map(line=>line.trimEnd()).join('\r\n');
+    return text.replace(/(?:\r\n)+$/g,'')+'\r\n';
+  }
+  function validateSdp_(sdp,label){
+    const text=normalizeSdp_(sdp);
+    const lines=text.split('\r\n').filter(Boolean);
+    if(!lines.length||lines[0]!=='v=0') throw new Error((label||'SDP')+'の先頭行がv=0ではありません。');
+    const invalid=lines.find(line=>!/^[a-z]=/i.test(line));
+    if(invalid) throw new Error((label||'SDP')+'に不正な単独行があります：'+invalid.slice(0,120));
+    return text;
+  }
+  function utf8ToBase64_(text){
+    const bytes=new TextEncoder().encode(String(text||'')); let binary='';
+    for(let i=0;i<bytes.length;i+=0x8000) binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+    return btoa(binary);
+  }
+  function base64ToUtf8_(base64){
+    const clean=String(base64||'').replace(/\s+/g,'');
+    if(!clean||!/^[A-Za-z0-9+/=]+$/.test(clean)) throw new Error('SDP Base64が空、または不正です。');
+    const binary=atob(clean), bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+    return new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+  }
+  function encodeSdpBase64_(sdp,label){return utf8ToBase64_(validateSdp_(sdp,label));}
+  function decodeSdpBase64_(base64,label){return validateSdp_(base64ToUtf8_(base64),label);}
+
   async function sendAudioTrace_(stage, callId, detail, payload){
     try{
       const safeStage = String(stage || '');
@@ -2556,7 +2584,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.1\n' +
+      '音声待受診断 Ver189.5.2\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -2798,7 +2826,7 @@ const FLEET={
       }
 
       const call = data && data.call;
-      if(!call || !call.callId || !call.offerSdp) return;
+      if(!call || !call.callId || !call.offerSdpBase64) return;
       if(processedAudioCalls.has(call.callId)) return;
 
       audioLastIncomingAt = nowStamp();
@@ -2806,7 +2834,7 @@ const FLEET={
         'DEVICE_CALL_DETECTED',
         call.callId,
         '回収端末が着信データを取得',
-        {hasOffer:!!call.offerSdp}
+        {hasOfferBase64:!!call.offerSdpBase64, sdpEncoding:call.sdpEncoding || ''}
       );
       updateAudioDiagnosticPanel_(
         '着信検知：' + String(call.callId)
@@ -3139,11 +3167,11 @@ const FLEET={
         }
       };
 
+      audioStage = 'Offer Base64復号・検査';
+      const decodedOfferSdp = decodeSdpBase64_(call.offerSdpBase64, 'Offer SDP');
+
       audioStage = 'Offer設定';
-      await audioPeer.setRemoteDescription({
-        type:'offer',
-        sdp:String(call.offerSdp)
-      });
+      await audioPeer.setRemoteDescription({type:'offer', sdp:decodedOfferSdp});
 
       audioStage = 'Answer作成';
       const answer = await audioPeer.createAnswer();
@@ -3154,13 +3182,17 @@ const FLEET={
       audioStage = 'ICE候補収集';
       await waitIceComplete(audioPeer, 8000);
 
+      audioStage = 'Answer Base64変換';
+      const answerSdpBase64 = encodeSdpBase64_(audioPeer.localDescription.sdp, 'Answer SDP');
+
       audioStage = 'Answer送信';
       await postAudioSignal({
         action:'answer',
         callId:activeAudioCallId,
-        answerSdp:audioPeer.localDescription.sdp,
+        answerSdpBase64:answerSdpBase64,
+        sdpEncoding:'utf8-base64',
         status:'ANSWERED',
-        message:'音声検知による自動応答完了'
+        message:'音声検知による自動応答完了（SDP Base64保護）'
       });
 
       showToast('センターへ応答しました。接続中です', 5);
