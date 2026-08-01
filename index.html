@@ -12,7 +12,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.1: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.2: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -228,7 +228,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.1: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.2: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -410,7 +410,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.1';
+  const VERSION = 'Ver189.5.7.3.1.2';
   const RELEASE_NAME = '正式版';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
@@ -2644,7 +2644,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.1\n' +
+      '音声待受診断 Ver189.5.7.3.1.2\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -2859,6 +2859,7 @@ const FLEET={
       const url = GAS_ENDPOINT +
         '?action=pollAudioCall&deviceId=' +
         encodeURIComponent(getHeartbeatDeviceId()) +
+        '&appVersion=' + encodeURIComponent(VERSION) +
         '&_=' + Date.now();
 
       const response = await fetch(url, {cache:'no-store'});
@@ -2901,7 +2902,7 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.1: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.2: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -3012,62 +3013,119 @@ const FLEET={
 
   async function playIncomingAlarmBurst_(){
     audioRingStopped = false;
+
+    safeFireAudioTrace_(
+      'DEVICE_RING_START',
+      activeAudioCallId || '',
+      '回収端末で呼出音を開始',
+      {
+        pageVisible:document.visibilityState,
+        audioContextState:audioUnlockContext ? audioUnlockContext.state : 'not-created'
+      }
+    );
+
+    // Oscillatorが端末側で抑止された場合にも聞こえるよう、読み上げを併用します。
     try{
+      speakIncomingPrompt_();
       safeFireAudioTrace_(
-        'DEVICE_RING_START',
+        'DEVICE_RING_SPEECH_STARTED',
         activeAudioCallId || '',
-        '回収端末で呼出音を開始',
+        '呼出案内の読み上げを開始',
         {}
       );
-    }catch(_traceError){}
+    }catch(speechError){
+      safeFireAudioTrace_(
+        'DEVICE_RING_SPEECH_ERROR',
+        activeAudioCallId || '',
+        '呼出案内の読み上げ失敗',
+        {
+          name:String(speechError && speechError.name || ''),
+          message:String(speechError && speechError.message || speechError)
+        }
+      );
+    }
 
-    const context = await ensureAudioUnlockContext_();
-    audioRingContext = context;
+    let context = null;
+    let master = null;
 
-    const master = context.createGain();
-    master.gain.value = 1.0;
-    master.connect(context.destination);
+    try{
+      context = await ensureAudioUnlockContext_();
 
-    const start = context.currentTime + 0.02;
-    const pattern = [
-      {at:0.00, frequency:880, duration:0.22},
-      {at:0.30, frequency:1175, duration:0.22},
-      {at:0.60, frequency:880, duration:0.22},
-      {at:0.90, frequency:1175, duration:0.34}
-    ];
+      if(context && context.state === 'suspended'){
+        try{
+          await context.resume();
+        }catch(_e){}
+      }
 
-    pattern.forEach(item => {
-      const osc = context.createOscillator();
-      const gain = context.createGain();
+      audioRingContext = context;
+      master = context.createGain();
+      master.gain.value = 1.0;
+      master.connect(context.destination);
 
-      osc.type = 'square';
-      osc.frequency.value = item.frequency;
-      gain.gain.setValueAtTime(0.0001, start + item.at);
-      gain.gain.exponentialRampToValueAtTime(0.95, start + item.at + 0.015);
-      gain.gain.setValueAtTime(0.95, start + item.at + item.duration - 0.025);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + item.at + item.duration);
+      const start = context.currentTime + 0.02;
+      const pattern = [
+        {at:0.00, frequency:880, duration:0.24},
+        {at:0.31, frequency:1175, duration:0.24},
+        {at:0.62, frequency:880, duration:0.24},
+        {at:0.93, frequency:1175, duration:0.38}
+      ];
 
-      osc.connect(gain);
-      gain.connect(master);
-      osc.start(start + item.at);
-      osc.stop(start + item.at + item.duration + 0.03);
-    });
+      pattern.forEach(item => {
+        const osc = context.createOscillator();
+        const gain = context.createGain();
+
+        osc.type = 'square';
+        osc.frequency.value = item.frequency;
+        gain.gain.setValueAtTime(0.0001, start + item.at);
+        gain.gain.exponentialRampToValueAtTime(0.98, start + item.at + 0.015);
+        gain.gain.setValueAtTime(0.98, start + item.at + item.duration - 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + item.at + item.duration);
+
+        osc.connect(gain);
+        gain.connect(master);
+        osc.start(start + item.at);
+        osc.stop(start + item.at + item.duration + 0.03);
+      });
+
+      safeFireAudioTrace_(
+        'DEVICE_RING_OSCILLATOR_STARTED',
+        activeAudioCallId || '',
+        'Web Audio呼出音を開始',
+        {audioContextState:String(context.state || '')}
+      );
+    }catch(error){
+      safeFireAudioTrace_(
+        'DEVICE_RING_OSCILLATOR_ERROR',
+        activeAudioCallId || '',
+        'Web Audio呼出音を再生できないため読み上げを継続',
+        {
+          name:String(error && error.name || ''),
+          message:String(error && error.message || error),
+          stack:String(error && error.stack || '').slice(0,1200)
+        }
+      );
+    }
 
     try{
       if(navigator.vibrate){
-        navigator.vibrate([350,120,350,120,550]);
+        navigator.vibrate([450,120,450,120,650]);
       }
     }catch(_e){}
 
     updateAudioDiagnosticPanel_(
-      '呼出音：再生中\nAudioContext：' + context.state
+      '呼出音：再生中\nAudioContext：' +
+      (context ? String(context.state || '') : '読み上げのみ')
     );
 
     await sleepAudio_(AUDIO_RING_ON_MS);
 
-    try{ master.disconnect(); }catch(_e){}
+    try{
+      if(master) master.disconnect();
+    }catch(_e){}
+
     audioRingContext = null;
   }
+
 
   function speakIncomingPrompt_(){
     try{
@@ -3263,12 +3321,13 @@ const FLEET={
         safeFireAudioTrace_(
           'HYBRID_RING_ERROR',
           callId,
-          '呼出音再生失敗',
+          '呼出音再生失敗。読み上げによる予備呼出を実行',
           {
             name:String(error && error.name || ''),
             message:String(error && error.message || error)
           }
         );
+        try{ speakIncomingPrompt_(); }catch(_fallbackError){}
       }
 
       postAudioSignal({
