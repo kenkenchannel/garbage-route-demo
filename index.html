@@ -12,7 +12,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.3: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.4: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -228,7 +228,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.3: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.4: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -410,7 +410,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.3';
+  const VERSION = 'Ver189.5.7.3.1.4';
   const RELEASE_NAME = '正式版';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
@@ -2550,9 +2550,10 @@ const FLEET={
   let audioLastTraceStage = '';
   let audioLastTraceCallId = '';
   let audioDiagnosticPanel = null;
-  let audioDiagnosticToggleButton = null;
+  let audioDiagnosticHeader = null;
+  let audioDiagnosticBody = null;
   const AUDIO_DIAGNOSTIC_PANEL_HIDDEN_KEY =
-    'torimorenu_audio_diagnostic_panel_hidden_v1';
+    'torimorenu_audio_diagnostic_panel_hidden_v2';
   const processedAudioCalls = new Set();
 
   function normalizeSdp_(sdp){
@@ -2625,49 +2626,102 @@ const FLEET={
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
 
-    const panel = document.createElement('div');
+    const panel = document.createElement('section');
     panel.id = 'audioStandbyDiagnosticPanel';
-    panel.style.cssText =
-      'position:fixed;right:8px;bottom:70px;z-index:99998;' +
-      'max-width:330px;padding:10px 12px;border-radius:10px;' +
-      'background:rgba(0,0,0,.82);color:#fff;font-size:12px;' +
-      'line-height:1.55;white-space:pre-line;box-shadow:0 4px 14px #0005;' +
-      'max-height:calc(100vh - 150px);overflow:auto;pointer-events:auto';
+    panel.setAttribute('aria-label', '音声待受診断');
 
+    panel.style.cssText =
+      'position:fixed;left:50%;top:64px;transform:translateX(-50%);' +
+      'z-index:100000;width:min(310px,calc(100vw - 220px));' +
+      'min-width:220px;border-radius:12px;overflow:hidden;' +
+      'background:rgba(0,0,0,.88);color:#fff;' +
+      'box-shadow:0 5px 18px rgba(0,0,0,.48);' +
+      'border:2px solid rgba(255,255,255,.82);' +
+      'font-family:system-ui,-apple-system,"Segoe UI",sans-serif;' +
+      'pointer-events:auto;';
+
+    const header = document.createElement('button');
+    header.type = 'button';
+    header.id = 'audioDiagnosticHeaderButton';
+    header.style.cssText =
+      'width:100%;min-height:38px;padding:7px 12px;' +
+      'display:flex;align-items:center;justify-content:space-between;gap:10px;' +
+      'border:0;background:rgba(20,20,20,.96);color:#fff;' +
+      'font-size:14px;font-weight:800;line-height:1.2;' +
+      'cursor:pointer;touch-action:manipulation;' +
+      '-webkit-tap-highlight-color:transparent;';
+
+    const title = document.createElement('span');
+    title.textContent = '音声待受診断';
+
+    const state = document.createElement('span');
+    state.id = 'audioDiagnosticHeaderState';
+    state.style.cssText =
+      'font-size:12px;font-weight:700;white-space:nowrap;';
+
+    header.appendChild(title);
+    header.appendChild(state);
+
+    const body = document.createElement('div');
+    body.id = 'audioDiagnosticBody';
+    body.style.cssText =
+      'padding:9px 11px;font-size:12px;line-height:1.48;' +
+      'white-space:pre-line;max-height:170px;overflow:auto;' +
+      'overscroll-behavior:contain;background:rgba(0,0,0,.78);';
+
+    header.addEventListener('click', function(event){
+      event.preventDefault();
+      event.stopPropagation();
+      toggleAudioDiagnosticPanel_();
+    });
+
+    panel.appendChild(header);
+    panel.appendChild(body);
     document.body.appendChild(panel);
+
     audioDiagnosticPanel = panel;
+    audioDiagnosticHeader = header;
+    audioDiagnosticBody = body;
+
     return panel;
   }
-
 
   function isAudioDiagnosticPanelHidden_(){
     return localStorage.getItem(AUDIO_DIAGNOSTIC_PANEL_HIDDEN_KEY) === '1';
   }
 
-  function updateAudioDiagnosticToggleButton_(){
-    if(!audioDiagnosticToggleButton) return;
+  function updateAudioDiagnosticHeader_(){
+    ensureAudioDiagnosticPanel_();
 
     const hidden = isAudioDiagnosticPanelHidden_();
-    audioDiagnosticToggleButton.innerHTML = hidden
-      ? '<span aria-hidden="true">ⓘ</span><span>情報を表示</span>'
-      : '<span aria-hidden="true">⌃</span><span>情報を閉じる</span>';
+    const state = document.getElementById('audioDiagnosticHeaderState');
 
-    audioDiagnosticToggleButton.setAttribute(
-      'aria-label',
-      hidden ? '音声待受診断の情報を表示' : '音声待受診断の情報を閉じる'
-    );
-    audioDiagnosticToggleButton.setAttribute(
-      'aria-expanded',
-      hidden ? 'false' : 'true'
-    );
+    if(state){
+      state.textContent = hidden ? '▼ 情報を表示' : '▲ 情報を閉じる';
+    }
+
+    if(audioDiagnosticHeader){
+      audioDiagnosticHeader.setAttribute(
+        'aria-label',
+        hidden ? '音声待受診断の情報を表示' : '音声待受診断の情報を閉じる'
+      );
+      audioDiagnosticHeader.setAttribute(
+        'aria-expanded',
+        hidden ? 'false' : 'true'
+      );
+    }
   }
 
   function applyAudioDiagnosticPanelVisibility_(){
-    const panel = ensureAudioDiagnosticPanel_();
+    ensureAudioDiagnosticPanel_();
+
     const hidden = isAudioDiagnosticPanelHidden_();
 
-    panel.style.display = hidden ? 'none' : 'block';
-    updateAudioDiagnosticToggleButton_();
+    if(audioDiagnosticBody){
+      audioDiagnosticBody.style.display = hidden ? 'none' : 'block';
+    }
+
+    updateAudioDiagnosticHeader_();
   }
 
   function toggleAudioDiagnosticPanel_(){
@@ -2681,39 +2735,9 @@ const FLEET={
     applyAudioDiagnosticPanelVisibility_();
   }
 
-  function ensureAudioDiagnosticToggleButton_(){
-    if(audioDiagnosticToggleButton) return audioDiagnosticToggleButton;
-
-    const button = document.createElement('button');
-    button.id = 'audioDiagnosticToggleButton';
-    button.type = 'button';
-
-    button.style.cssText =
-      'position:fixed;right:10px;bottom:10px;z-index:100000;' +
-      'display:flex;align-items:center;justify-content:center;gap:7px;' +
-      'min-width:128px;min-height:48px;padding:9px 14px;' +
-      'border:3px solid rgba(255,255,255,.92);border-radius:26px;' +
-      'background:rgba(0,0,0,.88);color:#fff;' +
-      'font-size:15px;font-weight:700;line-height:1;' +
-      'box-shadow:0 4px 16px rgba(0,0,0,.48);' +
-      'cursor:pointer;touch-action:manipulation;' +
-      '-webkit-tap-highlight-color:transparent;';
-
-    button.addEventListener('click', function(event){
-      event.preventDefault();
-      event.stopPropagation();
-      toggleAudioDiagnosticPanel_();
-    });
-
-    document.body.appendChild(button);
-    audioDiagnosticToggleButton = button;
-    updateAudioDiagnosticToggleButton_();
-
-    return button;
-  }
-
   function updateAudioDiagnosticPanel_(extra){
-    const panel = ensureAudioDiagnosticPanel_();
+    ensureAudioDiagnosticPanel_();
+    const panel = audioDiagnosticBody;
     const contextState = audioUnlockContext
       ? String(audioUnlockContext.state || 'unknown')
       : '未作成';
@@ -2721,7 +2745,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.3\n' +
+      '音声待受診断 Ver189.5.7.3.1.4\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -2734,13 +2758,21 @@ const FLEET={
       '通話ID：' + (audioLastTraceCallId || 'なし') +
       (extra ? '\n' + extra : '');
 
-    ensureAudioDiagnosticToggleButton_();
     applyAudioDiagnosticPanelVisibility_();
   }
 
   document.addEventListener('DOMContentLoaded', function(){
-    ensureAudioDiagnosticToggleButton_();
+    ensureAudioDiagnosticPanel_();
     applyAudioDiagnosticPanelVisibility_();
+  });
+
+
+  window.addEventListener('resize', function(){
+    if(audioDiagnosticPanel){
+      audioDiagnosticPanel.style.left = '50%';
+      audioDiagnosticPanel.style.top = '64px';
+      audioDiagnosticPanel.style.transform = 'translateX(-50%)';
+    }
   });
 
   async function ensureAudioUnlockContext_(){
@@ -2987,7 +3019,7 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.3: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.4: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
