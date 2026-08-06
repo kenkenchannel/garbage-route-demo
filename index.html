@@ -12,7 +12,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.4: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.4.1: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -228,7 +228,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.4: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.4.1: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -410,7 +410,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.4';
+  const VERSION = 'Ver189.5.7.3.1.4.1';
   const RELEASE_NAME = '正式版';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
@@ -2623,6 +2623,8 @@ const FLEET={
     }
   }
 
+  // Ver189.5.7.3.1.4.1: 運転者プルダウンとの重なりを避けるため、
+  // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
 
@@ -2631,7 +2633,7 @@ const FLEET={
     panel.setAttribute('aria-label', '音声待受診断');
 
     panel.style.cssText =
-      'position:fixed;left:50%;top:64px;transform:translateX(-50%);' +
+      'position:fixed;left:calc(50% + 114px);top:64px;transform:translateX(-50%);' +
       'z-index:100000;width:min(310px,calc(100vw - 220px));' +
       'min-width:220px;border-radius:12px;overflow:hidden;' +
       'background:rgba(0,0,0,.88);color:#fff;' +
@@ -2745,7 +2747,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.4\n' +
+      '音声待受診断 Ver189.5.7.3.1.4.1\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -2769,7 +2771,7 @@ const FLEET={
 
   window.addEventListener('resize', function(){
     if(audioDiagnosticPanel){
-      audioDiagnosticPanel.style.left = '50%';
+      audioDiagnosticPanel.style.left = 'calc(50% + 114px)';
       audioDiagnosticPanel.style.top = '64px';
       audioDiagnosticPanel.style.transform = 'translateX(-50%)';
     }
@@ -3019,7 +3021,7 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.4: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.4.1: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
