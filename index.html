@@ -12,7 +12,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.5: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.6: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -228,7 +228,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.5: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.6: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -410,7 +410,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.5';
+  const VERSION = 'Ver189.5.7.3.1.6';
   const RELEASE_NAME = '正式版';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
@@ -422,7 +422,7 @@ if ('serviceWorker' in navigator) {
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
   const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
 
-  // Ver189.5.7.3.1.5 通信停止原因完全診断・自動復旧Watchdog
+  // Ver189.5.7.3.1.6 通信停止原因完全診断・自動復旧Watchdog
   const CONNECTIVITY_DIAG_QUEUE_KEY = 'torimorenuConnectivityDiagQueue_v1';
   const CONNECTIVITY_DIAG_MAX_LOCAL = 400;
   const CONNECTIVITY_DIAG_FLUSH_MAX = 50;
@@ -433,6 +433,24 @@ if ('serviceWorker' in navigator) {
   const WATCHDOG_RECOVER_MS = 150 * 1000;
   const WATCHDOG_STRONG_RECOVER_MS = 240 * 1000;
   const WATCHDOG_COOLDOWN_MS = 60 * 1000;
+
+  // Ver189.5.7.3.1.6 端末・ブラウザ深掘り診断
+  const DEEP_DIAG_SAMPLE_INTERVAL_MS = 30 * 1000;
+  const EVENT_LOOP_INTERVAL_MS = 5 * 1000;
+  const EVENT_LOOP_WARN_DRIFT_MS = 3000;
+  const EVENT_LOOP_CRITICAL_DRIFT_MS = 15000;
+  const RAF_GAP_WARN_MS = 5000;
+
+  let deepDiagTimer = null;
+  let eventLoopTimer = null;
+  let lastEventLoopExpectedAt = 0;
+  let lastAnimationFrameAt = 0;
+  let lastAnimationFrameGapLoggedAt = 0;
+  let cachedBatteryState = null;
+  let cachedServiceWorkerState = null;
+  let cachedNetworkState = null;
+  let cachedLongTask = null;
+  let deepDiagStarted = false;
   const HEARTBEAT_LAST_PLACE_KEY = 'torimorenuHeartbeatLastPlace';
   const HEARTBEAT_LAST_COLLECTION_TIME_KEY = 'torimorenuHeartbeatLastCollectionTime';
   const HEARTBEAT_LAST_RESULT_KEY = 'torimorenuHeartbeatLastResult';
@@ -570,6 +588,383 @@ if ('serviceWorker' in navigator) {
   let watchdogStartedAt = Date.now();
 
 
+
+  function getNetworkInformationSnapshot_(){
+    try{
+      const c =
+        navigator.connection ||
+        navigator.mozConnection ||
+        navigator.webkitConnection ||
+        null;
+
+      if(!c){
+        return {
+          supported:false,
+          online:navigator.onLine !== false
+        };
+      }
+
+      return {
+        supported:true,
+        online:navigator.onLine !== false,
+        effectiveType:String(c.effectiveType || ''),
+        type:String(c.type || ''),
+        downlink:Number.isFinite(Number(c.downlink)) ? Number(c.downlink) : '',
+        downlinkMax:Number.isFinite(Number(c.downlinkMax)) ? Number(c.downlinkMax) : '',
+        rtt:Number.isFinite(Number(c.rtt)) ? Number(c.rtt) : '',
+        saveData:!!c.saveData
+      };
+    }catch(error){
+      return {
+        supported:false,
+        online:navigator.onLine !== false,
+        error:String(error && error.message || error)
+      };
+    }
+  }
+
+  async function refreshBatteryDiagnostic_(){
+    if(typeof navigator.getBattery !== 'function'){
+      cachedBatteryState = {supported:false};
+      return cachedBatteryState;
+    }
+
+    try{
+      const battery = await navigator.getBattery();
+      cachedBatteryState = {
+        supported:true,
+        charging:!!battery.charging,
+        level:Number.isFinite(Number(battery.level))
+          ? Math.round(Number(battery.level) * 1000) / 10
+          : '',
+        chargingTime:Number.isFinite(Number(battery.chargingTime))
+          ? Number(battery.chargingTime)
+          : '',
+        dischargingTime:Number.isFinite(Number(battery.dischargingTime))
+          ? Number(battery.dischargingTime)
+          : ''
+      };
+      return cachedBatteryState;
+    }catch(error){
+      cachedBatteryState = {
+        supported:false,
+        error:String(error && error.message || error)
+      };
+      return cachedBatteryState;
+    }
+  }
+
+  async function refreshServiceWorkerDiagnostic_(){
+    if(!('serviceWorker' in navigator)){
+      cachedServiceWorkerState = {supported:false};
+      return cachedServiceWorkerState;
+    }
+
+    try{
+      const registration = await navigator.serviceWorker.getRegistration();
+      cachedServiceWorkerState = {
+        supported:true,
+        controller:!!navigator.serviceWorker.controller,
+        controllerUrl:navigator.serviceWorker.controller
+          ? String(navigator.serviceWorker.controller.scriptURL || '')
+          : '',
+        registration:!!registration,
+        activeState:registration && registration.active
+          ? String(registration.active.state || '')
+          : '',
+        waitingState:registration && registration.waiting
+          ? String(registration.waiting.state || '')
+          : '',
+        installingState:registration && registration.installing
+          ? String(registration.installing.state || '')
+          : ''
+      };
+      return cachedServiceWorkerState;
+    }catch(error){
+      cachedServiceWorkerState = {
+        supported:true,
+        error:String(error && error.message || error)
+      };
+      return cachedServiceWorkerState;
+    }
+  }
+
+  function getMemoryDiagnostic_(){
+    try{
+      if(performance && performance.memory){
+        const m = performance.memory;
+        return {
+          supported:true,
+          jsHeapSizeLimit:Number(m.jsHeapSizeLimit || 0),
+          totalJSHeapSize:Number(m.totalJSHeapSize || 0),
+          usedJSHeapSize:Number(m.usedJSHeapSize || 0),
+          usedPercent:m.jsHeapSizeLimit
+            ? Math.round((m.usedJSHeapSize / m.jsHeapSizeLimit) * 1000) / 10
+            : ''
+        };
+      }
+    }catch(_e){}
+
+    return {supported:false};
+  }
+
+  function getDocumentLifecycleDiagnostic_(){
+    return {
+      visibilityState:String(document.visibilityState || ''),
+      hidden:!!document.hidden,
+      wasDiscarded:!!document.wasDiscarded,
+      hasFocus:typeof document.hasFocus === 'function'
+        ? !!document.hasFocus()
+        : '',
+      readyState:String(document.readyState || '')
+    };
+  }
+
+  function getRtcDiagnosticSnapshot_(){
+    const result = {
+      available:typeof RTCPeerConnection !== 'undefined',
+      peers:[]
+    };
+
+    try{
+      const candidates = [
+        ['audioPeerConnection', typeof audioPeerConnection !== 'undefined' ? audioPeerConnection : null],
+        ['peerConnection', typeof peerConnection !== 'undefined' ? peerConnection : null],
+        ['pc', typeof pc !== 'undefined' ? pc : null],
+        ['activeAudioPeerConnection', typeof activeAudioPeerConnection !== 'undefined' ? activeAudioPeerConnection : null]
+      ];
+
+      candidates.forEach(function(pair){
+        const name = pair[0];
+        const conn = pair[1];
+        if(!conn || typeof conn !== 'object') return;
+        if(typeof conn.connectionState === 'undefined') return;
+
+        result.peers.push({
+          name:name,
+          connectionState:String(conn.connectionState || ''),
+          iceConnectionState:String(conn.iceConnectionState || ''),
+          iceGatheringState:String(conn.iceGatheringState || ''),
+          signalingState:String(conn.signalingState || '')
+        });
+      });
+    }catch(error){
+      result.error = String(error && error.message || error);
+    }
+
+    return result;
+  }
+
+  function buildDeepDiagnosticSnapshot_(){
+    cachedNetworkState = getNetworkInformationSnapshot_();
+
+    return {
+      sampledAt:connectivityDiagNowIso_(),
+      network:cachedNetworkState,
+      battery:cachedBatteryState,
+      serviceWorker:cachedServiceWorkerState,
+      lifecycle:getDocumentLifecycleDiagnostic_(),
+      memory:getMemoryDiagnostic_(),
+      rtc:getRtcDiagnosticSnapshot_(),
+      lastLongTask:cachedLongTask,
+      geolocationSupported:!!navigator.geolocation,
+      language:String(navigator.language || ''),
+      platform:String(navigator.platform || ''),
+      hardwareConcurrency:Number(navigator.hardwareConcurrency || 0),
+      deviceMemory:Number(navigator.deviceMemory || 0),
+      maxTouchPoints:Number(navigator.maxTouchPoints || 0),
+      webdriver:!!navigator.webdriver,
+      userAgent:String(navigator.userAgent || '')
+    };
+  }
+
+  async function sampleDeepDiagnostic_(reason){
+    try{
+      await Promise.all([
+        refreshBatteryDiagnostic_(),
+        refreshServiceWorkerDiagnostic_()
+      ]);
+    }catch(_e){}
+
+    const snapshot = buildDeepDiagnosticSnapshot_();
+
+    recordConnectivityDiag_(
+      'DEEP_DIAGNOSTIC_SAMPLE',
+      '端末・ブラウザ・通信状態の定期スナップショット',
+      {
+        reason:String(reason || 'interval'),
+        ...snapshot
+      }
+    );
+
+    return snapshot;
+  }
+
+  function recordWatchdogSnapshot_(stage, elapsedMs){
+    const snapshot = buildDeepDiagnosticSnapshot_();
+
+    recordConnectivityDiag_(
+      'WATCHDOG_FULL_SNAPSHOT',
+      'Watchdog発動時の端末状態を一括保存',
+      {
+        stage:Number(stage || 0),
+        elapsedMs:Number(elapsedMs || 0),
+        ...snapshot
+      }
+    );
+  }
+
+  function startLongTaskObserver_(){
+    if(typeof PerformanceObserver === 'undefined') return;
+
+    try{
+      const supported =
+        PerformanceObserver.supportedEntryTypes &&
+        PerformanceObserver.supportedEntryTypes.includes('longtask');
+
+      if(!supported) return;
+
+      const observer = new PerformanceObserver(function(list){
+        list.getEntries().forEach(function(entry){
+          const duration = Number(entry.duration || 0);
+
+          cachedLongTask = {
+            at:connectivityDiagNowIso_(),
+            durationMs:Math.round(duration),
+            name:String(entry.name || '')
+          };
+
+          if(duration >= 1000){
+            recordConnectivityDiag_(
+              'LONG_TASK',
+              'JavaScript Long Taskを検出',
+              cachedLongTask
+            );
+          }
+        });
+      });
+
+      observer.observe({entryTypes:['longtask']});
+    }catch(error){
+      recordConnectivityDiag_(
+        'LONG_TASK_OBSERVER_ERROR',
+        'Long Task監視を開始できませんでした',
+        {message:String(error && error.message || error)}
+      );
+    }
+  }
+
+  function startEventLoopMonitor_(){
+    if(eventLoopTimer) clearInterval(eventLoopTimer);
+
+    lastEventLoopExpectedAt = performance.now() + EVENT_LOOP_INTERVAL_MS;
+
+    eventLoopTimer = setInterval(function(){
+      const now = performance.now();
+      const drift = Math.max(0, now - lastEventLoopExpectedAt);
+
+      if(drift >= EVENT_LOOP_WARN_DRIFT_MS){
+        recordConnectivityDiag_(
+          drift >= EVENT_LOOP_CRITICAL_DRIFT_MS
+            ? 'EVENT_LOOP_CRITICAL_DRIFT'
+            : 'EVENT_LOOP_DRIFT',
+          'JavaScriptタイマー遅延を検出',
+          {
+            driftMs:Math.round(drift),
+            visibilityState:String(document.visibilityState || ''),
+            online:navigator.onLine !== false
+          }
+        );
+      }
+
+      lastEventLoopExpectedAt = now + EVENT_LOOP_INTERVAL_MS;
+    }, EVENT_LOOP_INTERVAL_MS);
+  }
+
+  function startAnimationFrameMonitor_(){
+    if(typeof requestAnimationFrame !== 'function') return;
+
+    lastAnimationFrameAt = performance.now();
+
+    function frame(now){
+      const gap = Math.max(0, now - lastAnimationFrameAt);
+
+      if(
+        document.visibilityState === 'visible' &&
+        gap >= RAF_GAP_WARN_MS &&
+        (Date.now() - lastAnimationFrameGapLoggedAt) >= 15000
+      ){
+        lastAnimationFrameGapLoggedAt = Date.now();
+
+        recordConnectivityDiag_(
+          'ANIMATION_FRAME_GAP',
+          '画面表示中にrequestAnimationFrameの大きな停止を検出',
+          {gapMs:Math.round(gap)}
+        );
+      }
+
+      lastAnimationFrameAt = now;
+      requestAnimationFrame(frame);
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  function startNetworkInformationMonitor_(){
+    try{
+      const c =
+        navigator.connection ||
+        navigator.mozConnection ||
+        navigator.webkitConnection ||
+        null;
+
+      if(!c || typeof c.addEventListener !== 'function') return;
+
+      c.addEventListener('change', function(){
+        cachedNetworkState = getNetworkInformationSnapshot_();
+        recordConnectivityDiag_(
+          'NETWORK_INFORMATION_CHANGE',
+          'Network Information APIの状態変化',
+          cachedNetworkState
+        );
+      });
+    }catch(_e){}
+  }
+
+  function startServiceWorkerMonitor_(){
+    if(!('serviceWorker' in navigator)) return;
+
+    try{
+      navigator.serviceWorker.addEventListener('controllerchange', function(){
+        refreshServiceWorkerDiagnostic_().then(function(state){
+          recordConnectivityDiag_(
+            'SERVICE_WORKER_CONTROLLER_CHANGE',
+            'ServiceWorker controllerchange',
+            state || {}
+          );
+        });
+      });
+    }catch(_e){}
+  }
+
+  function startDeepDiagnostics_(){
+    if(deepDiagStarted) return;
+    deepDiagStarted = true;
+
+    startLongTaskObserver_();
+    startEventLoopMonitor_();
+    startAnimationFrameMonitor_();
+    startNetworkInformationMonitor_();
+    startServiceWorkerMonitor_();
+
+    sampleDeepDiagnostic_('startup');
+
+    if(deepDiagTimer) clearInterval(deepDiagTimer);
+    deepDiagTimer = setInterval(function(){
+      sampleDeepDiagnostic_('interval');
+    }, DEEP_DIAG_SAMPLE_INTERVAL_MS);
+  }
+
   function connectivityDiagNowIso_(){
     try{
       return new Date().toISOString();
@@ -625,7 +1020,14 @@ if ('serviceWorker' in navigator) {
       navActive: !!(typeof nav !== 'undefined' && nav && nav.active),
       audioStandby: typeof audioStandbyEnabled === 'boolean' ? audioStandbyEnabled : '',
       elapsedSinceHeartbeatMs: heartbeatLastCompletedAt ? (now - heartbeatLastCompletedAt) : '',
-      userAgent: navigator.userAgent || ''
+      userAgent: navigator.userAgent || '',
+      networkEffectiveType: cachedNetworkState ? String(cachedNetworkState.effectiveType || '') : '',
+      networkRtt: cachedNetworkState && cachedNetworkState.rtt !== '' ? cachedNetworkState.rtt : '',
+      networkDownlink: cachedNetworkState && cachedNetworkState.downlink !== '' ? cachedNetworkState.downlink : '',
+      networkSaveData: cachedNetworkState ? String(!!cachedNetworkState.saveData) : '',
+      batteryLevel: cachedBatteryState && cachedBatteryState.level !== '' ? cachedBatteryState.level : '',
+      batteryCharging: cachedBatteryState ? String(!!cachedBatteryState.charging) : '',
+      documentWasDiscarded:!!document.wasDiscarded
     };
   }
 
@@ -672,12 +1074,24 @@ if ('serviceWorker' in navigator) {
         rows:batch
       };
 
+      const diagFetchStartedAt = performance.now();
+
       await fetch(GAS_ENDPOINT, {
         method:'POST',
         mode:'no-cors',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify(payload)
       });
+
+      const diagFetchDurationMs = Math.round(
+        Math.max(0, performance.now() - diagFetchStartedAt)
+      );
+
+      console.log(
+        '通信診断ログfetch完了:',
+        diagFetchDurationMs + 'ms',
+        'opaque/no-cors'
+      );
 
       const current = loadConnectivityDiagQueue_();
       const sentIds = new Set(batch.map(r => r && r.eventId).filter(Boolean));
@@ -764,6 +1178,7 @@ if ('serviceWorker' in navigator) {
     if(elapsed >= WATCHDOG_STRONG_RECOVER_MS){
       watchdogStage = 3;
       watchdogLastActionAt = now;
+      recordWatchdogSnapshot_(3, elapsed);
       recordConnectivityDiag_(
         'WATCHDOG_STAGE3',
         '長時間heartbeat停止を検出。通信監視ループを全面再起動',
@@ -782,6 +1197,7 @@ if ('serviceWorker' in navigator) {
     if(elapsed >= WATCHDOG_RECOVER_MS){
       watchdogStage = 2;
       watchdogLastActionAt = now;
+      recordWatchdogSnapshot_(2, elapsed);
       recordConnectivityDiag_(
         'WATCHDOG_STAGE2',
         'heartbeat停止が継続。heartbeat・遠隔操作・音声待受監視を再起動',
@@ -795,6 +1211,7 @@ if ('serviceWorker' in navigator) {
     if(elapsed >= WATCHDOG_WARN_MS){
       watchdogStage = 1;
       watchdogLastActionAt = now;
+      recordWatchdogSnapshot_(1, elapsed);
       recordConnectivityDiag_(
         'WATCHDOG_STAGE1',
         'heartbeat停止の兆候を検出。強制heartbeatを実行',
@@ -1032,12 +1449,18 @@ if ('serviceWorker' in navigator) {
     try{
       const payload = await makeHeartbeatPayload(reason);
 
+      const heartbeatFetchStartedAt = performance.now();
+
       await fetch(GAS_ENDPOINT, {
         method:'POST',
         mode:'no-cors',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify(payload)
       });
+
+      const heartbeatFetchDurationMs = Math.round(
+        Math.max(0, performance.now() - heartbeatFetchStartedAt)
+      );
 
       heartbeatLastSentAt = Date.now();
       heartbeatLastCompletedAt = heartbeatLastSentAt;
@@ -1051,7 +1474,9 @@ if ('serviceWorker' in navigator) {
           reason:payload.reason,
           sequence:heartbeatSequence,
           vehicle:payload.vehicle,
-          lastPlace:payload.lastPlace
+          lastPlace:payload.lastPlace,
+          fetchDurationMs:heartbeatFetchDurationMs,
+          responseType:'opaque/no-cors'
         }
       );
 
@@ -1148,6 +1573,24 @@ if ('serviceWorker' in navigator) {
     );
     restartCommunicationLoops_('pageshow');
     sendHeartbeat('pageshow', true);
+  });
+
+  document.addEventListener('freeze', function(){
+    recordConnectivityDiag_(
+      'PAGE_FREEZE',
+      'Page Lifecycle freezeイベント',
+      buildDeepDiagnosticSnapshot_()
+    );
+  });
+
+  document.addEventListener('resume', function(){
+    recordConnectivityDiag_(
+      'PAGE_RESUME',
+      'Page Lifecycle resumeイベント',
+      buildDeepDiagnosticSnapshot_()
+    );
+    restartCommunicationLoops_('page-resume');
+    sendHeartbeat('page-resume', true);
   });
 
   window.addEventListener('focus', function(){
@@ -3040,7 +3483,7 @@ const FLEET={
     }
   }
 
-  // Ver189.5.7.3.1.5: 運転者プルダウンとの重なりを避けるため、
+  // Ver189.5.7.3.1.6: 運転者プルダウンとの重なりを避けるため、
   // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -3164,7 +3607,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.5\n' +
+      '音声待受診断 Ver189.5.7.3.1.6\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -3438,7 +3881,7 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.5: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.6: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -4326,7 +4769,7 @@ const FLEET={
 
   startRemoteCommandPolling();
 
-  // Ver189.5.7.3.1.5 診断・Watchdog開始
+  // Ver189.5.7.3.1.6 診断・Watchdog開始
   recordConnectivityDiag_(
     'APP_DIAGNOSTIC_START',
     '通信診断・Watchdogを開始',
@@ -4338,6 +4781,7 @@ const FLEET={
   );
   startConnectivityDiagFlush_();
   startCommunicationWatchdog_();
+  startDeepDiagnostics_();
 
   document.getElementById('btnNavStart').addEventListener('click', startGuidance);
   document.getElementById('btnNavStop').addEventListener('click',  pauseGuidance);
