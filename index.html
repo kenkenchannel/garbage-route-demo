@@ -12,7 +12,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.6: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.7: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -228,7 +228,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.6: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.7: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -410,7 +410,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.6';
+  const VERSION = 'Ver189.5.7.3.1.7';
   const RELEASE_NAME = '正式版';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
@@ -422,7 +422,7 @@ if ('serviceWorker' in navigator) {
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
   const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
 
-  // Ver189.5.7.3.1.6 通信停止原因完全診断・自動復旧Watchdog
+  // Ver189.5.7.3.1.7 通信停止原因完全診断・自動復旧Watchdog
   const CONNECTIVITY_DIAG_QUEUE_KEY = 'torimorenuConnectivityDiagQueue_v1';
   const CONNECTIVITY_DIAG_MAX_LOCAL = 400;
   const CONNECTIVITY_DIAG_FLUSH_MAX = 50;
@@ -434,7 +434,7 @@ if ('serviceWorker' in navigator) {
   const WATCHDOG_STRONG_RECOVER_MS = 240 * 1000;
   const WATCHDOG_COOLDOWN_MS = 60 * 1000;
 
-  // Ver189.5.7.3.1.6 端末・ブラウザ深掘り診断
+  // Ver189.5.7.3.1.7 端末・ブラウザ深掘り診断
   const DEEP_DIAG_SAMPLE_INTERVAL_MS = 30 * 1000;
   const EVENT_LOOP_INTERVAL_MS = 5 * 1000;
   const EVENT_LOOP_WARN_DRIFT_MS = 3000;
@@ -451,6 +451,28 @@ if ('serviceWorker' in navigator) {
   let cachedNetworkState = null;
   let cachedLongTask = null;
   let deepDiagStarted = false;
+
+  // Ver189.5.7.3.1.7 Android OS / Chrome休止・再生成推定
+  const SESSION_DIAG_ID_KEY = 'torimorenuSessionDiagId_v1';
+  const SESSION_LAST_ALIVE_KEY = 'torimorenuSessionLastAlive_v1';
+  const SESSION_CLEAN_EXIT_KEY = 'torimorenuSessionCleanExit_v1';
+  const SESSION_LAST_INFO_KEY = 'torimorenuSessionLastInfo_v1';
+  const SESSION_ALIVE_INTERVAL_MS = 10 * 1000;
+  const SLEEP_GAP_WARN_MS = 20 * 1000;
+  const SLEEP_GAP_CRITICAL_MS = 60 * 1000;
+  const STORAGE_BENCHMARK_INTERVAL_MS = 60 * 1000;
+  const STORAGE_LATENCY_WARN_MS = 100;
+  const MEMORY_SAMPLE_HISTORY_MAX = 20;
+
+  let browserSessionId = '';
+  let browserSessionStartedAt = Date.now();
+  let sessionAliveTimer = null;
+  let lastAliveWallClock = Date.now();
+  let lastAlivePerfClock = performance.now();
+  let storageBenchmarkTimer = null;
+  let memorySampleHistory = [];
+  let previousSessionInfo = null;
+  let lastNavigationInfo = null;
   const HEARTBEAT_LAST_PLACE_KEY = 'torimorenuHeartbeatLastPlace';
   const HEARTBEAT_LAST_COLLECTION_TIME_KEY = 'torimorenuHeartbeatLastCollectionTime';
   const HEARTBEAT_LAST_RESULT_KEY = 'torimorenuHeartbeatLastResult';
@@ -588,6 +610,413 @@ if ('serviceWorker' in navigator) {
   let watchdogStartedAt = Date.now();
 
 
+
+
+  function generateBrowserSessionId_(){
+    return (
+      'BS-' + Date.now() + '-' +
+      Math.floor(Math.random() * 1000000000)
+    );
+  }
+
+  function readJsonLocalStorage_(key, fallback){
+    try{
+      const raw = localStorage.getItem(key);
+      if(!raw) return fallback;
+      return JSON.parse(raw);
+    }catch(_e){
+      return fallback;
+    }
+  }
+
+  function writeJsonLocalStorage_(key, value){
+    try{
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    }catch(_e){
+      return false;
+    }
+  }
+
+  function getNavigationDiagnostic_(){
+    try{
+      const entries =
+        performance && typeof performance.getEntriesByType === 'function'
+          ? performance.getEntriesByType('navigation')
+          : [];
+
+      const nav = entries && entries[0] ? entries[0] : null;
+
+      if(!nav){
+        return {
+          supported:false,
+          timeOrigin:Number(performance.timeOrigin || 0)
+        };
+      }
+
+      return {
+        supported:true,
+        type:String(nav.type || ''),
+        durationMs:Math.round(Number(nav.duration || 0)),
+        domContentLoadedMs:Math.round(Number(nav.domContentLoadedEventEnd || 0)),
+        loadEventEndMs:Math.round(Number(nav.loadEventEnd || 0)),
+        redirectCount:Number(nav.redirectCount || 0),
+        transferSize:Number(nav.transferSize || 0),
+        encodedBodySize:Number(nav.encodedBodySize || 0),
+        decodedBodySize:Number(nav.decodedBodySize || 0),
+        timeOrigin:Number(performance.timeOrigin || 0)
+      };
+    }catch(error){
+      return {
+        supported:false,
+        error:String(error && error.message || error)
+      };
+    }
+  }
+
+  function getStorageDiagnostic_(){
+    const result = {
+      localStorageAvailable:false,
+      sessionStorageAvailable:false
+    };
+
+    try{
+      const key = '__torimorenu_ls_test__';
+      localStorage.setItem(key, '1');
+      localStorage.removeItem(key);
+      result.localStorageAvailable = true;
+    }catch(error){
+      result.localStorageError = String(error && error.message || error);
+    }
+
+    try{
+      const key = '__torimorenu_ss_test__';
+      sessionStorage.setItem(key, '1');
+      sessionStorage.removeItem(key);
+      result.sessionStorageAvailable = true;
+    }catch(error){
+      result.sessionStorageError = String(error && error.message || error);
+    }
+
+    try{
+      if(navigator.storage && typeof navigator.storage.estimate === 'function'){
+        result.storageEstimateSupported = true;
+      }else{
+        result.storageEstimateSupported = false;
+      }
+    }catch(_e){
+      result.storageEstimateSupported = false;
+    }
+
+    return result;
+  }
+
+  async function getStorageEstimateDiagnostic_(){
+    try{
+      if(!navigator.storage || typeof navigator.storage.estimate !== 'function'){
+        return {supported:false};
+      }
+
+      const estimate = await navigator.storage.estimate();
+
+      return {
+        supported:true,
+        usage:Number(estimate && estimate.usage || 0),
+        quota:Number(estimate && estimate.quota || 0),
+        usagePercent:estimate && estimate.quota
+          ? Math.round((estimate.usage / estimate.quota) * 1000) / 10
+          : ''
+      };
+    }catch(error){
+      return {
+        supported:false,
+        error:String(error && error.message || error)
+      };
+    }
+  }
+
+  function runLocalStorageLatencyBenchmark_(reason){
+    const key = '__torimorenu_storage_latency__';
+    const payload = (
+      String(Date.now()) + ':' +
+      '0123456789abcdef'.repeat(128)
+    );
+
+    const startedAt = performance.now();
+    let success = false;
+    let errorText = '';
+
+    try{
+      localStorage.setItem(key, payload);
+      const value = localStorage.getItem(key);
+      localStorage.removeItem(key);
+      success = value === payload;
+    }catch(error){
+      errorText = String(error && error.message || error);
+    }
+
+    const durationMs = Math.round(
+      Math.max(0, performance.now() - startedAt)
+    );
+
+    if(!success || durationMs >= STORAGE_LATENCY_WARN_MS){
+      recordConnectivityDiag_(
+        'STORAGE_LATENCY',
+        success
+          ? 'localStorage処理遅延を検出'
+          : 'localStorage読み書き異常',
+        {
+          reason:String(reason || ''),
+          durationMs:durationMs,
+          success:success,
+          error:errorText
+        }
+      );
+    }
+
+    return {
+      durationMs:durationMs,
+      success:success,
+      error:errorText
+    };
+  }
+
+  function updateMemoryTrend_(){
+    const sample = getMemoryDiagnostic_();
+
+    if(!sample || !sample.supported){
+      return {
+        supported:false,
+        historyCount:memorySampleHistory.length
+      };
+    }
+
+    const row = {
+      at:Date.now(),
+      usedJSHeapSize:Number(sample.usedJSHeapSize || 0),
+      totalJSHeapSize:Number(sample.totalJSHeapSize || 0),
+      jsHeapSizeLimit:Number(sample.jsHeapSizeLimit || 0)
+    };
+
+    memorySampleHistory.push(row);
+    if(memorySampleHistory.length > MEMORY_SAMPLE_HISTORY_MAX){
+      memorySampleHistory = memorySampleHistory.slice(-MEMORY_SAMPLE_HISTORY_MAX);
+    }
+
+    let deltaBytes = '';
+    let deltaPercent = '';
+
+    if(memorySampleHistory.length >= 2){
+      const first = memorySampleHistory[0];
+      const last = memorySampleHistory[memorySampleHistory.length - 1];
+
+      deltaBytes = last.usedJSHeapSize - first.usedJSHeapSize;
+
+      if(first.usedJSHeapSize > 0){
+        deltaPercent = Math.round(
+          (deltaBytes / first.usedJSHeapSize) * 1000
+        ) / 10;
+      }
+    }
+
+    return {
+      supported:true,
+      current:sample,
+      historyCount:memorySampleHistory.length,
+      deltaBytes:deltaBytes,
+      deltaPercent:deltaPercent
+    };
+  }
+
+  function getSessionLifecycleSnapshot_(){
+    return {
+      browserSessionId:String(browserSessionId || ''),
+      browserSessionStartedAt:browserSessionStartedAt,
+      sessionAgeMs:Math.max(0, Date.now() - browserSessionStartedAt),
+      previousSessionInfo:previousSessionInfo || null,
+      navigation:lastNavigationInfo || getNavigationDiagnostic_(),
+      cleanExitMarker:localStorage.getItem(SESSION_CLEAN_EXIT_KEY) || ''
+    };
+  }
+
+  function initializeBrowserSessionDiagnostic_(){
+    previousSessionInfo = readJsonLocalStorage_(
+      SESSION_LAST_INFO_KEY,
+      null
+    );
+
+    const previousLastAlive = Number(
+      localStorage.getItem(SESSION_LAST_ALIVE_KEY) || '0'
+    );
+
+    const previousCleanExit =
+      localStorage.getItem(SESSION_CLEAN_EXIT_KEY) === '1';
+
+    browserSessionId = generateBrowserSessionId_();
+    browserSessionStartedAt = Date.now();
+    lastAliveWallClock = Date.now();
+    lastAlivePerfClock = performance.now();
+    lastNavigationInfo = getNavigationDiagnostic_();
+
+    try{
+      localStorage.setItem(SESSION_DIAG_ID_KEY, browserSessionId);
+      localStorage.setItem(SESSION_CLEAN_EXIT_KEY, '0');
+    }catch(_e){}
+
+    const previousAgeMs = previousLastAlive
+      ? Math.max(0, Date.now() - previousLastAlive)
+      : '';
+
+    recordConnectivityDiag_(
+      previousSessionInfo && !previousCleanExit
+        ? 'BROWSER_SESSION_UNCLEAN_RESTART'
+        : 'BROWSER_SESSION_START',
+      previousSessionInfo && !previousCleanExit
+        ? '前回セッションが正常終了せず、ページ/Chrome再生成の可能性'
+        : 'ブラウザ診断セッション開始',
+      {
+        browserSessionId:browserSessionId,
+        previousCleanExit:previousCleanExit,
+        previousLastAliveAgeMs:previousAgeMs,
+        previousSessionInfo:previousSessionInfo,
+        navigation:lastNavigationInfo,
+        documentWasDiscarded:!!document.wasDiscarded
+      }
+    );
+
+    const info = {
+      browserSessionId:browserSessionId,
+      startedAt:browserSessionStartedAt,
+      appVersion:VERSION,
+      userAgent:String(navigator.userAgent || ''),
+      navigation:lastNavigationInfo
+    };
+
+    writeJsonLocalStorage_(SESSION_LAST_INFO_KEY, info);
+  }
+
+  function markBrowserSessionAlive_(){
+    const nowWall = Date.now();
+    const nowPerf = performance.now();
+
+    const wallDelta = Math.max(0, nowWall - lastAliveWallClock);
+    const perfDelta = Math.max(0, nowPerf - lastAlivePerfClock);
+    const schedulerGap = Math.max(0, wallDelta - SESSION_ALIVE_INTERVAL_MS);
+
+    if(schedulerGap >= SLEEP_GAP_WARN_MS){
+      recordConnectivityDiag_(
+        schedulerGap >= SLEEP_GAP_CRITICAL_MS
+          ? 'OS_SLEEP_OR_BROWSER_SUSPEND_CRITICAL'
+          : 'OS_SLEEP_OR_BROWSER_SUSPEND',
+        '端末スリープ・Chrome休止・タイマー抑制の可能性がある実行ギャップを検出',
+        {
+          wallDeltaMs:Math.round(wallDelta),
+          performanceDeltaMs:Math.round(perfDelta),
+          schedulerGapMs:Math.round(schedulerGap),
+          visibilityState:String(document.visibilityState || ''),
+          documentHidden:!!document.hidden,
+          documentWasDiscarded:!!document.wasDiscarded,
+          hasFocus:typeof document.hasFocus === 'function'
+            ? !!document.hasFocus()
+            : '',
+          network:getNetworkInformationSnapshot_(),
+          navigation:getNavigationDiagnostic_()
+        }
+      );
+    }
+
+    lastAliveWallClock = nowWall;
+    lastAlivePerfClock = nowPerf;
+
+    try{
+      localStorage.setItem(SESSION_LAST_ALIVE_KEY, String(nowWall));
+    }catch(_e){}
+  }
+
+  function startBrowserSessionAliveMonitor_(){
+    if(sessionAliveTimer) clearInterval(sessionAliveTimer);
+
+    sessionAliveTimer = setInterval(function(){
+      markBrowserSessionAlive_();
+    }, SESSION_ALIVE_INTERVAL_MS);
+  }
+
+  function markBrowserSessionCleanExit_(reason){
+    try{
+      localStorage.setItem(SESSION_CLEAN_EXIT_KEY, '1');
+
+      writeJsonLocalStorage_(
+        SESSION_LAST_INFO_KEY,
+        {
+          browserSessionId:browserSessionId,
+          startedAt:browserSessionStartedAt,
+          endedAt:Date.now(),
+          cleanExit:true,
+          exitReason:String(reason || ''),
+          appVersion:VERSION,
+          userAgent:String(navigator.userAgent || ''),
+          navigation:getNavigationDiagnostic_()
+        }
+      );
+    }catch(_e){}
+  }
+
+  async function buildOsChromeDeepSnapshot_(){
+    const storageEstimate = await getStorageEstimateDiagnostic_();
+    const storageLatency = runLocalStorageLatencyBenchmark_('snapshot');
+    const memoryTrend = updateMemoryTrend_();
+
+    return {
+      session:getSessionLifecycleSnapshot_(),
+      lifecycle:getDocumentLifecycleDiagnostic_(),
+      network:getNetworkInformationSnapshot_(),
+      battery:cachedBatteryState,
+      serviceWorker:cachedServiceWorkerState,
+      memoryTrend:memoryTrend,
+      storage:getStorageDiagnostic_(),
+      storageEstimate:storageEstimate,
+      storageLatency:storageLatency,
+      rtc:getRtcDiagnosticSnapshot_(),
+      lastLongTask:cachedLongTask,
+      performanceNow:Math.round(performance.now()),
+      timeOrigin:Number(performance.timeOrigin || 0)
+    };
+  }
+
+  async function recordOsChromeDeepSnapshot_(eventType, message, extra){
+    let snapshot = {};
+
+    try{
+      await Promise.all([
+        refreshBatteryDiagnostic_(),
+        refreshServiceWorkerDiagnostic_()
+      ]);
+
+      snapshot = await buildOsChromeDeepSnapshot_();
+    }catch(error){
+      snapshot = {
+        snapshotError:String(error && error.message || error)
+      };
+    }
+
+    recordConnectivityDiag_(
+      String(eventType || 'OS_CHROME_DEEP_SNAPSHOT'),
+      String(message || 'OS/Chrome詳細スナップショット'),
+      {
+        ...(extra || {}),
+        ...snapshot
+      }
+    );
+  }
+
+  function startStorageLatencyMonitor_(){
+    if(storageBenchmarkTimer) clearInterval(storageBenchmarkTimer);
+
+    storageBenchmarkTimer = setInterval(function(){
+      runLocalStorageLatencyBenchmark_('interval');
+      updateMemoryTrend_();
+    }, STORAGE_BENCHMARK_INTERVAL_MS);
+  }
 
   function getNetworkInformationSnapshot_(){
     try{
@@ -767,6 +1196,10 @@ if ('serviceWorker' in navigator) {
       memory:getMemoryDiagnostic_(),
       rtc:getRtcDiagnosticSnapshot_(),
       lastLongTask:cachedLongTask,
+      session:getSessionLifecycleSnapshot_(),
+      navigation:getNavigationDiagnostic_(),
+      storage:getStorageDiagnostic_(),
+      memoryTrend:updateMemoryTrend_(),
       geolocationSupported:!!navigator.geolocation,
       language:String(navigator.language || ''),
       platform:String(navigator.platform || ''),
@@ -810,6 +1243,15 @@ if ('serviceWorker' in navigator) {
         stage:Number(stage || 0),
         elapsedMs:Number(elapsedMs || 0),
         ...snapshot
+      }
+    );
+
+    recordOsChromeDeepSnapshot_(
+      'ANDROID_OS_CHROME_WATCHDOG_SNAPSHOT',
+      'Watchdog発動時のAndroid OS／Chrome推定用詳細スナップショット',
+      {
+        stage:Number(stage || 0),
+        elapsedMs:Number(elapsedMs || 0)
       }
     );
   }
@@ -864,8 +1306,10 @@ if ('serviceWorker' in navigator) {
       const drift = Math.max(0, now - lastEventLoopExpectedAt);
 
       if(drift >= EVENT_LOOP_WARN_DRIFT_MS){
+        const critical = drift >= EVENT_LOOP_CRITICAL_DRIFT_MS;
+
         recordConnectivityDiag_(
-          drift >= EVENT_LOOP_CRITICAL_DRIFT_MS
+          critical
             ? 'EVENT_LOOP_CRITICAL_DRIFT'
             : 'EVENT_LOOP_DRIFT',
           'JavaScriptタイマー遅延を検出',
@@ -875,6 +1319,14 @@ if ('serviceWorker' in navigator) {
             online:navigator.onLine !== false
           }
         );
+
+        if(critical){
+          recordOsChromeDeepSnapshot_(
+            'ANDROID_OS_EVENT_LOOP_STOP_SNAPSHOT',
+            '重大なEvent Loop停止後のAndroid OS／Chrome状態',
+            {driftMs:Math.round(drift)}
+          );
+        }
       }
 
       lastEventLoopExpectedAt = now + EVENT_LOOP_INTERVAL_MS;
@@ -951,6 +1403,10 @@ if ('serviceWorker' in navigator) {
     if(deepDiagStarted) return;
     deepDiagStarted = true;
 
+    initializeBrowserSessionDiagnostic_();
+    startBrowserSessionAliveMonitor_();
+    startStorageLatencyMonitor_();
+
     startLongTaskObserver_();
     startEventLoopMonitor_();
     startAnimationFrameMonitor_();
@@ -958,6 +1414,14 @@ if ('serviceWorker' in navigator) {
     startServiceWorkerMonitor_();
 
     sampleDeepDiagnostic_('startup');
+
+    recordOsChromeDeepSnapshot_(
+      'ANDROID_OS_CHROME_STARTUP_SNAPSHOT',
+      'アプリ起動時のAndroid OS／Chrome詳細状態',
+      {
+        documentWasDiscarded:!!document.wasDiscarded
+      }
+    );
 
     if(deepDiagTimer) clearInterval(deepDiagTimer);
     deepDiagTimer = setInterval(function(){
@@ -1027,7 +1491,9 @@ if ('serviceWorker' in navigator) {
       networkSaveData: cachedNetworkState ? String(!!cachedNetworkState.saveData) : '',
       batteryLevel: cachedBatteryState && cachedBatteryState.level !== '' ? cachedBatteryState.level : '',
       batteryCharging: cachedBatteryState ? String(!!cachedBatteryState.charging) : '',
-      documentWasDiscarded:!!document.wasDiscarded
+      documentWasDiscarded:!!document.wasDiscarded,
+      browserSessionId:String(browserSessionId || ''),
+      navigationType:lastNavigationInfo ? String(lastNavigationInfo.type || '') : ''
     };
   }
 
@@ -1565,12 +2031,26 @@ if ('serviceWorker' in navigator) {
     sendHeartbeat('pagehide', true);
   });
 
+  window.addEventListener('beforeunload', function(){
+    markBrowserSessionCleanExit_('beforeunload');
+  });
+
+  window.addEventListener('unload', function(){
+    markBrowserSessionCleanExit_('unload');
+  });
+
   window.addEventListener('pageshow', function(event){
     recordConnectivityDiag_(
       'PAGE_SHOW',
       'pageshowイベント',
       {persisted:!!(event && event.persisted)}
     );
+    recordOsChromeDeepSnapshot_(
+      'ANDROID_OS_PAGESHOW_SNAPSHOT',
+      'pageshow時のAndroid OS／Chrome詳細状態',
+      {persisted:!!(event && event.persisted)}
+    );
+
     restartCommunicationLoops_('pageshow');
     sendHeartbeat('pageshow', true);
   });
@@ -1581,6 +2061,12 @@ if ('serviceWorker' in navigator) {
       'Page Lifecycle freezeイベント',
       buildDeepDiagnosticSnapshot_()
     );
+
+    recordOsChromeDeepSnapshot_(
+      'ANDROID_OS_FREEZE_SNAPSHOT',
+      'freeze直前のAndroid OS／Chrome詳細状態',
+      {}
+    );
   });
 
   document.addEventListener('resume', function(){
@@ -1589,6 +2075,13 @@ if ('serviceWorker' in navigator) {
       'Page Lifecycle resumeイベント',
       buildDeepDiagnosticSnapshot_()
     );
+
+    recordOsChromeDeepSnapshot_(
+      'ANDROID_OS_RESUME_SNAPSHOT',
+      'resume直後のAndroid OS／Chrome詳細状態',
+      {}
+    );
+
     restartCommunicationLoops_('page-resume');
     sendHeartbeat('page-resume', true);
   });
@@ -3483,7 +3976,7 @@ const FLEET={
     }
   }
 
-  // Ver189.5.7.3.1.6: 運転者プルダウンとの重なりを避けるため、
+  // Ver189.5.7.3.1.7: 運転者プルダウンとの重なりを避けるため、
   // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -3607,7 +4100,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.6\n' +
+      '音声待受診断 Ver189.5.7.3.1.7\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -3881,7 +4374,7 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.6: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.7: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -4769,7 +5262,7 @@ const FLEET={
 
   startRemoteCommandPolling();
 
-  // Ver189.5.7.3.1.6 診断・Watchdog開始
+  // Ver189.5.7.3.1.7 診断・Watchdog開始
   recordConnectivityDiag_(
     'APP_DIAGNOSTIC_START',
     '通信診断・Watchdogを開始',
