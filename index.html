@@ -12,7 +12,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.4.1: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.5: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -228,7 +228,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.4.1: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.5: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -410,7 +410,7 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.4.1';
+  const VERSION = 'Ver189.5.7.3.1.5';
   const RELEASE_NAME = '正式版';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
@@ -421,6 +421,18 @@ if ('serviceWorker' in navigator) {
   // Ver174: センター監視用ハートビート
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
   const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
+
+  // Ver189.5.7.3.1.5 通信停止原因完全診断・自動復旧Watchdog
+  const CONNECTIVITY_DIAG_QUEUE_KEY = 'torimorenuConnectivityDiagQueue_v1';
+  const CONNECTIVITY_DIAG_MAX_LOCAL = 400;
+  const CONNECTIVITY_DIAG_FLUSH_MAX = 50;
+  const CONNECTIVITY_DIAG_FLUSH_INTERVAL_MS = 30 * 1000;
+
+  const WATCHDOG_CHECK_INTERVAL_MS = 15 * 1000;
+  const WATCHDOG_WARN_MS = 90 * 1000;
+  const WATCHDOG_RECOVER_MS = 150 * 1000;
+  const WATCHDOG_STRONG_RECOVER_MS = 240 * 1000;
+  const WATCHDOG_COOLDOWN_MS = 60 * 1000;
   const HEARTBEAT_LAST_PLACE_KEY = 'torimorenuHeartbeatLastPlace';
   const HEARTBEAT_LAST_COLLECTION_TIME_KEY = 'torimorenuHeartbeatLastCollectionTime';
   const HEARTBEAT_LAST_RESULT_KEY = 'torimorenuHeartbeatLastResult';
@@ -492,7 +504,36 @@ if ('serviceWorker' in navigator) {
     clearTimeout(showToast._timer);
     showToast._timer=setTimeout(()=>{ t.style.display='none'; }, seconds*1000);
   }
-  window.addEventListener('error',ev=>showErr(ev.error||ev.message||'unknown'));
+  window.addEventListener('error',ev=>{
+    try{
+      recordConnectivityDiag_(
+        'JAVASCRIPT_ERROR',
+        'JavaScript実行エラー',
+        {
+          message:String(ev && ev.message || ''),
+          filename:String(ev && ev.filename || ''),
+          lineno:Number(ev && ev.lineno || 0),
+          colno:Number(ev && ev.colno || 0),
+          stack:String(ev && ev.error && ev.error.stack || '').slice(0,1800)
+        }
+      );
+    }catch(_e){}
+    showErr(ev.error||ev.message||'unknown');
+  });
+
+  window.addEventListener('unhandledrejection', function(ev){
+    try{
+      const reason = ev && ev.reason;
+      recordConnectivityDiag_(
+        'UNHANDLED_REJECTION',
+        '未処理Promiseエラー',
+        {
+          reason:String(reason && reason.message || reason || ''),
+          stack:String(reason && reason.stack || '').slice(0,1800)
+        }
+      );
+    }catch(_e){}
+  });
 
   const panel=document.getElementById('panel');
   const btnPanel=document.getElementById('btnPanel');
@@ -515,6 +556,262 @@ if ('serviceWorker' in navigator) {
   let heartbeatTimer = null;
   let heartbeatSending = false;
   let heartbeatLastSentAt = 0;
+  let heartbeatLastAttemptAt = 0;
+  let heartbeatLastCompletedAt = 0;
+  let heartbeatLastFailedAt = 0;
+  let heartbeatConsecutiveFailures = 0;
+  let heartbeatSequence = Number(localStorage.getItem('torimorenuHeartbeatSequence') || '0');
+
+  let connectivityDiagFlushTimer = null;
+  let connectivityDiagFlushing = false;
+  let watchdogTimer = null;
+  let watchdogLastActionAt = 0;
+  let watchdogStage = 0;
+  let watchdogStartedAt = Date.now();
+
+
+  function connectivityDiagNowIso_(){
+    try{
+      return new Date().toISOString();
+    }catch(_e){
+      return '';
+    }
+  }
+
+  function safeJsonText_(value){
+    try{
+      return JSON.stringify(value);
+    }catch(_e){
+      return String(value == null ? '' : value);
+    }
+  }
+
+  function loadConnectivityDiagQueue_(){
+    try{
+      const raw = localStorage.getItem(CONNECTIVITY_DIAG_QUEUE_KEY) || '[]';
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    }catch(_e){
+      return [];
+    }
+  }
+
+  function saveConnectivityDiagQueue_(rows){
+    try{
+      const arr = Array.isArray(rows) ? rows.slice(-CONNECTIVITY_DIAG_MAX_LOCAL) : [];
+      localStorage.setItem(CONNECTIVITY_DIAG_QUEUE_KEY, JSON.stringify(arr));
+    }catch(error){
+      console.warn('通信診断ログの端末内保存に失敗しました。', error);
+    }
+  }
+
+  function getConnectivitySnapshot_(){
+    const now = Date.now();
+    return {
+      deviceId: getHeartbeatDeviceId(),
+      vehicle: vehicleSel ? String(vehicleSel.value || '') : '',
+      driver: driverSel ? String(driverSel.value || '') : '',
+      courseName: String(currentCourseName || ''),
+      appVersion: VERSION,
+      pageUrl: location.href || '',
+      online: navigator.onLine !== false,
+      visibilityState: document.visibilityState || '',
+      heartbeatSequence: heartbeatSequence,
+      heartbeatLastAttemptAt: heartbeatLastAttemptAt || '',
+      heartbeatLastCompletedAt: heartbeatLastCompletedAt || '',
+      heartbeatLastFailedAt: heartbeatLastFailedAt || '',
+      heartbeatConsecutiveFailures: heartbeatConsecutiveFailures,
+      pendingCount: Array.isArray(pendingRows) ? pendingRows.length : 0,
+      navActive: !!(typeof nav !== 'undefined' && nav && nav.active),
+      audioStandby: typeof audioStandbyEnabled === 'boolean' ? audioStandbyEnabled : '',
+      elapsedSinceHeartbeatMs: heartbeatLastCompletedAt ? (now - heartbeatLastCompletedAt) : '',
+      userAgent: navigator.userAgent || ''
+    };
+  }
+
+  function recordConnectivityDiag_(eventType, message, extra){
+    const snapshot = getConnectivitySnapshot_();
+    const row = {
+      eventId: 'CD-' + Date.now() + '-' + Math.floor(Math.random() * 1000000),
+      deviceTime: connectivityDiagNowIso_(),
+      eventType: String(eventType || ''),
+      message: String(message || ''),
+      detailJson: safeJsonText_(extra || {}),
+      ...snapshot
+    };
+
+    const queue = loadConnectivityDiagQueue_();
+    queue.push(row);
+    saveConnectivityDiagQueue_(queue);
+
+    console.log('[通信診断]', row.eventType, row.message, extra || '');
+    return row;
+  }
+
+  async function flushConnectivityDiagQueue_(reason){
+    if(connectivityDiagFlushing) return;
+    if(!GAS_ENDPOINT || !GAS_ENDPOINT.startsWith('https://')) return;
+    if(navigator.onLine === false) return;
+
+    const queue = loadConnectivityDiagQueue_();
+    if(!queue.length) return;
+
+    connectivityDiagFlushing = true;
+    const batch = queue.slice(0, CONNECTIVITY_DIAG_FLUSH_MAX);
+
+    try{
+      const payload = {
+        payloadType:'connectivityDiagnosticBatch',
+        appVersion:VERSION,
+        deviceId:getHeartbeatDeviceId(),
+        vehicle:vehicleSel ? String(vehicleSel.value || '') : '',
+        driver:driverSel ? String(driverSel.value || '') : '',
+        courseName:String(currentCourseName || ''),
+        deviceTime:nowStamp(),
+        flushReason:String(reason || 'interval'),
+        rows:batch
+      };
+
+      await fetch(GAS_ENDPOINT, {
+        method:'POST',
+        mode:'no-cors',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
+      });
+
+      const current = loadConnectivityDiagQueue_();
+      const sentIds = new Set(batch.map(r => r && r.eventId).filter(Boolean));
+      const remaining = current.filter(r => !sentIds.has(r && r.eventId));
+      saveConnectivityDiagQueue_(remaining);
+
+      console.log('通信診断ログ送信:', batch.length, '件 / 残り', remaining.length);
+    }catch(error){
+      console.warn('通信診断ログ送信失敗:', error);
+    }finally{
+      connectivityDiagFlushing = false;
+    }
+  }
+
+  function startConnectivityDiagFlush_(){
+    if(connectivityDiagFlushTimer) clearInterval(connectivityDiagFlushTimer);
+    setTimeout(function(){ flushConnectivityDiagQueue_('startup'); }, 5000);
+    connectivityDiagFlushTimer = setInterval(function(){
+      flushConnectivityDiagQueue_('interval');
+    }, CONNECTIVITY_DIAG_FLUSH_INTERVAL_MS);
+  }
+
+  function restartCommunicationLoops_(reason){
+    try{
+      startHeartbeat();
+    }catch(error){
+      recordConnectivityDiag_('WATCHDOG_HEARTBEAT_RESTART_ERROR',
+        'heartbeat再起動失敗',
+        {reason:String(reason || ''), error:String(error && error.message || error)});
+    }
+
+    try{
+      if(typeof startRemoteCommandPolling === 'function'){
+        startRemoteCommandPolling();
+      }
+    }catch(error){
+      recordConnectivityDiag_('WATCHDOG_REMOTE_RESTART_ERROR',
+        '遠隔操作監視の再起動失敗',
+        {reason:String(reason || ''), error:String(error && error.message || error)});
+    }
+
+    try{
+      if(typeof startAudioCallPolling === 'function'){
+        startAudioCallPolling();
+      }
+    }catch(error){
+      recordConnectivityDiag_('WATCHDOG_AUDIO_RESTART_ERROR',
+        '音声待受監視の再起動失敗',
+        {reason:String(reason || ''), error:String(error && error.message || error)});
+    }
+  }
+
+  function watchdogCommunicationCheck_(){
+    const now = Date.now();
+    const reference = heartbeatLastCompletedAt || heartbeatLastSentAt || watchdogStartedAt;
+    const elapsed = Math.max(0, now - reference);
+
+    if(navigator.onLine === false){
+      if(watchdogStage !== -1){
+        watchdogStage = -1;
+        recordConnectivityDiag_(
+          'WATCHDOG_OFFLINE',
+          'navigator.onLine=falseを検出',
+          {elapsedMs:elapsed}
+        );
+      }
+      return;
+    }
+
+    if(elapsed < WATCHDOG_WARN_MS){
+      if(watchdogStage !== 0){
+        recordConnectivityDiag_(
+          'WATCHDOG_RECOVERED',
+          'heartbeat完了を再確認しWatchdogを通常状態へ復帰',
+          {elapsedMs:elapsed, previousStage:watchdogStage}
+        );
+      }
+      watchdogStage = 0;
+      return;
+    }
+
+    if(now - watchdogLastActionAt < WATCHDOG_COOLDOWN_MS) return;
+
+    if(elapsed >= WATCHDOG_STRONG_RECOVER_MS){
+      watchdogStage = 3;
+      watchdogLastActionAt = now;
+      recordConnectivityDiag_(
+        'WATCHDOG_STAGE3',
+        '長時間heartbeat停止を検出。通信監視ループを全面再起動',
+        {
+          elapsedMs:elapsed,
+          visibilityState:document.visibilityState,
+          online:navigator.onLine
+        }
+      );
+      restartCommunicationLoops_('stage3');
+      sendHeartbeat('watchdog-stage3', true);
+      flushConnectivityDiagQueue_('watchdog-stage3');
+      return;
+    }
+
+    if(elapsed >= WATCHDOG_RECOVER_MS){
+      watchdogStage = 2;
+      watchdogLastActionAt = now;
+      recordConnectivityDiag_(
+        'WATCHDOG_STAGE2',
+        'heartbeat停止が継続。heartbeat・遠隔操作・音声待受監視を再起動',
+        {elapsedMs:elapsed}
+      );
+      restartCommunicationLoops_('stage2');
+      sendHeartbeat('watchdog-stage2', true);
+      return;
+    }
+
+    if(elapsed >= WATCHDOG_WARN_MS){
+      watchdogStage = 1;
+      watchdogLastActionAt = now;
+      recordConnectivityDiag_(
+        'WATCHDOG_STAGE1',
+        'heartbeat停止の兆候を検出。強制heartbeatを実行',
+        {elapsedMs:elapsed}
+      );
+      sendHeartbeat('watchdog-stage1', true);
+    }
+  }
+
+  function startCommunicationWatchdog_(){
+    if(watchdogTimer) clearInterval(watchdogTimer);
+    watchdogStartedAt = Date.now();
+    watchdogTimer = setInterval(
+      watchdogCommunicationCheck_,
+      WATCHDOG_CHECK_INTERVAL_MS
+    );
+  }
 
   function getHeartbeatDeviceId(){
     let id = localStorage.getItem(HEARTBEAT_DEVICE_ID_KEY) || '';
@@ -652,8 +949,14 @@ if ('serviceWorker' in navigator) {
 
     return {
       payloadType: 'heartbeat',
-      heartbeatVersion: 'Ver1',
+      heartbeatVersion: 'Ver2-diagnostic-watchdog',
       appVersion: VERSION,
+      heartbeatSequence: heartbeatSequence,
+      heartbeatLastAttemptAt: heartbeatLastAttemptAt ? new Date(heartbeatLastAttemptAt).toISOString() : '',
+      heartbeatLastCompletedAt: heartbeatLastCompletedAt ? new Date(heartbeatLastCompletedAt).toISOString() : '',
+      heartbeatConsecutiveFailures: heartbeatConsecutiveFailures,
+      diagnosticPendingCount: loadConnectivityDiagQueue_().length,
+      watchdogStage: watchdogStage,
       deviceId: getHeartbeatDeviceId(),
       deviceTime: nowStamp(),
       vehicle: vehicle,
@@ -689,30 +992,104 @@ if ('serviceWorker' in navigator) {
   }
 
   async function sendHeartbeat(reason, force){
-    if(heartbeatSending) return;
-    if(!GAS_ENDPOINT || !GAS_ENDPOINT.startsWith('https://')) return;
+    if(heartbeatSending){
+      recordConnectivityDiag_(
+        'HEARTBEAT_SKIPPED_BUSY',
+        '前回heartbeat処理中のため今回送信を省略',
+        {reason:String(reason || '')}
+      );
+      return;
+    }
+
+    if(!GAS_ENDPOINT || !GAS_ENDPOINT.startsWith('https://')){
+      recordConnectivityDiag_(
+        'HEARTBEAT_NO_ENDPOINT',
+        'GAS_ENDPOINT未設定のためheartbeat送信不可',
+        {reason:String(reason || '')}
+      );
+      return;
+    }
 
     const now = Date.now();
     if(!force && (now - heartbeatLastSentAt) < 15000) return;
 
     heartbeatSending = true;
+    heartbeatLastAttemptAt = Date.now();
+    heartbeatSequence += 1;
+    localStorage.setItem('torimorenuHeartbeatSequence', String(heartbeatSequence));
+
+    recordConnectivityDiag_(
+      'HEARTBEAT_ATTEMPT',
+      'heartbeat送信開始',
+      {
+        reason:String(reason || ''),
+        sequence:heartbeatSequence,
+        online:navigator.onLine !== false,
+        visibilityState:document.visibilityState || ''
+      }
+    );
+
     try{
       const payload = await makeHeartbeatPayload(reason);
+
       await fetch(GAS_ENDPOINT, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
+        method:'POST',
+        mode:'no-cors',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
       });
+
       heartbeatLastSentAt = Date.now();
-      console.log('ハートビート送信:', payload.reason, payload.vehicle, payload.lastPlace);
+      heartbeatLastCompletedAt = heartbeatLastSentAt;
+      heartbeatConsecutiveFailures = 0;
+      watchdogStage = 0;
+
+      recordConnectivityDiag_(
+        'HEARTBEAT_FETCH_COMPLETED',
+        'heartbeat fetch処理完了（no-corsのためGAS本文応答は参照不可）',
+        {
+          reason:payload.reason,
+          sequence:heartbeatSequence,
+          vehicle:payload.vehicle,
+          lastPlace:payload.lastPlace
+        }
+      );
+
+      console.log(
+        'ハートビート送信:',
+        payload.reason,
+        payload.vehicle,
+        payload.lastPlace,
+        'seq=' + heartbeatSequence
+      );
+
+      setTimeout(function(){
+        flushConnectivityDiagQueue_('heartbeat-completed');
+      }, 500);
     }catch(e){
-      // ハートビート失敗では回収処理を止めない
+      heartbeatLastFailedAt = Date.now();
+      heartbeatConsecutiveFailures += 1;
+
+      recordConnectivityDiag_(
+        'HEARTBEAT_FETCH_ERROR',
+        'heartbeat fetch例外',
+        {
+          reason:String(reason || ''),
+          sequence:heartbeatSequence,
+          consecutiveFailures:heartbeatConsecutiveFailures,
+          name:String(e && e.name || ''),
+          message:String(e && e.message || e),
+          online:navigator.onLine !== false,
+          visibilityState:document.visibilityState || ''
+        }
+      );
+
       console.warn('ハートビート送信失敗:', e);
     }finally{
       heartbeatSending = false;
     }
   }
+
 
   function startHeartbeat(){
     if(heartbeatTimer) clearInterval(heartbeatTimer);
@@ -723,22 +1100,62 @@ if ('serviceWorker' in navigator) {
   }
 
   window.addEventListener('online', function(){
+    recordConnectivityDiag_(
+      'BROWSER_ONLINE',
+      'ブラウザonlineイベント',
+      {}
+    );
     sendHeartbeat('online', true);
+    setTimeout(function(){ flushConnectivityDiagQueue_('online'); }, 500);
   });
 
   window.addEventListener('offline', function(){
+    recordConnectivityDiag_(
+      'BROWSER_OFFLINE',
+      'ブラウザofflineイベント',
+      {}
+    );
     console.warn('端末がオフラインになりました。');
   });
 
   document.addEventListener('visibilitychange', function(){
+    recordConnectivityDiag_(
+      'VISIBILITY_CHANGE',
+      '画面表示状態が変化',
+      {visibilityState:document.visibilityState || ''}
+    );
+
     if(document.visibilityState === 'visible'){
+      restartCommunicationLoops_('visibility-visible');
       sendHeartbeat('visible', true);
     }
   });
 
-  window.addEventListener('pagehide', function(){
-    // pagehide時は完了を待てないため、送信を試行するだけ
+  window.addEventListener('pagehide', function(event){
+    recordConnectivityDiag_(
+      'PAGE_HIDE',
+      'pagehideイベント',
+      {persisted:!!(event && event.persisted)}
+    );
     sendHeartbeat('pagehide', true);
+  });
+
+  window.addEventListener('pageshow', function(event){
+    recordConnectivityDiag_(
+      'PAGE_SHOW',
+      'pageshowイベント',
+      {persisted:!!(event && event.persisted)}
+    );
+    restartCommunicationLoops_('pageshow');
+    sendHeartbeat('pageshow', true);
+  });
+
+  window.addEventListener('focus', function(){
+    recordConnectivityDiag_('WINDOW_FOCUS', 'window focus', {});
+  });
+
+  window.addEventListener('blur', function(){
+    recordConnectivityDiag_('WINDOW_BLUR', 'window blur', {});
   });
 
   let audioVol=parseFloat(localStorage.getItem('chimeVol')||'0.7');
@@ -2623,7 +3040,7 @@ const FLEET={
     }
   }
 
-  // Ver189.5.7.3.1.4.1: 運転者プルダウンとの重なりを避けるため、
+  // Ver189.5.7.3.1.5: 運転者プルダウンとの重なりを避けるため、
   // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -2747,7 +3164,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.4.1\n' +
+      '音声待受診断 Ver189.5.7.3.1.5\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -3021,7 +3438,7 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.4.1: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.5: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -3908,6 +4325,19 @@ const FLEET={
 
 
   startRemoteCommandPolling();
+
+  // Ver189.5.7.3.1.5 診断・Watchdog開始
+  recordConnectivityDiag_(
+    'APP_DIAGNOSTIC_START',
+    '通信診断・Watchdogを開始',
+    {
+      appVersion:VERSION,
+      online:navigator.onLine !== false,
+      visibilityState:document.visibilityState || ''
+    }
+  );
+  startConnectivityDiagFlush_();
+  startCommunicationWatchdog_();
 
   document.getElementById('btnNavStart').addEventListener('click', startGuidance);
   document.getElementById('btnNavStop').addEventListener('click',  pauseGuidance);
