@@ -16,7 +16,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.10: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.11: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -232,7 +232,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.10: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.11: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -286,7 +286,7 @@ if ('serviceWorker' in navigator) {
 position:fixed;left:8px;bottom:8px;z-index:2147483646;
 font:12px/1.2 monospace;background:rgba(0,0,0,.72);
 color:#fff;padding:4px 6px;border-radius:5px;pointer-events:none;">
-Ver189.5.7.3.1.10 / INDEX:189573110
+Ver189.5.7.3.1.11 / INDEX:189573111
 </div>
 
 <div id="map"></div>
@@ -421,12 +421,12 @@ Ver189.5.7.3.1.10 / INDEX:189573110
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.10';
-  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.10-INDEX-189573110';
-  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.10-INLINEJS-189573110';
-  const CACHE_BUST_TAG = '189573110';
+  const VERSION = 'Ver189.5.7.3.1.11';
+  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.11-INDEX-189573111';
+  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.11-INLINEJS-189573111';
+  const CACHE_BUST_TAG = '189573111';
 
-  // Ver189.5.7.3.1.10 センター初期化協調制御
+  // Ver189.5.7.3.1.11 センター初期化協調制御
   const CENTER_INIT_FLAG_POLL_MS = 3000;
   const CENTER_INIT_RETRY_DELAY_MS = 6000;
   const CENTER_INIT_MAX_WAIT_MS = 120000;
@@ -446,7 +446,7 @@ Ver189.5.7.3.1.10 / INDEX:189573110
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
   const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
 
-  // Ver189.5.7.3.1.10 通信停止原因完全診断・自動復旧Watchdog
+  // Ver189.5.7.3.1.11 通信停止原因完全診断・自動復旧Watchdog
   const CONNECTIVITY_DIAG_QUEUE_KEY = 'torimorenuConnectivityDiagQueue_v1';
   const CONNECTIVITY_DIAG_MAX_LOCAL = 400;
   const CONNECTIVITY_DIAG_FLUSH_MAX = 50;
@@ -458,7 +458,7 @@ Ver189.5.7.3.1.10 / INDEX:189573110
   const WATCHDOG_STRONG_RECOVER_MS = 240 * 1000;
   const WATCHDOG_COOLDOWN_MS = 60 * 1000;
 
-  // Ver189.5.7.3.1.10 端末・ブラウザ深掘り診断
+  // Ver189.5.7.3.1.11 端末・ブラウザ深掘り診断
   const DEEP_DIAG_SAMPLE_INTERVAL_MS = 30 * 1000;
   const EVENT_LOOP_INTERVAL_MS = 5 * 1000;
   const EVENT_LOOP_WARN_DRIFT_MS = 3000;
@@ -476,7 +476,7 @@ Ver189.5.7.3.1.10 / INDEX:189573110
   let cachedLongTask = null;
   let deepDiagStarted = false;
 
-  // Ver189.5.7.3.1.10 Android OS / Chrome休止・再生成推定
+  // Ver189.5.7.3.1.11 Android OS / Chrome休止・再生成推定
   const SESSION_DIAG_ID_KEY = 'torimorenuSessionDiagId_v1';
   const SESSION_LAST_ALIVE_KEY = 'torimorenuSessionLastAlive_v1';
   const SESSION_CLEAN_EXIT_KEY = 'torimorenuSessionCleanExit_v1';
@@ -626,7 +626,7 @@ Ver189.5.7.3.1.10 / INDEX:189573110
   let heartbeatConsecutiveFailures = 0;
   let heartbeatSequence = Number(localStorage.getItem('torimorenuHeartbeatSequence') || '0');
 
-  // Ver189.5.7.3.1.10 Heartbeatハング完全解析・Promise監視
+  // Ver189.5.7.3.1.11 Heartbeatハング完全解析・Promise監視
   const HEARTBEAT_PROMISE_WARN_MS = 15000;
   const HEARTBEAT_BUSY_FORCE_RELEASE_MS = 30000;
   const HEARTBEAT_BUSY_WATCH_INTERVAL_MS = 5000;
@@ -635,6 +635,18 @@ Ver189.5.7.3.1.10 / INDEX:189573110
   let heartbeatBusySince = 0;
   let heartbeatCurrentAbortController = null;
   let heartbeatBusyWatchTimer = null;
+
+  // Ver189.5.7.3.1.11 ネットワークスタック完全解析
+  const NETWORK_PROBE_INTERVAL_MS = 60 * 1000;
+  const NETWORK_PROBE_TIMEOUT_MS = 12000;
+  const NETWORK_PROBE_COOLDOWN_MS = 20000;
+
+  let networkProbeTimer = null;
+  let networkProbeRunning = false;
+  let networkProbeLastAt = 0;
+  let networkProbeCounter = Number(
+    localStorage.getItem('torimorenuNetworkProbeCounter') || '0'
+  );
   let heartbeatOperationCounter = Number(
     localStorage.getItem('torimorenuHeartbeatOperationCounter') || '0'
   );
@@ -650,7 +662,7 @@ Ver189.5.7.3.1.10 / INDEX:189573110
 
 
 
-  // Ver189.5.7.3.1.10 キャッシュ完全対策・実行コード識別
+  // Ver189.5.7.3.1.11 キャッシュ完全対策・実行コード識別
 
   function scheduleHeartbeatAfterCenterInitialization_(reason){
     if(centerInitializationRetryTimer) clearTimeout(centerInitializationRetryTimer);
@@ -1566,6 +1578,9 @@ Ver189.5.7.3.1.10 / INDEX:189573110
           'Network Information APIの状態変化',
           cachedNetworkState
         );
+        setTimeout(function(){
+          runNetworkStackProbe_('network-information-change', true);
+        }, 1000);
       });
     }catch(_e){}
   }
@@ -2066,6 +2081,487 @@ Ver189.5.7.3.1.10 / INDEX:189573110
   }
 
 
+
+  function nextNetworkProbeId_(){
+    networkProbeCounter += 1;
+    try{
+      localStorage.setItem(
+        'torimorenuNetworkProbeCounter',
+        String(networkProbeCounter)
+      );
+    }catch(_e){}
+
+    return (
+      'NP-' + Date.now() + '-' +
+      networkProbeCounter + '-' +
+      Math.floor(Math.random() * 1000000)
+    );
+  }
+
+  function getNetworkProbeSnapshot_(){
+    let connection = null;
+
+    try{
+      connection =
+        navigator.connection ||
+        navigator.mozConnection ||
+        navigator.webkitConnection ||
+        null;
+    }catch(_e){}
+
+    return {
+      online:navigator.onLine !== false,
+      visibilityState:String(document.visibilityState || ''),
+      hasFocus:typeof document.hasFocus === 'function'
+        ? !!document.hasFocus()
+        : '',
+      effectiveType:connection
+        ? String(connection.effectiveType || '')
+        : '',
+      connectionType:connection
+        ? String(connection.type || '')
+        : '',
+      downlink:connection && Number.isFinite(Number(connection.downlink))
+        ? Number(connection.downlink)
+        : '',
+      rtt:connection && Number.isFinite(Number(connection.rtt))
+        ? Number(connection.rtt)
+        : '',
+      saveData:connection ? !!connection.saveData : '',
+      wasDiscarded:!!document.wasDiscarded,
+      pageUrl:String(location.href || '')
+    };
+  }
+
+  function networkProbeTrace_(eventType, message, probeId, detail){
+    try{
+      recordConnectivityDiag_(
+        eventType,
+        message,
+        {
+          probeId:String(probeId || ''),
+          snapshot:getNetworkProbeSnapshot_(),
+          ...(detail || {})
+        }
+      );
+    }catch(_e){}
+  }
+
+  function buildNetworkProbeUrl_(probeId, channel){
+    const params = new URLSearchParams();
+    params.set('action', 'networkProbe');
+    params.set('probeId', String(probeId || ''));
+    params.set('channel', String(channel || ''));
+    params.set('deviceId', String(getHeartbeatDeviceId() || ''));
+    params.set('vehicle', vehicleSel ? String(vehicleSel.value || '') : '');
+    params.set('appVersion', VERSION);
+    params.set('_cb', String(Date.now()));
+
+    return GAS_ENDPOINT + (
+      GAS_ENDPOINT.indexOf('?') >= 0 ? '&' : '?'
+    ) + params.toString();
+  }
+
+  async function runFetchNetworkProbe_(probeId){
+    const url = buildNetworkProbeUrl_(probeId, 'fetch-get');
+    const controller =
+      typeof AbortController !== 'undefined'
+        ? new AbortController()
+        : null;
+
+    const startedWall = Date.now();
+    const startedPerf = performance.now();
+
+    networkProbeTrace_(
+      'NETWORK_PROBE_FETCH_BEGIN',
+      '診断用fetch GET開始',
+      probeId,
+      {url:url, timeoutMs:NETWORK_PROBE_TIMEOUT_MS}
+    );
+
+    let timeoutId = null;
+
+    try{
+      if(controller){
+        timeoutId = setTimeout(function(){
+          try{ controller.abort(); }catch(_e){}
+        }, NETWORK_PROBE_TIMEOUT_MS);
+      }
+
+      const response = await fetch(
+        url,
+        {
+          method:'GET',
+          cache:'no-store',
+          redirect:'follow',
+          signal:controller ? controller.signal : undefined
+        }
+      );
+
+      if(timeoutId) clearTimeout(timeoutId);
+
+      const durationMs = Math.round(
+        Math.max(0, performance.now() - startedPerf)
+      );
+
+      let body = '';
+      try{
+        body = await response.text();
+      }catch(_e){}
+
+      networkProbeTrace_(
+        'NETWORK_PROBE_FETCH_SUCCESS',
+        '診断用fetch GET成功',
+        probeId,
+        {
+          durationMs:durationMs,
+          status:Number(response.status || 0),
+          ok:!!response.ok,
+          responseType:String(response.type || ''),
+          bodyLength:String(body || '').length
+        }
+      );
+
+      return {
+        channel:'fetch',
+        ok:true,
+        durationMs:durationMs,
+        status:Number(response.status || 0)
+      };
+
+    }catch(error){
+      if(timeoutId) clearTimeout(timeoutId);
+
+      const durationMs = Math.max(0, Date.now() - startedWall);
+
+      networkProbeTrace_(
+        'NETWORK_PROBE_FETCH_ERROR',
+        '診断用fetch GET失敗',
+        probeId,
+        {
+          durationMs:durationMs,
+          name:String(error && error.name || ''),
+          message:String(error && error.message || error),
+          aborted:!!(
+            controller &&
+            controller.signal &&
+            controller.signal.aborted
+          )
+        }
+      );
+
+      return {
+        channel:'fetch',
+        ok:false,
+        durationMs:durationMs,
+        error:String(error && error.message || error)
+      };
+    }
+  }
+
+  function runXhrNetworkProbe_(probeId){
+    return new Promise(function(resolve){
+      const url = buildNetworkProbeUrl_(probeId, 'xhr-get');
+      const startedWall = Date.now();
+      const startedPerf = performance.now();
+
+      networkProbeTrace_(
+        'NETWORK_PROBE_XHR_BEGIN',
+        '診断用XMLHttpRequest GET開始',
+        probeId,
+        {url:url, timeoutMs:NETWORK_PROBE_TIMEOUT_MS}
+      );
+
+      let xhr = null;
+
+      try{
+        xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.timeout = NETWORK_PROBE_TIMEOUT_MS;
+
+        xhr.onload = function(){
+          const durationMs = Math.round(
+            Math.max(0, performance.now() - startedPerf)
+          );
+
+          networkProbeTrace_(
+            'NETWORK_PROBE_XHR_SUCCESS',
+            '診断用XMLHttpRequest GET成功',
+            probeId,
+            {
+              durationMs:durationMs,
+              status:Number(xhr.status || 0),
+              responseLength:String(xhr.responseText || '').length
+            }
+          );
+
+          resolve({
+            channel:'xhr',
+            ok:true,
+            durationMs:durationMs,
+            status:Number(xhr.status || 0)
+          });
+        };
+
+        xhr.onerror = function(){
+          const durationMs = Math.max(0, Date.now() - startedWall);
+
+          networkProbeTrace_(
+            'NETWORK_PROBE_XHR_ERROR',
+            '診断用XMLHttpRequest通信エラー',
+            probeId,
+            {durationMs:durationMs, status:Number(xhr.status || 0)}
+          );
+
+          resolve({
+            channel:'xhr',
+            ok:false,
+            durationMs:durationMs,
+            error:'xhr-error'
+          });
+        };
+
+        xhr.ontimeout = function(){
+          const durationMs = Math.max(0, Date.now() - startedWall);
+
+          networkProbeTrace_(
+            'NETWORK_PROBE_XHR_TIMEOUT',
+            '診断用XMLHttpRequestタイムアウト',
+            probeId,
+            {
+              durationMs:durationMs,
+              timeoutMs:NETWORK_PROBE_TIMEOUT_MS
+            }
+          );
+
+          resolve({
+            channel:'xhr',
+            ok:false,
+            durationMs:durationMs,
+            error:'xhr-timeout'
+          });
+        };
+
+        xhr.onabort = function(){
+          const durationMs = Math.max(0, Date.now() - startedWall);
+
+          networkProbeTrace_(
+            'NETWORK_PROBE_XHR_ABORT',
+            '診断用XMLHttpRequest中断',
+            probeId,
+            {durationMs:durationMs}
+          );
+
+          resolve({
+            channel:'xhr',
+            ok:false,
+            durationMs:durationMs,
+            error:'xhr-abort'
+          });
+        };
+
+        xhr.send();
+
+      }catch(error){
+        networkProbeTrace_(
+          'NETWORK_PROBE_XHR_EXCEPTION',
+          '診断用XMLHttpRequest生成/送信例外',
+          probeId,
+          {
+            name:String(error && error.name || ''),
+            message:String(error && error.message || error)
+          }
+        );
+
+        resolve({
+          channel:'xhr',
+          ok:false,
+          durationMs:Math.max(0, Date.now() - startedWall),
+          error:String(error && error.message || error)
+        });
+      }
+    });
+  }
+
+  function runBeaconNetworkProbe_(probeId){
+    const started = Date.now();
+
+    if(!navigator.sendBeacon){
+      networkProbeTrace_(
+        'NETWORK_PROBE_BEACON_UNSUPPORTED',
+        'sendBeacon未対応',
+        probeId,
+        {}
+      );
+      return {channel:'beacon', supported:false, queued:false};
+    }
+
+    try{
+      const payload = {
+        action:'networkProbeBeacon',
+        probeId:String(probeId || ''),
+        deviceId:String(getHeartbeatDeviceId() || ''),
+        vehicle:vehicleSel ? String(vehicleSel.value || '') : '',
+        appVersion:VERSION,
+        deviceTime:connectivityDiagNowIso_(),
+        snapshot:getNetworkProbeSnapshot_()
+      };
+
+      const blob = new Blob(
+        [JSON.stringify(payload)],
+        {type:'text/plain;charset=UTF-8'}
+      );
+
+      const queued = navigator.sendBeacon(GAS_ENDPOINT, blob);
+
+      networkProbeTrace_(
+        queued
+          ? 'NETWORK_PROBE_BEACON_QUEUED'
+          : 'NETWORK_PROBE_BEACON_REJECTED',
+        queued
+          ? 'sendBeaconをブラウザ送信キューへ登録'
+          : 'sendBeaconが送信キュー登録を拒否',
+        probeId,
+        {
+          queued:!!queued,
+          durationMs:Math.max(0, Date.now() - started),
+          payloadBytes:blob.size
+        }
+      );
+
+      return {
+        channel:'beacon',
+        supported:true,
+        queued:!!queued
+      };
+
+    }catch(error){
+      networkProbeTrace_(
+        'NETWORK_PROBE_BEACON_ERROR',
+        'sendBeacon例外',
+        probeId,
+        {
+          name:String(error && error.name || ''),
+          message:String(error && error.message || error)
+        }
+      );
+
+      return {
+        channel:'beacon',
+        supported:true,
+        queued:false,
+        error:String(error && error.message || error)
+      };
+    }
+  }
+
+  async function runNetworkStackProbe_(reason, force){
+    const now = Date.now();
+
+    if(networkProbeRunning) return null;
+    if(
+      !force &&
+      networkProbeLastAt &&
+      (now - networkProbeLastAt) < NETWORK_PROBE_COOLDOWN_MS
+    ){
+      return null;
+    }
+
+    if(
+      !GAS_ENDPOINT ||
+      !GAS_ENDPOINT.startsWith('https://')
+    ){
+      return null;
+    }
+
+    networkProbeRunning = true;
+    networkProbeLastAt = now;
+
+    const probeId = nextNetworkProbeId_();
+
+    networkProbeTrace_(
+      'NETWORK_PROBE_BEGIN',
+      'ネットワークスタック比較診断開始',
+      probeId,
+      {reason:String(reason || '')}
+    );
+
+    try{
+      const beaconResult = runBeaconNetworkProbe_(probeId);
+
+      const results = await Promise.all([
+        runFetchNetworkProbe_(probeId),
+        runXhrNetworkProbe_(probeId)
+      ]);
+
+      const fetchResult = results[0];
+      const xhrResult = results[1];
+
+      let diagnosis = 'UNKNOWN';
+
+      if(fetchResult.ok && xhrResult.ok){
+        diagnosis = 'FETCH_AND_XHR_OK';
+      }else if(!fetchResult.ok && xhrResult.ok){
+        diagnosis = 'FETCH_PATH_ONLY_FAILURE';
+      }else if(fetchResult.ok && !xhrResult.ok){
+        diagnosis = 'XHR_PATH_ONLY_FAILURE';
+      }else{
+        diagnosis = 'FETCH_AND_XHR_FAILURE';
+      }
+
+      networkProbeTrace_(
+        'NETWORK_PROBE_RESULT',
+        'ネットワークスタック比較診断結果',
+        probeId,
+        {
+          reason:String(reason || ''),
+          diagnosis:diagnosis,
+          fetch:fetchResult,
+          xhr:xhrResult,
+          beacon:beaconResult
+        }
+      );
+
+      return {
+        probeId:probeId,
+        diagnosis:diagnosis,
+        fetch:fetchResult,
+        xhr:xhrResult,
+        beacon:beaconResult
+      };
+
+    }catch(error){
+      networkProbeTrace_(
+        'NETWORK_PROBE_FATAL_ERROR',
+        'ネットワークスタック診断全体で例外',
+        probeId,
+        {
+          name:String(error && error.name || ''),
+          message:String(error && error.message || error)
+        }
+      );
+
+      return null;
+
+    }finally{
+      networkProbeRunning = false;
+    }
+  }
+
+  function startNetworkStackProbe_(){
+    if(networkProbeTimer){
+      clearInterval(networkProbeTimer);
+    }
+
+    setTimeout(function(){
+      runNetworkStackProbe_('startup', true);
+    }, 8000);
+
+    networkProbeTimer = setInterval(function(){
+      runNetworkStackProbe_('interval', false);
+    }, NETWORK_PROBE_INTERVAL_MS);
+  }
+
   function nextHeartbeatOperationId_(){
     heartbeatOperationCounter += 1;
     try{
@@ -2197,6 +2693,11 @@ Ver189.5.7.3.1.10 / INDEX:189573110
         }
       );
 
+      runNetworkStackProbe_(
+        'heartbeat-busy-force-release',
+        true
+      );
+
       try{
         if(heartbeatCurrentAbortController){
           heartbeatCurrentAbortController.abort();
@@ -2260,6 +2761,11 @@ Ver189.5.7.3.1.10 / INDEX:189573110
             elapsedMs:elapsed,
             thresholdMs:HEARTBEAT_PROMISE_WARN_MS
           }
+        );
+
+        runNetworkStackProbe_(
+          'heartbeat-fetch-hung',
+          true
         );
 
         try{
@@ -2525,6 +3031,9 @@ Ver189.5.7.3.1.10 / INDEX:189573110
       {}
     );
     sendHeartbeat('online', true);
+    setTimeout(function(){
+      runNetworkStackProbe_('browser-online', true);
+    }, 1000);
     setTimeout(function(){ flushConnectivityDiagQueue_('online'); }, 500);
   });
 
@@ -4506,7 +5015,7 @@ const FLEET={
     }
   }
 
-  // Ver189.5.7.3.1.10: 運転者プルダウンとの重なりを避けるため、
+  // Ver189.5.7.3.1.11: 運転者プルダウンとの重なりを避けるため、
   // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -4630,7 +5139,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.10\n' +
+      '音声待受診断 Ver189.5.7.3.1.11\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -4904,7 +5413,7 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.10: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.11: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -5792,7 +6301,7 @@ const FLEET={
 
   startRemoteCommandPolling();
 
-  // Ver189.5.7.3.1.10 診断・Watchdog開始
+  // Ver189.5.7.3.1.11 診断・Watchdog開始
   recordConnectivityDiag_(
     'APP_DIAGNOSTIC_START',
     '通信診断・Watchdogを開始',
@@ -5806,8 +6315,9 @@ const FLEET={
   startCommunicationWatchdog_();
   startDeepDiagnostics_();
   startCenterInitializationFlagMonitor_();
+  startNetworkStackProbe_();
 
-  // Ver189.5.7.3.1.10 起動時キャッシュ診断・実行コード識別
+  // Ver189.5.7.3.1.11 起動時キャッシュ診断・実行コード識別
   recordRuntimeCodeIdentity_('startup-immediate');
   clearRuntimeCaches_().then(function(){
     recordRuntimeCodeIdentity_('after-cache-cleanup');
