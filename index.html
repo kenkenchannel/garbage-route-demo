@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
@@ -12,7 +16,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.7: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.8: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -228,7 +232,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.7: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.8: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -278,6 +282,13 @@ if ('serviceWorker' in navigator) {
 </head>
 
 <body>
+<div id="runtimeBuildBadge" style="
+position:fixed;left:8px;bottom:8px;z-index:2147483646;
+font:12px/1.2 monospace;background:rgba(0,0,0,.72);
+color:#fff;padding:4px 6px;border-radius:5px;pointer-events:none;">
+Ver189.5.7.3.1.8 / INDEX:18957318
+</div>
+
 <div id="map"></div>
 <div id="err" class="err"></div>
 <div id="toast"></div>
@@ -410,7 +421,10 @@ if ('serviceWorker' in navigator) {
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.7';
+  const VERSION = 'Ver189.5.7.3.1.8';
+  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.8-INDEX-18957318';
+  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.8-INLINEJS-18957318';
+  const CACHE_BUST_TAG = '18957318';
   const RELEASE_NAME = '正式版';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
@@ -422,7 +436,7 @@ if ('serviceWorker' in navigator) {
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
   const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
 
-  // Ver189.5.7.3.1.7 通信停止原因完全診断・自動復旧Watchdog
+  // Ver189.5.7.3.1.8 通信停止原因完全診断・自動復旧Watchdog
   const CONNECTIVITY_DIAG_QUEUE_KEY = 'torimorenuConnectivityDiagQueue_v1';
   const CONNECTIVITY_DIAG_MAX_LOCAL = 400;
   const CONNECTIVITY_DIAG_FLUSH_MAX = 50;
@@ -434,7 +448,7 @@ if ('serviceWorker' in navigator) {
   const WATCHDOG_STRONG_RECOVER_MS = 240 * 1000;
   const WATCHDOG_COOLDOWN_MS = 60 * 1000;
 
-  // Ver189.5.7.3.1.7 端末・ブラウザ深掘り診断
+  // Ver189.5.7.3.1.8 端末・ブラウザ深掘り診断
   const DEEP_DIAG_SAMPLE_INTERVAL_MS = 30 * 1000;
   const EVENT_LOOP_INTERVAL_MS = 5 * 1000;
   const EVENT_LOOP_WARN_DRIFT_MS = 3000;
@@ -452,7 +466,7 @@ if ('serviceWorker' in navigator) {
   let cachedLongTask = null;
   let deepDiagStarted = false;
 
-  // Ver189.5.7.3.1.7 Android OS / Chrome休止・再生成推定
+  // Ver189.5.7.3.1.8 Android OS / Chrome休止・再生成推定
   const SESSION_DIAG_ID_KEY = 'torimorenuSessionDiagId_v1';
   const SESSION_LAST_ALIVE_KEY = 'torimorenuSessionLastAlive_v1';
   const SESSION_CLEAN_EXIT_KEY = 'torimorenuSessionCleanExit_v1';
@@ -611,6 +625,111 @@ if ('serviceWorker' in navigator) {
 
 
 
+
+
+  // Ver189.5.7.3.1.8 キャッシュ完全対策・実行コード識別
+  async function clearRuntimeCaches_(){
+    const result = {
+      serviceWorkerSupported: 'serviceWorker' in navigator,
+      serviceWorkerRegistrations: 0,
+      serviceWorkerUnregistered: 0,
+      cacheStorageSupported: typeof caches !== 'undefined',
+      cacheKeys: [],
+      cacheDeleted: 0,
+      errors: []
+    };
+
+    try{
+      if('serviceWorker' in navigator){
+        const regs = await navigator.serviceWorker.getRegistrations();
+        result.serviceWorkerRegistrations = regs.length;
+        for(const reg of regs){
+          try{
+            const ok = await reg.unregister();
+            if(ok) result.serviceWorkerUnregistered++;
+          }catch(e){
+            result.errors.push('sw:' + String(e && e.message || e));
+          }
+        }
+      }
+    }catch(e){
+      result.errors.push('sw-list:' + String(e && e.message || e));
+    }
+
+    try{
+      if(typeof caches !== 'undefined'){
+        const keys = await caches.keys();
+        result.cacheKeys = keys.slice();
+        for(const key of keys){
+          try{
+            const ok = await caches.delete(key);
+            if(ok) result.cacheDeleted++;
+          }catch(e){
+            result.errors.push('cache:' + key + ':' + String(e && e.message || e));
+          }
+        }
+      }
+    }catch(e){
+      result.errors.push('cache-list:' + String(e && e.message || e));
+    }
+
+    try{
+      if(typeof recordConnectivityDiag_ === 'function'){
+        recordConnectivityDiag_(
+          'CACHE_RUNTIME_CLEANUP',
+          'ServiceWorker/CacheStorage状態を確認し、残存キャッシュを削除',
+          {
+            indexBuildId: INDEX_BUILD_ID,
+            scriptBuildId: SCRIPT_BUILD_ID,
+            cacheBustTag: CACHE_BUST_TAG,
+            result: result
+          }
+        );
+      }
+    }catch(_e){}
+
+    return result;
+  }
+
+  function getRuntimeCodeIdentity_(){
+    let currentScript = '';
+    try{
+      currentScript = document.currentScript && document.currentScript.src
+        ? String(document.currentScript.src)
+        : 'inline-script';
+    }catch(_e){}
+
+    return {
+      appVersion: VERSION,
+      indexBuildId: INDEX_BUILD_ID,
+      scriptBuildId: SCRIPT_BUILD_ID,
+      cacheBustTag: CACHE_BUST_TAG,
+      pageUrl: String(location.href || ''),
+      pathname: String(location.pathname || ''),
+      search: String(location.search || ''),
+      currentScript: currentScript,
+      documentLastModified: String(document.lastModified || ''),
+      userAgent: String(navigator.userAgent || ''),
+      timeOrigin: Number(performance.timeOrigin || 0),
+      wasDiscarded: !!document.wasDiscarded,
+      visibilityState: String(document.visibilityState || '')
+    };
+  }
+
+  function recordRuntimeCodeIdentity_(reason){
+    try{
+      recordConnectivityDiag_(
+        'RUNTIME_CODE_IDENTITY',
+        '端末が実際に実行しているHTML/JavaScript識別情報',
+        {
+          reason: String(reason || ''),
+          identity: getRuntimeCodeIdentity_()
+        }
+      );
+    }catch(e){
+      console.warn('実行コード識別ログ記録失敗:', e);
+    }
+  }
 
   function generateBrowserSessionId_(){
     return (
@@ -1493,7 +1612,11 @@ if ('serviceWorker' in navigator) {
       batteryCharging: cachedBatteryState ? String(!!cachedBatteryState.charging) : '',
       documentWasDiscarded:!!document.wasDiscarded,
       browserSessionId:String(browserSessionId || ''),
-      navigationType:lastNavigationInfo ? String(lastNavigationInfo.type || '') : ''
+      navigationType:lastNavigationInfo ? String(lastNavigationInfo.type || '') : '',
+      indexBuildId:INDEX_BUILD_ID,
+      scriptBuildId:SCRIPT_BUILD_ID,
+      cacheBustTag:CACHE_BUST_TAG,
+      runtimePageUrl:String(location.href || '')
     };
   }
 
@@ -2017,6 +2140,7 @@ if ('serviceWorker' in navigator) {
     );
 
     if(document.visibilityState === 'visible'){
+      recordRuntimeCodeIdentity_('visibility-visible');
       restartCommunicationLoops_('visibility-visible');
       sendHeartbeat('visible', true);
     }
@@ -2051,6 +2175,7 @@ if ('serviceWorker' in navigator) {
       {persisted:!!(event && event.persisted)}
     );
 
+    recordRuntimeCodeIdentity_('pageshow');
     restartCommunicationLoops_('pageshow');
     sendHeartbeat('pageshow', true);
   });
@@ -3976,7 +4101,7 @@ const FLEET={
     }
   }
 
-  // Ver189.5.7.3.1.7: 運転者プルダウンとの重なりを避けるため、
+  // Ver189.5.7.3.1.8: 運転者プルダウンとの重なりを避けるため、
   // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -4100,7 +4225,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.7\n' +
+      '音声待受診断 Ver189.5.7.3.1.8\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -4374,7 +4499,7 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.7: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.8: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -5262,7 +5387,7 @@ const FLEET={
 
   startRemoteCommandPolling();
 
-  // Ver189.5.7.3.1.7 診断・Watchdog開始
+  // Ver189.5.7.3.1.8 診断・Watchdog開始
   recordConnectivityDiag_(
     'APP_DIAGNOSTIC_START',
     '通信診断・Watchdogを開始',
@@ -5275,6 +5400,15 @@ const FLEET={
   startConnectivityDiagFlush_();
   startCommunicationWatchdog_();
   startDeepDiagnostics_();
+
+  // Ver189.5.7.3.1.8 起動時キャッシュ診断・実行コード識別
+  recordRuntimeCodeIdentity_('startup-immediate');
+  clearRuntimeCaches_().then(function(){
+    recordRuntimeCodeIdentity_('after-cache-cleanup');
+    setTimeout(function(){
+      flushConnectivityDiagQueue_('runtime-code-identity');
+    }, 500);
+  });
 
   document.getElementById('btnNavStart').addEventListener('click', startGuidance);
   document.getElementById('btnNavStop').addEventListener('click',  pauseGuidance);
