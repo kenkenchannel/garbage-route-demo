@@ -16,7 +16,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.15: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.16: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -232,7 +232,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.15: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.16: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -286,7 +286,7 @@ if ('serviceWorker' in navigator) {
 position:fixed;left:8px;bottom:8px;z-index:2147483646;
 font:12px/1.2 monospace;background:rgba(0,0,0,.72);
 color:#fff;padding:4px 6px;border-radius:5px;pointer-events:none;">
-Ver189.5.7.3.1.15 / INDEX:189573115
+Ver189.5.7.3.1.16 / INDEX:189573116
 </div>
 
 <div id="map"></div>
@@ -421,12 +421,12 @@ Ver189.5.7.3.1.15 / INDEX:189573115
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.15';
-  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.15-INDEX-189573115';
-  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.15-INLINEJS-189573115';
-  const CACHE_BUST_TAG = '189573115';
+  const VERSION = 'Ver189.5.7.3.1.16';
+  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.16-INDEX-189573116';
+  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.16-INLINEJS-189573116';
+  const CACHE_BUST_TAG = '189573116';
 
-  // Ver189.5.7.3.1.15 センター初期化協調制御
+  // Ver189.5.7.3.1.16 センター初期化協調制御
   const CENTER_INIT_FLAG_POLL_MS = 3000;
   const CENTER_INIT_RETRY_DELAY_MS = 6000;
   const CENTER_INIT_MAX_WAIT_MS = 120000;
@@ -446,7 +446,7 @@ Ver189.5.7.3.1.15 / INDEX:189573115
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
   const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
 
-  // Ver189.5.7.3.1.15 通信停止原因完全診断・自動復旧Watchdog
+  // Ver189.5.7.3.1.16 通信停止原因完全診断・自動復旧Watchdog
   const CONNECTIVITY_DIAG_QUEUE_KEY = 'torimorenuConnectivityDiagQueue_v1';
   const CONNECTIVITY_DIAG_MAX_LOCAL = 400;
   const CONNECTIVITY_DIAG_FLUSH_MAX = 50;
@@ -458,7 +458,7 @@ Ver189.5.7.3.1.15 / INDEX:189573115
   const WATCHDOG_STRONG_RECOVER_MS = 240 * 1000;
   const WATCHDOG_COOLDOWN_MS = 60 * 1000;
 
-  // Ver189.5.7.3.1.15 端末・ブラウザ深掘り診断
+  // Ver189.5.7.3.1.16 端末・ブラウザ深掘り診断
   const DEEP_DIAG_SAMPLE_INTERVAL_MS = 30 * 1000;
   const EVENT_LOOP_INTERVAL_MS = 5 * 1000;
   const EVENT_LOOP_WARN_DRIFT_MS = 3000;
@@ -476,7 +476,7 @@ Ver189.5.7.3.1.15 / INDEX:189573115
   let cachedLongTask = null;
   let deepDiagStarted = false;
 
-  // Ver189.5.7.3.1.15 Android OS / Chrome休止・再生成推定
+  // Ver189.5.7.3.1.16 Android OS / Chrome休止・再生成推定
   const SESSION_DIAG_ID_KEY = 'torimorenuSessionDiagId_v1';
   const SESSION_LAST_ALIVE_KEY = 'torimorenuSessionLastAlive_v1';
   const SESSION_CLEAN_EXIT_KEY = 'torimorenuSessionCleanExit_v1';
@@ -626,7 +626,7 @@ Ver189.5.7.3.1.15 / INDEX:189573115
   let heartbeatConsecutiveFailures = 0;
   let heartbeatSequence = Number(localStorage.getItem('torimorenuHeartbeatSequence') || '0');
 
-  // Ver189.5.7.3.1.15 Heartbeatハング完全解析・Promise監視
+  // Ver189.5.7.3.1.16 Heartbeatハング完全解析・Promise監視
   const HEARTBEAT_PROMISE_WARN_MS = 15000;
   const HEARTBEAT_BUSY_FORCE_RELEASE_MS = 30000;
   const HEARTBEAT_BUSY_WATCH_INTERVAL_MS = 5000;
@@ -636,7 +636,7 @@ Ver189.5.7.3.1.15 / INDEX:189573115
   let heartbeatCurrentAbortController = null;
   let heartbeatBusyWatchTimer = null;
 
-  // Ver189.5.7.3.1.15 ネットワークスタック完全解析
+  // Ver189.5.7.3.1.16 ネットワークスタック完全解析
   const NETWORK_PROBE_INTERVAL_MS = 60 * 1000;
   const NETWORK_PROBE_TIMEOUT_MS = 12000;
   const NETWORK_PROBE_COOLDOWN_MS = 20000;
@@ -645,7 +645,7 @@ Ver189.5.7.3.1.15 / INDEX:189573115
   let networkProbeRunning = false;
   let networkProbeLastAt = 0;
 
-  // Ver189.5.7.3.1.15 JavaScriptイベントループ・NetworkService完全解析
+  // Ver189.5.7.3.1.16 JavaScriptイベントループ・NetworkService完全解析
   const JS_LOOP_PROBE_TIMEOUT_MS = 5000;
   const RESOURCE_TIMING_MAX = 40;
   const WAKELOCK_RETRY_MS = 15000;
@@ -668,7 +668,7 @@ Ver189.5.7.3.1.15 / INDEX:189573115
     localStorage.getItem('torimorenuHeartbeatOperationCounter') || '0'
   );
 
-  // Ver189.5.7.3.1.15 Heartbeat内部処理完全分解・再入/未完了Promise監視
+  // Ver189.5.7.3.1.16 Heartbeat内部処理完全分解・再入/未完了Promise監視
   const HEARTBEAT_INTERNAL_MONITOR_INTERVAL_MS = 5000;
   const HEARTBEAT_PENDING_WARN_MS = 20000;
   const HEARTBEAT_PENDING_CRITICAL_MS = 45000;
@@ -689,7 +689,7 @@ Ver189.5.7.3.1.15 / INDEX:189573115
 
 
 
-  // Ver189.5.7.3.1.15 キャッシュ完全対策・実行コード識別
+  // Ver189.5.7.3.1.16 キャッシュ完全対策・実行コード識別
 
   function scheduleHeartbeatAfterCenterInitialization_(reason){
     if(centerInitializationRetryTimer) clearTimeout(centerInitializationRetryTimer);
@@ -3233,7 +3233,7 @@ Ver189.5.7.3.1.15 / INDEX:189573115
     const startedWall=Date.now(), startedPerf=performance.now();
     const pendingKey=registerHeartbeatPendingPromise_(operationId,'heartbeat-fetch');
 
-    // Ver189.5.7.3.1.15 GAS側計測との相関用
+    // Ver189.5.7.3.1.16 GAS側計測との相関用
     payload.heartbeatOperationId=String(operationId||'');
     payload.clientFetchStartedAtMs=Date.now();
     payload.clientFetchStartedAtIso=new Date().toISOString();
@@ -5954,7 +5954,7 @@ const FLEET={
     }
   }
 
-  // Ver189.5.7.3.1.15: 運転者プルダウンとの重なりを避けるため、
+  // Ver189.5.7.3.1.16: 運転者プルダウンとの重なりを避けるため、
   // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -6078,7 +6078,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.15\n' +
+      '音声待受診断 Ver189.5.7.3.1.16\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -6352,7 +6352,7 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.15: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.16: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -7240,7 +7240,7 @@ const FLEET={
 
   startRemoteCommandPolling();
 
-  // Ver189.5.7.3.1.15 診断・Watchdog開始
+  // Ver189.5.7.3.1.16 診断・Watchdog開始
   recordConnectivityDiag_(
     'APP_DIAGNOSTIC_START',
     '通信診断・Watchdogを開始',
@@ -7259,7 +7259,7 @@ const FLEET={
   startWakeLockMonitor_();
   startHeartbeatInternalMonitor_();
 
-  // Ver189.5.7.3.1.15 起動時キャッシュ診断・実行コード識別
+  // Ver189.5.7.3.1.16 起動時キャッシュ診断・実行コード識別
   recordRuntimeCodeIdentity_('startup-immediate');
   clearRuntimeCaches_().then(function(){
     recordRuntimeCodeIdentity_('after-cache-cleanup');
