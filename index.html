@@ -16,7 +16,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.11: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.12: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -232,7 +232,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.11: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.12: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -286,7 +286,7 @@ if ('serviceWorker' in navigator) {
 position:fixed;left:8px;bottom:8px;z-index:2147483646;
 font:12px/1.2 monospace;background:rgba(0,0,0,.72);
 color:#fff;padding:4px 6px;border-radius:5px;pointer-events:none;">
-Ver189.5.7.3.1.11 / INDEX:189573111
+Ver189.5.7.3.1.12 / INDEX:189573112
 </div>
 
 <div id="map"></div>
@@ -421,12 +421,12 @@ Ver189.5.7.3.1.11 / INDEX:189573111
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.11';
-  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.11-INDEX-189573111';
-  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.11-INLINEJS-189573111';
-  const CACHE_BUST_TAG = '189573111';
+  const VERSION = 'Ver189.5.7.3.1.12';
+  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.12-INDEX-189573112';
+  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.12-INLINEJS-189573112';
+  const CACHE_BUST_TAG = '189573112';
 
-  // Ver189.5.7.3.1.11 センター初期化協調制御
+  // Ver189.5.7.3.1.12 センター初期化協調制御
   const CENTER_INIT_FLAG_POLL_MS = 3000;
   const CENTER_INIT_RETRY_DELAY_MS = 6000;
   const CENTER_INIT_MAX_WAIT_MS = 120000;
@@ -446,7 +446,7 @@ Ver189.5.7.3.1.11 / INDEX:189573111
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
   const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
 
-  // Ver189.5.7.3.1.11 通信停止原因完全診断・自動復旧Watchdog
+  // Ver189.5.7.3.1.12 通信停止原因完全診断・自動復旧Watchdog
   const CONNECTIVITY_DIAG_QUEUE_KEY = 'torimorenuConnectivityDiagQueue_v1';
   const CONNECTIVITY_DIAG_MAX_LOCAL = 400;
   const CONNECTIVITY_DIAG_FLUSH_MAX = 50;
@@ -458,7 +458,7 @@ Ver189.5.7.3.1.11 / INDEX:189573111
   const WATCHDOG_STRONG_RECOVER_MS = 240 * 1000;
   const WATCHDOG_COOLDOWN_MS = 60 * 1000;
 
-  // Ver189.5.7.3.1.11 端末・ブラウザ深掘り診断
+  // Ver189.5.7.3.1.12 端末・ブラウザ深掘り診断
   const DEEP_DIAG_SAMPLE_INTERVAL_MS = 30 * 1000;
   const EVENT_LOOP_INTERVAL_MS = 5 * 1000;
   const EVENT_LOOP_WARN_DRIFT_MS = 3000;
@@ -476,7 +476,7 @@ Ver189.5.7.3.1.11 / INDEX:189573111
   let cachedLongTask = null;
   let deepDiagStarted = false;
 
-  // Ver189.5.7.3.1.11 Android OS / Chrome休止・再生成推定
+  // Ver189.5.7.3.1.12 Android OS / Chrome休止・再生成推定
   const SESSION_DIAG_ID_KEY = 'torimorenuSessionDiagId_v1';
   const SESSION_LAST_ALIVE_KEY = 'torimorenuSessionLastAlive_v1';
   const SESSION_CLEAN_EXIT_KEY = 'torimorenuSessionCleanExit_v1';
@@ -626,7 +626,7 @@ Ver189.5.7.3.1.11 / INDEX:189573111
   let heartbeatConsecutiveFailures = 0;
   let heartbeatSequence = Number(localStorage.getItem('torimorenuHeartbeatSequence') || '0');
 
-  // Ver189.5.7.3.1.11 Heartbeatハング完全解析・Promise監視
+  // Ver189.5.7.3.1.12 Heartbeatハング完全解析・Promise監視
   const HEARTBEAT_PROMISE_WARN_MS = 15000;
   const HEARTBEAT_BUSY_FORCE_RELEASE_MS = 30000;
   const HEARTBEAT_BUSY_WATCH_INTERVAL_MS = 5000;
@@ -636,7 +636,7 @@ Ver189.5.7.3.1.11 / INDEX:189573111
   let heartbeatCurrentAbortController = null;
   let heartbeatBusyWatchTimer = null;
 
-  // Ver189.5.7.3.1.11 ネットワークスタック完全解析
+  // Ver189.5.7.3.1.12 ネットワークスタック完全解析
   const NETWORK_PROBE_INTERVAL_MS = 60 * 1000;
   const NETWORK_PROBE_TIMEOUT_MS = 12000;
   const NETWORK_PROBE_COOLDOWN_MS = 20000;
@@ -644,6 +644,23 @@ Ver189.5.7.3.1.11 / INDEX:189573111
   let networkProbeTimer = null;
   let networkProbeRunning = false;
   let networkProbeLastAt = 0;
+
+  // Ver189.5.7.3.1.12 JavaScriptイベントループ・NetworkService完全解析
+  const JS_LOOP_PROBE_TIMEOUT_MS = 5000;
+  const RESOURCE_TIMING_MAX = 40;
+  const WAKELOCK_RETRY_MS = 15000;
+
+  let resourceTimingObserver = null;
+  let resourceTimingBuffer = [];
+  let wakeLockSentinel = null;
+  let wakeLockLastState = {
+    supported: 'wakeLock' in navigator,
+    active: false,
+    released: true,
+    lastEvent: '',
+    lastEventAt: 0,
+    lastError: ''
+  };
   let networkProbeCounter = Number(
     localStorage.getItem('torimorenuNetworkProbeCounter') || '0'
   );
@@ -662,7 +679,7 @@ Ver189.5.7.3.1.11 / INDEX:189573111
 
 
 
-  // Ver189.5.7.3.1.11 キャッシュ完全対策・実行コード識別
+  // Ver189.5.7.3.1.12 キャッシュ完全対策・実行コード識別
 
   function scheduleHeartbeatAfterCenterInitialization_(reason){
     if(centerInitializationRetryTimer) clearTimeout(centerInitializationRetryTimer);
@@ -1579,7 +1596,10 @@ Ver189.5.7.3.1.11 / INDEX:189573111
           cachedNetworkState
         );
         setTimeout(function(){
-          runNetworkStackProbe_('network-information-change', true);
+          runNetworkServiceDeepProbe_(
+            'NSD-' + Date.now() + '-NETCHANGE',
+            'network-information-change'
+          );
         }, 1000);
       });
     }catch(_e){}
@@ -2082,6 +2102,399 @@ Ver189.5.7.3.1.11 / INDEX:189573111
 
 
 
+
+  function jsLoopTrace_(eventType, message, diagnosticId, detail){
+    try{
+      recordConnectivityDiag_(
+        eventType,
+        message,
+        {
+          diagnosticId:String(diagnosticId || ''),
+          performanceNow:Math.round(performance.now()),
+          timeOrigin:Number(performance.timeOrigin || 0),
+          wallClock:Date.now(),
+          visibilityState:String(document.visibilityState || ''),
+          hasFocus:typeof document.hasFocus === 'function'
+            ? !!document.hasFocus()
+            : '',
+          online:navigator.onLine !== false,
+          wakeLock:wakeLockLastState,
+          ...(detail || {})
+        }
+      );
+    }catch(_e){}
+  }
+
+  function runJavaScriptEventLoopProbe_(diagnosticId, reason){
+    return new Promise(function(resolve){
+      const startedPerf = performance.now();
+      const startedWall = Date.now();
+      const result = {
+        diagnosticId:String(diagnosticId || ''),
+        reason:String(reason || ''),
+        microtaskMs:'',
+        timeout0Ms:'',
+        animationFrameMs:'',
+        timeoutFallback:false
+      };
+
+      jsLoopTrace_(
+        'JS_LOOP_PROBE_BEGIN',
+        'JavaScriptイベントループ診断開始',
+        diagnosticId,
+        {reason:String(reason || '')}
+      );
+
+      let resolved = false;
+      let microtaskDone = false;
+      let timeoutDone = false;
+      let rafDone = typeof requestAnimationFrame !== 'function';
+
+      function finishIfReady_(){
+        if(resolved) return;
+        if(!microtaskDone || !timeoutDone || !rafDone) return;
+
+        resolved = true;
+
+        jsLoopTrace_(
+          'JS_LOOP_PROBE_RESULT',
+          'JavaScriptイベントループ診断完了',
+          diagnosticId,
+          result
+        );
+
+        resolve(result);
+      }
+
+      Promise.resolve().then(function(){
+        result.microtaskMs = Math.round(
+          Math.max(0, performance.now() - startedPerf)
+        );
+        microtaskDone = true;
+
+        jsLoopTrace_(
+          'JS_LOOP_MICROTASK',
+          'queueMicrotask相当のPromise microtask実行',
+          diagnosticId,
+          {delayMs:result.microtaskMs}
+        );
+
+        finishIfReady_();
+      });
+
+      setTimeout(function(){
+        result.timeout0Ms = Math.round(
+          Math.max(0, performance.now() - startedPerf)
+        );
+        timeoutDone = true;
+
+        jsLoopTrace_(
+          'JS_LOOP_TIMEOUT0',
+          'setTimeout(0)実行',
+          diagnosticId,
+          {delayMs:result.timeout0Ms}
+        );
+
+        finishIfReady_();
+      }, 0);
+
+      if(typeof requestAnimationFrame === 'function'){
+        requestAnimationFrame(function(){
+          result.animationFrameMs = Math.round(
+            Math.max(0, performance.now() - startedPerf)
+          );
+          rafDone = true;
+
+          jsLoopTrace_(
+            'JS_LOOP_ANIMATION_FRAME',
+            'requestAnimationFrame実行',
+            diagnosticId,
+            {delayMs:result.animationFrameMs}
+          );
+
+          finishIfReady_();
+        });
+      }
+
+      setTimeout(function(){
+        if(resolved) return;
+
+        resolved = true;
+        result.timeoutFallback = true;
+        result.totalElapsedMs = Math.max(0, Date.now() - startedWall);
+
+        jsLoopTrace_(
+          'JS_LOOP_PROBE_TIMEOUT',
+          'JavaScriptイベントループ診断が規定時間内に完了しない',
+          diagnosticId,
+          result
+        );
+
+        resolve(result);
+      }, JS_LOOP_PROBE_TIMEOUT_MS);
+    });
+  }
+
+  function trimResourceTimingBuffer_(){
+    if(resourceTimingBuffer.length > RESOURCE_TIMING_MAX){
+      resourceTimingBuffer = resourceTimingBuffer.slice(-RESOURCE_TIMING_MAX);
+    }
+  }
+
+  function summarizeResourceTimingEntry_(entry){
+    if(!entry) return null;
+
+    return {
+      name:String(entry.name || ''),
+      initiatorType:String(entry.initiatorType || ''),
+      startTime:Math.round(Number(entry.startTime || 0)),
+      duration:Math.round(Number(entry.duration || 0)),
+      fetchStart:Math.round(Number(entry.fetchStart || 0)),
+      domainLookupStart:Math.round(Number(entry.domainLookupStart || 0)),
+      domainLookupEnd:Math.round(Number(entry.domainLookupEnd || 0)),
+      connectStart:Math.round(Number(entry.connectStart || 0)),
+      secureConnectionStart:Math.round(Number(entry.secureConnectionStart || 0)),
+      connectEnd:Math.round(Number(entry.connectEnd || 0)),
+      requestStart:Math.round(Number(entry.requestStart || 0)),
+      responseStart:Math.round(Number(entry.responseStart || 0)),
+      responseEnd:Math.round(Number(entry.responseEnd || 0)),
+      transferSize:Number(entry.transferSize || 0),
+      encodedBodySize:Number(entry.encodedBodySize || 0),
+      decodedBodySize:Number(entry.decodedBodySize || 0),
+      nextHopProtocol:String(entry.nextHopProtocol || '')
+    };
+  }
+
+  function startResourceTimingObserver_(){
+    if(typeof PerformanceObserver === 'undefined') return;
+
+    try{
+      if(resourceTimingObserver){
+        try{ resourceTimingObserver.disconnect(); }catch(_e){}
+      }
+
+      resourceTimingObserver = new PerformanceObserver(function(list){
+        const entries = list.getEntries();
+
+        entries.forEach(function(entry){
+          const summary = summarizeResourceTimingEntry_(entry);
+          if(!summary) return;
+
+          resourceTimingBuffer.push(summary);
+          trimResourceTimingBuffer_();
+
+          if(
+            summary.name &&
+            GAS_ENDPOINT &&
+            summary.name.indexOf(GAS_ENDPOINT.split('?')[0]) >= 0
+          ){
+            recordConnectivityDiag_(
+              'RESOURCE_TIMING_GAS',
+              'GAS通信のPerformanceResourceTiming',
+              summary
+            );
+          }
+        });
+      });
+
+      resourceTimingObserver.observe({
+        entryTypes:['resource']
+      });
+
+      try{
+        if(
+          performance &&
+          typeof performance.setResourceTimingBufferSize === 'function'
+        ){
+          performance.setResourceTimingBufferSize(200);
+        }
+      }catch(_e){}
+
+    }catch(error){
+      recordConnectivityDiag_(
+        'RESOURCE_TIMING_OBSERVER_ERROR',
+        'Resource Timing監視開始失敗',
+        {
+          name:String(error && error.name || ''),
+          message:String(error && error.message || error)
+        }
+      );
+    }
+  }
+
+  function findLatestGasResourceTiming_(){
+    const base = GAS_ENDPOINT
+      ? GAS_ENDPOINT.split('?')[0]
+      : '';
+
+    for(let i = resourceTimingBuffer.length - 1; i >= 0; i--){
+      const item = resourceTimingBuffer[i];
+      if(item && item.name && base && item.name.indexOf(base) >= 0){
+        return item;
+      }
+    }
+
+    try{
+      const entries = performance.getEntriesByType('resource') || [];
+
+      for(let i = entries.length - 1; i >= 0; i--){
+        const entry = entries[i];
+        if(entry && entry.name && base && entry.name.indexOf(base) >= 0){
+          return summarizeResourceTimingEntry_(entry);
+        }
+      }
+    }catch(_e){}
+
+    return null;
+  }
+
+  function getResourceTimingSnapshot_(){
+    return {
+      latestGas:findLatestGasResourceTiming_(),
+      recent:resourceTimingBuffer.slice(-10)
+    };
+  }
+
+  async function requestWakeLock_(){
+    if(!('wakeLock' in navigator)){
+      wakeLockLastState = {
+        supported:false,
+        active:false,
+        released:true,
+        lastEvent:'unsupported',
+        lastEventAt:Date.now(),
+        lastError:''
+      };
+      return false;
+    }
+
+    if(document.visibilityState !== 'visible'){
+      wakeLockLastState.lastEvent = 'not-visible';
+      wakeLockLastState.lastEventAt = Date.now();
+      return false;
+    }
+
+    try{
+      if(wakeLockSentinel && !wakeLockSentinel.released){
+        wakeLockLastState.active = true;
+        wakeLockLastState.released = false;
+        return true;
+      }
+
+      wakeLockSentinel = await navigator.wakeLock.request('screen');
+
+      wakeLockLastState = {
+        supported:true,
+        active:true,
+        released:false,
+        lastEvent:'acquired',
+        lastEventAt:Date.now(),
+        lastError:''
+      };
+
+      recordConnectivityDiag_(
+        'WAKE_LOCK_ACQUIRED',
+        'Screen Wake Lock取得',
+        wakeLockLastState
+      );
+
+      wakeLockSentinel.addEventListener('release', function(){
+        wakeLockLastState.active = false;
+        wakeLockLastState.released = true;
+        wakeLockLastState.lastEvent = 'released';
+        wakeLockLastState.lastEventAt = Date.now();
+
+        recordConnectivityDiag_(
+          'WAKE_LOCK_RELEASED',
+          'Screen Wake Lockが解除',
+          wakeLockLastState
+        );
+      });
+
+      return true;
+
+    }catch(error){
+      wakeLockLastState = {
+        supported:true,
+        active:false,
+        released:true,
+        lastEvent:'error',
+        lastEventAt:Date.now(),
+        lastError:String(error && error.message || error)
+      };
+
+      recordConnectivityDiag_(
+        'WAKE_LOCK_ERROR',
+        'Screen Wake Lock取得失敗',
+        {
+          name:String(error && error.name || ''),
+          message:String(error && error.message || error)
+        }
+      );
+
+      return false;
+    }
+  }
+
+  function startWakeLockMonitor_(){
+    requestWakeLock_();
+
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState === 'visible'){
+        setTimeout(function(){
+          requestWakeLock_();
+        }, 500);
+      }
+    });
+  }
+
+  async function runNetworkServiceDeepProbe_(diagnosticId, reason){
+    const jsLoopBefore = await runJavaScriptEventLoopProbe_(
+      diagnosticId + '-BEFORE',
+      reason + '-before-network'
+    );
+
+    const resourceBefore = getResourceTimingSnapshot_();
+
+    const networkResult = await runNetworkStackProbe_(
+      reason,
+      true,
+      diagnosticId
+    );
+
+    const jsLoopAfter = await runJavaScriptEventLoopProbe_(
+      diagnosticId + '-AFTER',
+      reason + '-after-network'
+    );
+
+    const resourceAfter = getResourceTimingSnapshot_();
+
+    recordConnectivityDiag_(
+      'NETWORK_SERVICE_DEEP_RESULT',
+      'JavaScriptイベントループ＋ネットワークAPI＋ResourceTiming統合診断',
+      {
+        diagnosticId:String(diagnosticId || ''),
+        reason:String(reason || ''),
+        jsLoopBefore:jsLoopBefore,
+        networkResult:networkResult,
+        jsLoopAfter:jsLoopAfter,
+        resourceBefore:resourceBefore,
+        resourceAfter:resourceAfter,
+        wakeLock:wakeLockLastState,
+        network:getNetworkProbeSnapshot_()
+      }
+    );
+
+    return {
+      diagnosticId:diagnosticId,
+      jsLoopBefore:jsLoopBefore,
+      networkResult:networkResult,
+      jsLoopAfter:jsLoopAfter,
+      resourceBefore:resourceBefore,
+      resourceAfter:resourceAfter
+    };
+  }
+
   function nextNetworkProbeId_(){
     networkProbeCounter += 1;
     try{
@@ -2455,7 +2868,7 @@ Ver189.5.7.3.1.11 / INDEX:189573111
     }
   }
 
-  async function runNetworkStackProbe_(reason, force){
+  async function runNetworkStackProbe_(reason, force, diagnosticId){
     const now = Date.now();
 
     if(networkProbeRunning) return null;
@@ -2483,7 +2896,10 @@ Ver189.5.7.3.1.11 / INDEX:189573111
       'NETWORK_PROBE_BEGIN',
       'ネットワークスタック比較診断開始',
       probeId,
-      {reason:String(reason || '')}
+      {
+        reason:String(reason || ''),
+        diagnosticId:String(diagnosticId || '')
+      }
     );
 
     try{
@@ -2515,6 +2931,7 @@ Ver189.5.7.3.1.11 / INDEX:189573111
         probeId,
         {
           reason:String(reason || ''),
+          diagnosticId:String(diagnosticId || ''),
           diagnosis:diagnosis,
           fetch:fetchResult,
           xhr:xhrResult,
@@ -2693,9 +3110,9 @@ Ver189.5.7.3.1.11 / INDEX:189573111
         }
       );
 
-      runNetworkStackProbe_(
-        'heartbeat-busy-force-release',
-        true
+      runNetworkServiceDeepProbe_(
+        'NSD-' + Date.now() + '-HB-BUSY',
+        'heartbeat-busy-force-release'
       );
 
       try{
@@ -2763,9 +3180,9 @@ Ver189.5.7.3.1.11 / INDEX:189573111
           }
         );
 
-        runNetworkStackProbe_(
-          'heartbeat-fetch-hung',
-          true
+        runNetworkServiceDeepProbe_(
+          'NSD-' + Date.now() + '-HB-HUNG',
+          'heartbeat-fetch-hung'
         );
 
         try{
@@ -3032,7 +3449,10 @@ Ver189.5.7.3.1.11 / INDEX:189573111
     );
     sendHeartbeat('online', true);
     setTimeout(function(){
-      runNetworkStackProbe_('browser-online', true);
+      runNetworkServiceDeepProbe_(
+        'NSD-' + Date.now() + '-ONLINE',
+        'browser-online'
+      );
     }, 1000);
     setTimeout(function(){ flushConnectivityDiagQueue_('online'); }, 500);
   });
@@ -5015,7 +5435,7 @@ const FLEET={
     }
   }
 
-  // Ver189.5.7.3.1.11: 運転者プルダウンとの重なりを避けるため、
+  // Ver189.5.7.3.1.12: 運転者プルダウンとの重なりを避けるため、
   // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -5139,7 +5559,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.11\n' +
+      '音声待受診断 Ver189.5.7.3.1.12\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -5413,7 +5833,7 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.11: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.12: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -6301,7 +6721,7 @@ const FLEET={
 
   startRemoteCommandPolling();
 
-  // Ver189.5.7.3.1.11 診断・Watchdog開始
+  // Ver189.5.7.3.1.12 診断・Watchdog開始
   recordConnectivityDiag_(
     'APP_DIAGNOSTIC_START',
     '通信診断・Watchdogを開始',
@@ -6316,8 +6736,10 @@ const FLEET={
   startDeepDiagnostics_();
   startCenterInitializationFlagMonitor_();
   startNetworkStackProbe_();
+  startResourceTimingObserver_();
+  startWakeLockMonitor_();
 
-  // Ver189.5.7.3.1.11 起動時キャッシュ診断・実行コード識別
+  // Ver189.5.7.3.1.12 起動時キャッシュ診断・実行コード識別
   recordRuntimeCodeIdentity_('startup-immediate');
   clearRuntimeCaches_().then(function(){
     recordRuntimeCodeIdentity_('after-cache-cleanup');
