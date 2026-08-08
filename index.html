@@ -16,7 +16,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.8: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.9: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -232,7 +232,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.8: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.9: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -286,7 +286,7 @@ if ('serviceWorker' in navigator) {
 position:fixed;left:8px;bottom:8px;z-index:2147483646;
 font:12px/1.2 monospace;background:rgba(0,0,0,.72);
 color:#fff;padding:4px 6px;border-radius:5px;pointer-events:none;">
-Ver189.5.7.3.1.8 / INDEX:18957318
+Ver189.5.7.3.1.9 / INDEX:18957319
 </div>
 
 <div id="map"></div>
@@ -421,10 +421,20 @@ Ver189.5.7.3.1.8 / INDEX:18957318
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.8';
-  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.8-INDEX-18957318';
-  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.8-INLINEJS-18957318';
-  const CACHE_BUST_TAG = '18957318';
+  const VERSION = 'Ver189.5.7.3.1.9';
+  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.9-INDEX-18957319';
+  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.9-INLINEJS-18957319';
+  const CACHE_BUST_TAG = '18957319';
+
+  // Ver189.5.7.3.1.9 センター初期化協調制御
+  const CENTER_INIT_FLAG_POLL_MS = 3000;
+  const CENTER_INIT_RETRY_DELAY_MS = 6000;
+  const CENTER_INIT_MAX_WAIT_MS = 120000;
+  let centerInitializationActive = false;
+  let centerInitializationStartedAt = 0;
+  let centerInitializationLastCheckedAt = 0;
+  let centerInitializationPollTimer = null;
+  let centerInitializationRetryTimer = null;
   const RELEASE_NAME = '正式版';
   document.title = `回収等履歴管理システム「取りもれ～ぬ」${VERSION}`;
   const legendVerEl = document.getElementById('legendVer');
@@ -436,7 +446,7 @@ Ver189.5.7.3.1.8 / INDEX:18957318
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
   const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
 
-  // Ver189.5.7.3.1.8 通信停止原因完全診断・自動復旧Watchdog
+  // Ver189.5.7.3.1.9 通信停止原因完全診断・自動復旧Watchdog
   const CONNECTIVITY_DIAG_QUEUE_KEY = 'torimorenuConnectivityDiagQueue_v1';
   const CONNECTIVITY_DIAG_MAX_LOCAL = 400;
   const CONNECTIVITY_DIAG_FLUSH_MAX = 50;
@@ -448,7 +458,7 @@ Ver189.5.7.3.1.8 / INDEX:18957318
   const WATCHDOG_STRONG_RECOVER_MS = 240 * 1000;
   const WATCHDOG_COOLDOWN_MS = 60 * 1000;
 
-  // Ver189.5.7.3.1.8 端末・ブラウザ深掘り診断
+  // Ver189.5.7.3.1.9 端末・ブラウザ深掘り診断
   const DEEP_DIAG_SAMPLE_INTERVAL_MS = 30 * 1000;
   const EVENT_LOOP_INTERVAL_MS = 5 * 1000;
   const EVENT_LOOP_WARN_DRIFT_MS = 3000;
@@ -466,7 +476,7 @@ Ver189.5.7.3.1.8 / INDEX:18957318
   let cachedLongTask = null;
   let deepDiagStarted = false;
 
-  // Ver189.5.7.3.1.8 Android OS / Chrome休止・再生成推定
+  // Ver189.5.7.3.1.9 Android OS / Chrome休止・再生成推定
   const SESSION_DIAG_ID_KEY = 'torimorenuSessionDiagId_v1';
   const SESSION_LAST_ALIVE_KEY = 'torimorenuSessionLastAlive_v1';
   const SESSION_CLEAN_EXIT_KEY = 'torimorenuSessionCleanExit_v1';
@@ -627,7 +637,52 @@ Ver189.5.7.3.1.8 / INDEX:18957318
 
 
 
-  // Ver189.5.7.3.1.8 キャッシュ完全対策・実行コード識別
+  // Ver189.5.7.3.1.9 キャッシュ完全対策・実行コード識別
+
+  function scheduleHeartbeatAfterCenterInitialization_(reason){
+    if(centerInitializationRetryTimer) clearTimeout(centerInitializationRetryTimer);
+    centerInitializationRetryTimer = setTimeout(function(){
+      centerInitializationRetryTimer = null;
+      if(centerInitializationActive){
+        scheduleHeartbeatAfterCenterInitialization_('still-initializing');
+        return;
+      }
+      try{ recordConnectivityDiag_('CENTER_INIT_HEARTBEAT_RESUME','センター初期化終了後にHeartbeat再送を開始',{reason:String(reason||''),waitedMs:centerInitializationStartedAt?Math.max(0,Date.now()-centerInitializationStartedAt):0}); }catch(_e){}
+      try{ restartCommunicationLoops_('center-initialization-finished'); }catch(_e){}
+      try{ sendHeartbeat('center-initialization-finished',true); }catch(_e){}
+    }, CENTER_INIT_RETRY_DELAY_MS);
+  }
+
+  function setCenterInitializationState_(active, detail){
+    const next=!!active; const changed=centerInitializationActive!==next;
+    centerInitializationActive=next; centerInitializationLastCheckedAt=Date.now();
+    if(next && !centerInitializationStartedAt) centerInitializationStartedAt=Date.now();
+    if(changed){
+      try{ recordConnectivityDiag_(next?'CENTER_INITIALIZATION_PAUSE':'CENTER_INITIALIZATION_RELEASED',next?'センター初期化中のためHeartbeat等を一時待機':'センター初期化フラグ解除を検知',{active:next,detail:detail||{},waitedMs:centerInitializationStartedAt?Math.max(0,Date.now()-centerInitializationStartedAt):0}); }catch(_e){}
+    }
+    if(!next){ if(centerInitializationStartedAt) scheduleHeartbeatAfterCenterInitialization_('flag-released'); centerInitializationStartedAt=0; }
+  }
+
+  async function checkCenterInitializationFlag_(){
+    try{
+      const params=new URLSearchParams(); params.set('action','getCenterInitializationState'); params.set('_cb',String(Date.now()));
+      const sep=GAS_ENDPOINT.indexOf('?')>=0?'&':'?'; const url=GAS_ENDPOINT+sep+params.toString();
+      const response=await fetch(url,{method:'GET',cache:'no-store'}); const data=await response.json();
+      if(data&&data.ok) setCenterInitializationState_(!!data.initializing,{startedAt:data.startedAt||'',expiresAt:data.expiresAt||'',systemVersion:data.systemVersion||''});
+    }catch(error){ try{ recordConnectivityDiag_('CENTER_INIT_FLAG_CHECK_ERROR','センター初期化フラグ確認に失敗',{message:String(error&&error.message||error)}); }catch(_e){} }
+  }
+
+  function startCenterInitializationFlagMonitor_(){
+    if(centerInitializationPollTimer) clearInterval(centerInitializationPollTimer);
+    checkCenterInitializationFlag_();
+    centerInitializationPollTimer=setInterval(function(){
+      checkCenterInitializationFlag_();
+      if(centerInitializationActive&&centerInitializationStartedAt&&(Date.now()-centerInitializationStartedAt)>CENTER_INIT_MAX_WAIT_MS){
+        setCenterInitializationState_(false,{forcedRelease:true,reason:'client-max-wait'});
+      }
+    },CENTER_INIT_FLAG_POLL_MS);
+  }
+
   async function clearRuntimeCaches_(){
     const result = {
       serviceWorkerSupported: 'serviceWorker' in navigator,
@@ -1998,6 +2053,12 @@ Ver189.5.7.3.1.8 / INDEX:18957318
   }
 
   async function sendHeartbeat(reason, force){
+    if(centerInitializationActive){
+      try{ recordConnectivityDiag_('HEARTBEAT_PAUSED_CENTER_INITIALIZATION','センター初期化中のためHeartbeat送信を保留',{reason:String(reason||''),force:!!(force),waitedMs:centerInitializationStartedAt?Math.max(0,Date.now()-centerInitializationStartedAt):0}); }catch(_e){}
+      scheduleHeartbeatAfterCenterInitialization_('heartbeat-paused');
+      return false;
+    }
+
     if(heartbeatSending){
       recordConnectivityDiag_(
         'HEARTBEAT_SKIPPED_BUSY',
@@ -4101,7 +4162,7 @@ const FLEET={
     }
   }
 
-  // Ver189.5.7.3.1.8: 運転者プルダウンとの重なりを避けるため、
+  // Ver189.5.7.3.1.9: 運転者プルダウンとの重なりを避けるため、
   // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -4225,7 +4286,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.8\n' +
+      '音声待受診断 Ver189.5.7.3.1.9\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -4499,7 +4560,7 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.8: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.9: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -5387,7 +5448,7 @@ const FLEET={
 
   startRemoteCommandPolling();
 
-  // Ver189.5.7.3.1.8 診断・Watchdog開始
+  // Ver189.5.7.3.1.9 診断・Watchdog開始
   recordConnectivityDiag_(
     'APP_DIAGNOSTIC_START',
     '通信診断・Watchdogを開始',
@@ -5400,8 +5461,9 @@ const FLEET={
   startConnectivityDiagFlush_();
   startCommunicationWatchdog_();
   startDeepDiagnostics_();
+  startCenterInitializationFlagMonitor_();
 
-  // Ver189.5.7.3.1.8 起動時キャッシュ診断・実行コード識別
+  // Ver189.5.7.3.1.9 起動時キャッシュ診断・実行コード識別
   recordRuntimeCodeIdentity_('startup-immediate');
   clearRuntimeCaches_().then(function(){
     recordRuntimeCodeIdentity_('after-cache-cleanup');
