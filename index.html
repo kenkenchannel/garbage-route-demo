@@ -16,7 +16,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.9: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.10: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -232,7 +232,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.9: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.10: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -286,7 +286,7 @@ if ('serviceWorker' in navigator) {
 position:fixed;left:8px;bottom:8px;z-index:2147483646;
 font:12px/1.2 monospace;background:rgba(0,0,0,.72);
 color:#fff;padding:4px 6px;border-radius:5px;pointer-events:none;">
-Ver189.5.7.3.1.9 / INDEX:18957319
+Ver189.5.7.3.1.10 / INDEX:189573110
 </div>
 
 <div id="map"></div>
@@ -421,12 +421,12 @@ Ver189.5.7.3.1.9 / INDEX:18957319
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.9';
-  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.9-INDEX-18957319';
-  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.9-INLINEJS-18957319';
-  const CACHE_BUST_TAG = '18957319';
+  const VERSION = 'Ver189.5.7.3.1.10';
+  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.10-INDEX-189573110';
+  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.10-INLINEJS-189573110';
+  const CACHE_BUST_TAG = '189573110';
 
-  // Ver189.5.7.3.1.9 センター初期化協調制御
+  // Ver189.5.7.3.1.10 センター初期化協調制御
   const CENTER_INIT_FLAG_POLL_MS = 3000;
   const CENTER_INIT_RETRY_DELAY_MS = 6000;
   const CENTER_INIT_MAX_WAIT_MS = 120000;
@@ -446,7 +446,7 @@ Ver189.5.7.3.1.9 / INDEX:18957319
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
   const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
 
-  // Ver189.5.7.3.1.9 通信停止原因完全診断・自動復旧Watchdog
+  // Ver189.5.7.3.1.10 通信停止原因完全診断・自動復旧Watchdog
   const CONNECTIVITY_DIAG_QUEUE_KEY = 'torimorenuConnectivityDiagQueue_v1';
   const CONNECTIVITY_DIAG_MAX_LOCAL = 400;
   const CONNECTIVITY_DIAG_FLUSH_MAX = 50;
@@ -458,7 +458,7 @@ Ver189.5.7.3.1.9 / INDEX:18957319
   const WATCHDOG_STRONG_RECOVER_MS = 240 * 1000;
   const WATCHDOG_COOLDOWN_MS = 60 * 1000;
 
-  // Ver189.5.7.3.1.9 端末・ブラウザ深掘り診断
+  // Ver189.5.7.3.1.10 端末・ブラウザ深掘り診断
   const DEEP_DIAG_SAMPLE_INTERVAL_MS = 30 * 1000;
   const EVENT_LOOP_INTERVAL_MS = 5 * 1000;
   const EVENT_LOOP_WARN_DRIFT_MS = 3000;
@@ -476,7 +476,7 @@ Ver189.5.7.3.1.9 / INDEX:18957319
   let cachedLongTask = null;
   let deepDiagStarted = false;
 
-  // Ver189.5.7.3.1.9 Android OS / Chrome休止・再生成推定
+  // Ver189.5.7.3.1.10 Android OS / Chrome休止・再生成推定
   const SESSION_DIAG_ID_KEY = 'torimorenuSessionDiagId_v1';
   const SESSION_LAST_ALIVE_KEY = 'torimorenuSessionLastAlive_v1';
   const SESSION_CLEAN_EXIT_KEY = 'torimorenuSessionCleanExit_v1';
@@ -626,6 +626,19 @@ Ver189.5.7.3.1.9 / INDEX:18957319
   let heartbeatConsecutiveFailures = 0;
   let heartbeatSequence = Number(localStorage.getItem('torimorenuHeartbeatSequence') || '0');
 
+  // Ver189.5.7.3.1.10 Heartbeatハング完全解析・Promise監視
+  const HEARTBEAT_PROMISE_WARN_MS = 15000;
+  const HEARTBEAT_BUSY_FORCE_RELEASE_MS = 30000;
+  const HEARTBEAT_BUSY_WATCH_INTERVAL_MS = 5000;
+
+  let heartbeatActiveOperationId = '';
+  let heartbeatBusySince = 0;
+  let heartbeatCurrentAbortController = null;
+  let heartbeatBusyWatchTimer = null;
+  let heartbeatOperationCounter = Number(
+    localStorage.getItem('torimorenuHeartbeatOperationCounter') || '0'
+  );
+
   let connectivityDiagFlushTimer = null;
   let connectivityDiagFlushing = false;
   let watchdogTimer = null;
@@ -637,7 +650,7 @@ Ver189.5.7.3.1.9 / INDEX:18957319
 
 
 
-  // Ver189.5.7.3.1.9 キャッシュ完全対策・実行コード識別
+  // Ver189.5.7.3.1.10 キャッシュ完全対策・実行コード識別
 
   function scheduleHeartbeatAfterCenterInitialization_(reason){
     if(centerInitializationRetryTimer) clearTimeout(centerInitializationRetryTimer);
@@ -2052,20 +2065,309 @@ Ver189.5.7.3.1.9 / INDEX:18957319
     };
   }
 
+
+  function nextHeartbeatOperationId_(){
+    heartbeatOperationCounter += 1;
+    try{
+      localStorage.setItem(
+        'torimorenuHeartbeatOperationCounter',
+        String(heartbeatOperationCounter)
+      );
+    }catch(_e){}
+
+    return (
+      'HB-' +
+      Date.now() + '-' +
+      heartbeatOperationCounter + '-' +
+      Math.floor(Math.random() * 1000000)
+    );
+  }
+
+  function heartbeatTrace_(eventType, message, detail){
+    try{
+      recordConnectivityDiag_(
+        eventType,
+        message,
+        {
+          operationId:String(
+            detail && detail.operationId
+              ? detail.operationId
+              : heartbeatActiveOperationId || ''
+          ),
+          heartbeatSending:!!heartbeatSending,
+          busySince:heartbeatBusySince || '',
+          busyElapsedMs:heartbeatBusySince
+            ? Math.max(0, Date.now() - heartbeatBusySince)
+            : 0,
+          sequence:heartbeatSequence,
+          lastAttemptAt:heartbeatLastAttemptAt || '',
+          lastCompletedAt:heartbeatLastCompletedAt || '',
+          lastFailedAt:heartbeatLastFailedAt || '',
+          consecutiveFailures:heartbeatConsecutiveFailures,
+          online:navigator.onLine !== false,
+          visibilityState:String(document.visibilityState || ''),
+          ...(detail || {})
+        }
+      );
+    }catch(_e){}
+  }
+
+  function setHeartbeatBusy_(operationId, reason){
+    heartbeatSending = true;
+    heartbeatActiveOperationId = String(operationId || '');
+    heartbeatBusySince = Date.now();
+
+    heartbeatTrace_(
+      'HEARTBEAT_BUSY_ON',
+      'Heartbeat busyフラグをON',
+      {
+        operationId:heartbeatActiveOperationId,
+        reason:String(reason || '')
+      }
+    );
+  }
+
+  function releaseHeartbeatBusy_(operationId, releaseReason){
+    const opId = String(operationId || '');
+
+    // 古い非同期処理のfinallyが、新しいHeartbeatのbusyを解除しないよう防止。
+    if(
+      heartbeatActiveOperationId &&
+      opId &&
+      heartbeatActiveOperationId !== opId
+    ){
+      heartbeatTrace_(
+        'HEARTBEAT_BUSY_RELEASE_IGNORED',
+        '旧Heartbeat処理からのbusy解除要求を無視',
+        {
+          operationId:opId,
+          activeOperationId:String(heartbeatActiveOperationId || ''),
+          releaseReason:String(releaseReason || '')
+        }
+      );
+      return false;
+    }
+
+    const elapsed = heartbeatBusySince
+      ? Math.max(0, Date.now() - heartbeatBusySince)
+      : 0;
+
+    heartbeatSending = false;
+    heartbeatBusySince = 0;
+    heartbeatActiveOperationId = '';
+
+    if(heartbeatCurrentAbortController){
+      heartbeatCurrentAbortController = null;
+    }
+
+    heartbeatTrace_(
+      'HEARTBEAT_BUSY_OFF',
+      'Heartbeat busyフラグをOFF',
+      {
+        operationId:opId,
+        releaseReason:String(releaseReason || ''),
+        busyDurationMs:elapsed
+      }
+    );
+
+    return true;
+  }
+
+  function startHeartbeatBusyWatchdog_(){
+    if(heartbeatBusyWatchTimer){
+      clearInterval(heartbeatBusyWatchTimer);
+    }
+
+    heartbeatBusyWatchTimer = setInterval(function(){
+      if(!heartbeatSending || !heartbeatBusySince) return;
+
+      const elapsed = Math.max(0, Date.now() - heartbeatBusySince);
+
+      if(elapsed < HEARTBEAT_BUSY_FORCE_RELEASE_MS) return;
+
+      const stuckOperationId = String(heartbeatActiveOperationId || '');
+
+      heartbeatTrace_(
+        'HEARTBEAT_BUSY_FORCE_RELEASE',
+        'Heartbeat busyが30秒以上継続したため強制解除',
+        {
+          operationId:stuckOperationId,
+          busyElapsedMs:elapsed,
+          thresholdMs:HEARTBEAT_BUSY_FORCE_RELEASE_MS
+        }
+      );
+
+      try{
+        if(heartbeatCurrentAbortController){
+          heartbeatCurrentAbortController.abort();
+        }
+      }catch(_e){}
+
+      releaseHeartbeatBusy_(
+        stuckOperationId,
+        'busy-watchdog-30s'
+      );
+
+      // 強制解除後、次の処理が残っていれば新しいoperationIdで安全に再送。
+      setTimeout(function(){
+        if(!centerInitializationActive && !heartbeatSending){
+          sendHeartbeat('busy-force-release-retry', true);
+        }
+      }, 2000);
+    }, HEARTBEAT_BUSY_WATCH_INTERVAL_MS);
+  }
+
+  function createHeartbeatFetchPromise_(payload, operationId){
+    const controller =
+      typeof AbortController !== 'undefined'
+        ? new AbortController()
+        : null;
+
+    heartbeatCurrentAbortController = controller;
+
+    const fetchStartedAtWall = Date.now();
+    const fetchStartedAtPerf = performance.now();
+
+    heartbeatTrace_(
+      'HEARTBEAT_FETCH_BEGIN',
+      'heartbeat fetch開始',
+      {
+        operationId:operationId,
+        reason:String(payload.reason || ''),
+        vehicle:String(payload.vehicle || ''),
+        fetchStartedAt:fetchStartedAtWall,
+        abortControllerSupported:!!controller
+      }
+    );
+
+    let hungTimer = null;
+    let timeoutReject = null;
+
+    const timeoutPromise = new Promise(function(_resolve, reject){
+      timeoutReject = reject;
+
+      hungTimer = setTimeout(function(){
+        const elapsed = Math.max(
+          0,
+          Date.now() - fetchStartedAtWall
+        );
+
+        heartbeatTrace_(
+          'HEARTBEAT_FETCH_HUNG',
+          'heartbeat fetch Promiseが15秒以内に完了しないためハング判定',
+          {
+            operationId:operationId,
+            elapsedMs:elapsed,
+            thresholdMs:HEARTBEAT_PROMISE_WARN_MS
+          }
+        );
+
+        try{
+          if(controller) controller.abort();
+        }catch(_e){}
+
+        const error = new Error(
+          'Heartbeat fetch timeout (' +
+          HEARTBEAT_PROMISE_WARN_MS + 'ms)'
+        );
+        error.name = 'HeartbeatFetchTimeoutError';
+        reject(error);
+      }, HEARTBEAT_PROMISE_WARN_MS);
+    });
+
+    const fetchPromise = fetch(GAS_ENDPOINT, {
+      method:'POST',
+      mode:'no-cors',
+      cache:'no-store',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload),
+      signal:controller ? controller.signal : undefined
+    });
+
+    return Promise.race([
+      fetchPromise,
+      timeoutPromise
+    ]).then(function(response){
+      if(hungTimer) clearTimeout(hungTimer);
+
+      const durationMs = Math.round(
+        Math.max(0, performance.now() - fetchStartedAtPerf)
+      );
+
+      heartbeatTrace_(
+        'HEARTBEAT_FETCH_SUCCESS',
+        'heartbeat fetch Promise正常完了',
+        {
+          operationId:operationId,
+          durationMs:durationMs,
+          responseType:response && response.type
+            ? String(response.type)
+            : 'opaque/no-cors'
+        }
+      );
+
+      return {
+        response:response,
+        durationMs:durationMs
+      };
+    }).catch(function(error){
+      if(hungTimer) clearTimeout(hungTimer);
+
+      const durationMs = Math.max(
+        0,
+        Date.now() - fetchStartedAtWall
+      );
+
+      heartbeatTrace_(
+        'HEARTBEAT_FETCH_ERROR',
+        'heartbeat fetch Promise例外',
+        {
+          operationId:operationId,
+          durationMs:durationMs,
+          name:String(error && error.name || ''),
+          message:String(error && error.message || error),
+          aborted:!!(
+            controller &&
+            controller.signal &&
+            controller.signal.aborted
+          )
+        }
+      );
+
+      throw error;
+    });
+  }
+
   async function sendHeartbeat(reason, force){
     if(centerInitializationActive){
-      try{ recordConnectivityDiag_('HEARTBEAT_PAUSED_CENTER_INITIALIZATION','センター初期化中のためHeartbeat送信を保留',{reason:String(reason||''),force:!!(force),waitedMs:centerInitializationStartedAt?Math.max(0,Date.now()-centerInitializationStartedAt):0}); }catch(_e){}
+      try{
+        recordConnectivityDiag_(
+          'HEARTBEAT_PAUSED_CENTER_INITIALIZATION',
+          'センター初期化中のためHeartbeat送信を保留',
+          {
+            reason:String(reason || ''),
+            force:!!force,
+            waitedMs:centerInitializationStartedAt
+              ? Math.max(0, Date.now() - centerInitializationStartedAt)
+              : 0
+          }
+        );
+      }catch(_e){}
+
       scheduleHeartbeatAfterCenterInitialization_('heartbeat-paused');
       return false;
     }
 
     if(heartbeatSending){
-      recordConnectivityDiag_(
+      heartbeatTrace_(
         'HEARTBEAT_SKIPPED_BUSY',
         '前回heartbeat処理中のため今回送信を省略',
-        {reason:String(reason || '')}
+        {
+          reason:String(reason || ''),
+          activeOperationId:String(heartbeatActiveOperationId || '')
+        }
       );
-      return;
+      return false;
     }
 
     if(!GAS_ENDPOINT || !GAS_ENDPOINT.startsWith('https://')){
@@ -2074,42 +2376,56 @@ Ver189.5.7.3.1.9 / INDEX:18957319
         'GAS_ENDPOINT未設定のためheartbeat送信不可',
         {reason:String(reason || '')}
       );
-      return;
+      return false;
     }
 
     const now = Date.now();
-    if(!force && (now - heartbeatLastSentAt) < 15000) return;
+    if(!force && (now - heartbeatLastSentAt) < 15000){
+      return false;
+    }
 
-    heartbeatSending = true;
+    const operationId = nextHeartbeatOperationId_();
+    setHeartbeatBusy_(operationId, reason);
+
     heartbeatLastAttemptAt = Date.now();
     heartbeatSequence += 1;
-    localStorage.setItem('torimorenuHeartbeatSequence', String(heartbeatSequence));
 
-    recordConnectivityDiag_(
+    try{
+      localStorage.setItem(
+        'torimorenuHeartbeatSequence',
+        String(heartbeatSequence)
+      );
+    }catch(_e){}
+
+    heartbeatTrace_(
       'HEARTBEAT_ATTEMPT',
       'heartbeat送信開始',
       {
+        operationId:operationId,
         reason:String(reason || ''),
-        sequence:heartbeatSequence,
-        online:navigator.onLine !== false,
-        visibilityState:document.visibilityState || ''
+        sequence:heartbeatSequence
       }
     );
+
+    let finalResult = false;
 
     try{
       const payload = await makeHeartbeatPayload(reason);
 
-      const heartbeatFetchStartedAt = performance.now();
+      heartbeatTrace_(
+        'HEARTBEAT_PAYLOAD_READY',
+        'heartbeat payload作成完了',
+        {
+          operationId:operationId,
+          reason:String(payload.reason || ''),
+          vehicle:String(payload.vehicle || ''),
+          lastPlace:String(payload.lastPlace || '')
+        }
+      );
 
-      await fetch(GAS_ENDPOINT, {
-        method:'POST',
-        mode:'no-cors',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(payload)
-      });
-
-      const heartbeatFetchDurationMs = Math.round(
-        Math.max(0, performance.now() - heartbeatFetchStartedAt)
+      const fetchResult = await createHeartbeatFetchPromise_(
+        payload,
+        operationId
       );
 
       heartbeatLastSentAt = Date.now();
@@ -2121,11 +2437,12 @@ Ver189.5.7.3.1.9 / INDEX:18957319
         'HEARTBEAT_FETCH_COMPLETED',
         'heartbeat fetch処理完了（no-corsのためGAS本文応答は参照不可）',
         {
+          operationId:operationId,
           reason:payload.reason,
           sequence:heartbeatSequence,
           vehicle:payload.vehicle,
           lastPlace:payload.lastPlace,
-          fetchDurationMs:heartbeatFetchDurationMs,
+          fetchDurationMs:fetchResult.durationMs,
           responseType:'opaque/no-cors'
         }
       );
@@ -2135,39 +2452,66 @@ Ver189.5.7.3.1.9 / INDEX:18957319
         payload.reason,
         payload.vehicle,
         payload.lastPlace,
-        'seq=' + heartbeatSequence
+        'seq=' + heartbeatSequence,
+        'op=' + operationId
       );
+
+      finalResult = true;
 
       setTimeout(function(){
         flushConnectivityDiagQueue_('heartbeat-completed');
       }, 500);
+
+      return true;
+
     }catch(e){
       heartbeatLastFailedAt = Date.now();
       heartbeatConsecutiveFailures += 1;
 
-      recordConnectivityDiag_(
-        'HEARTBEAT_FETCH_ERROR',
-        'heartbeat fetch例外',
+      // createHeartbeatFetchPromise_内でもFETCH_ERRORを記録するが、
+      // ここではsendHeartbeat全体としての失敗を別イベントで残す。
+      heartbeatTrace_(
+        'HEARTBEAT_OPERATION_ERROR',
+        'sendHeartbeat処理全体で例外',
         {
+          operationId:operationId,
           reason:String(reason || ''),
           sequence:heartbeatSequence,
-          consecutiveFailures:heartbeatConsecutiveFailures,
           name:String(e && e.name || ''),
-          message:String(e && e.message || e),
-          online:navigator.onLine !== false,
-          visibilityState:document.visibilityState || ''
+          message:String(e && e.message || e)
         }
       );
 
-      console.warn('ハートビート送信失敗:', e);
+      console.warn(
+        'ハートビート送信失敗:',
+        operationId,
+        e
+      );
+
+      return false;
+
     }finally{
-      heartbeatSending = false;
+      heartbeatTrace_(
+        'HEARTBEAT_FETCH_FINALLY',
+        'sendHeartbeat finallyへ到達',
+        {
+          operationId:operationId,
+          reason:String(reason || ''),
+          success:!!finalResult
+        }
+      );
+
+      releaseHeartbeatBusy_(
+        operationId,
+        finalResult ? 'finally-success' : 'finally-error'
+      );
     }
   }
 
 
   function startHeartbeat(){
     if(heartbeatTimer) clearInterval(heartbeatTimer);
+    startHeartbeatBusyWatchdog_();
     setTimeout(function(){ sendHeartbeat('startup', true); }, 1500);
     heartbeatTimer = setInterval(function(){
       sendHeartbeat('interval', false);
@@ -4162,7 +4506,7 @@ const FLEET={
     }
   }
 
-  // Ver189.5.7.3.1.9: 運転者プルダウンとの重なりを避けるため、
+  // Ver189.5.7.3.1.10: 運転者プルダウンとの重なりを避けるため、
   // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -4286,7 +4630,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.9\n' +
+      '音声待受診断 Ver189.5.7.3.1.10\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -4560,7 +4904,7 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.9: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.10: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -5448,7 +5792,7 @@ const FLEET={
 
   startRemoteCommandPolling();
 
-  // Ver189.5.7.3.1.9 診断・Watchdog開始
+  // Ver189.5.7.3.1.10 診断・Watchdog開始
   recordConnectivityDiag_(
     'APP_DIAGNOSTIC_START',
     '通信診断・Watchdogを開始',
@@ -5463,7 +5807,7 @@ const FLEET={
   startDeepDiagnostics_();
   startCenterInitializationFlagMonitor_();
 
-  // Ver189.5.7.3.1.9 起動時キャッシュ診断・実行コード識別
+  // Ver189.5.7.3.1.10 起動時キャッシュ診断・実行コード識別
   recordRuntimeCodeIdentity_('startup-immediate');
   clearRuntimeCaches_().then(function(){
     recordRuntimeCodeIdentity_('after-cache-cleanup');
