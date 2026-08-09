@@ -16,7 +16,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.18: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.19: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -232,7 +232,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.18: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.19: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -286,7 +286,7 @@ if ('serviceWorker' in navigator) {
 position:fixed;left:8px;bottom:8px;z-index:2147483646;
 font:12px/1.2 monospace;background:rgba(0,0,0,.72);
 color:#fff;padding:4px 6px;border-radius:5px;pointer-events:none;">
-Ver189.5.7.3.1.18 / INDEX:189573118
+Ver189.5.7.3.1.19 / INDEX:189573119
 </div>
 
 <div id="map"></div>
@@ -421,12 +421,12 @@ Ver189.5.7.3.1.18 / INDEX:189573118
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.18';
-  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.18-INDEX-189573118';
-  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.18-INLINEJS-189573118';
-  const CACHE_BUST_TAG = '189573118';
+  const VERSION = 'Ver189.5.7.3.1.19';
+  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.19-INDEX-189573119';
+  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.19-INLINEJS-189573119';
+  const CACHE_BUST_TAG = '189573119';
 
-  // Ver189.5.7.3.1.18 センター初期化協調制御
+  // Ver189.5.7.3.1.19 センター初期化協調制御
   const CENTER_INIT_FLAG_POLL_MS = 3000;
   const CENTER_INIT_RETRY_DELAY_MS = 6000;
   const CENTER_INIT_MAX_WAIT_MS = 120000;
@@ -446,7 +446,7 @@ Ver189.5.7.3.1.18 / INDEX:189573118
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
   const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
 
-  // Ver189.5.7.3.1.18 通信停止原因完全診断・自動復旧Watchdog
+  // Ver189.5.7.3.1.19 通信停止原因完全診断・自動復旧Watchdog
   const CONNECTIVITY_DIAG_QUEUE_KEY = 'torimorenuConnectivityDiagQueue_v1';
   const CONNECTIVITY_DIAG_MAX_LOCAL = 400;
   const CONNECTIVITY_DIAG_FLUSH_MAX = 50;
@@ -458,7 +458,7 @@ Ver189.5.7.3.1.18 / INDEX:189573118
   const WATCHDOG_STRONG_RECOVER_MS = 240 * 1000;
   const WATCHDOG_COOLDOWN_MS = 60 * 1000;
 
-  // Ver189.5.7.3.1.18 端末・ブラウザ深掘り診断
+  // Ver189.5.7.3.1.19 端末・ブラウザ深掘り診断
   const DEEP_DIAG_SAMPLE_INTERVAL_MS = 30 * 1000;
   const EVENT_LOOP_INTERVAL_MS = 5 * 1000;
   const EVENT_LOOP_WARN_DRIFT_MS = 3000;
@@ -476,7 +476,7 @@ Ver189.5.7.3.1.18 / INDEX:189573118
   let cachedLongTask = null;
   let deepDiagStarted = false;
 
-  // Ver189.5.7.3.1.18 Android OS / Chrome休止・再生成推定
+  // Ver189.5.7.3.1.19 Android OS / Chrome休止・再生成推定
   const SESSION_DIAG_ID_KEY = 'torimorenuSessionDiagId_v1';
   const SESSION_LAST_ALIVE_KEY = 'torimorenuSessionLastAlive_v1';
   const SESSION_CLEAN_EXIT_KEY = 'torimorenuSessionCleanExit_v1';
@@ -551,6 +551,18 @@ Ver189.5.7.3.1.18 / INDEX:189573118
 
   function init(){
   const AUTO_COLLECT_M = 10;
+
+  // Ver189.5.7.3.1.19 GPS通過補完・チャイム遅延対策
+  const AUTO_COLLECT_PASS_THROUGH_M = 10;
+  const AUTO_COLLECT_PASS_THROUGH_MAX_SEGMENT_M = 80;
+  const GPS_TARGET_DIAG_NEAR_M = 80;
+  const CHIME_WAIT_MAX_MS = 3500;
+  const CHIME_SOURCES = ['./quiz-correct3.mp3','./クイズ・正解3.mp3'];
+
+  let chimeAudioPrimary = null;
+  let chimeAudioFallback = null;
+  let chimePreloadStarted = false;
+  let chimePlaybackSerial = 0;
   const EXCEPTION_M    = 20;
   const POPUP_STAY_UNTIL_M = 10;
   const SUPPRESS_MS = 2000;
@@ -626,7 +638,7 @@ Ver189.5.7.3.1.18 / INDEX:189573118
   let heartbeatConsecutiveFailures = 0;
   let heartbeatSequence = Number(localStorage.getItem('torimorenuHeartbeatSequence') || '0');
 
-  // Ver189.5.7.3.1.18 Heartbeatハング完全解析・Promise監視
+  // Ver189.5.7.3.1.19 Heartbeatハング完全解析・Promise監視
   const HEARTBEAT_PROMISE_WARN_MS = 15000;
   const HEARTBEAT_BUSY_FORCE_RELEASE_MS = 30000;
   const HEARTBEAT_BUSY_WATCH_INTERVAL_MS = 5000;
@@ -636,7 +648,7 @@ Ver189.5.7.3.1.18 / INDEX:189573118
   let heartbeatCurrentAbortController = null;
   let heartbeatBusyWatchTimer = null;
 
-  // Ver189.5.7.3.1.18 ネットワークスタック完全解析
+  // Ver189.5.7.3.1.19 ネットワークスタック完全解析
   const NETWORK_PROBE_INTERVAL_MS = 60 * 1000;
   const NETWORK_PROBE_TIMEOUT_MS = 12000;
   const NETWORK_PROBE_COOLDOWN_MS = 20000;
@@ -645,7 +657,7 @@ Ver189.5.7.3.1.18 / INDEX:189573118
   let networkProbeRunning = false;
   let networkProbeLastAt = 0;
 
-  // Ver189.5.7.3.1.18 JavaScriptイベントループ・NetworkService完全解析
+  // Ver189.5.7.3.1.19 JavaScriptイベントループ・NetworkService完全解析
   const JS_LOOP_PROBE_TIMEOUT_MS = 5000;
   const RESOURCE_TIMING_MAX = 40;
   const WAKELOCK_RETRY_MS = 15000;
@@ -668,7 +680,7 @@ Ver189.5.7.3.1.18 / INDEX:189573118
     localStorage.getItem('torimorenuHeartbeatOperationCounter') || '0'
   );
 
-  // Ver189.5.7.3.1.18 Heartbeat内部処理完全分解・再入/未完了Promise監視
+  // Ver189.5.7.3.1.19 Heartbeat内部処理完全分解・再入/未完了Promise監視
   const HEARTBEAT_INTERNAL_MONITOR_INTERVAL_MS = 5000;
   const HEARTBEAT_PENDING_WARN_MS = 20000;
   const HEARTBEAT_PENDING_CRITICAL_MS = 45000;
@@ -689,7 +701,7 @@ Ver189.5.7.3.1.18 / INDEX:189573118
 
 
 
-  // Ver189.5.7.3.1.18 キャッシュ完全対策・実行コード識別
+  // Ver189.5.7.3.1.19 キャッシュ完全対策・実行コード識別
 
   function scheduleHeartbeatAfterCenterInitialization_(reason){
     if(centerInitializationRetryTimer) clearTimeout(centerInitializationRetryTimer);
@@ -3233,7 +3245,7 @@ Ver189.5.7.3.1.18 / INDEX:189573118
     const startedWall=Date.now(), startedPerf=performance.now();
     const pendingKey=registerHeartbeatPendingPromise_(operationId,'heartbeat-fetch');
 
-    // Ver189.5.7.3.1.18 GAS側計測との相関用
+    // Ver189.5.7.3.1.19 GAS側計測との相関用
     payload.heartbeatOperationId=String(operationId||'');
     payload.clientFetchStartedAtMs=Date.now();
     payload.clientFetchStartedAtIso=new Date().toISOString();
@@ -4179,10 +4191,212 @@ Ver189.5.7.3.1.18 / INDEX:189573118
     });
   }
 
+  function preloadChimeAudio_(){
+    if(chimePreloadStarted) return;
+    chimePreloadStarted = true;
+
+    try{
+      chimeAudioPrimary = new Audio(CHIME_SOURCES[0]);
+      chimeAudioPrimary.preload = 'auto';
+      chimeAudioPrimary.volume = audioVol;
+      chimeAudioPrimary.load();
+    }catch(_e){
+      chimeAudioPrimary = null;
+    }
+
+    try{
+      chimeAudioFallback = new Audio(CHIME_SOURCES[1]);
+      chimeAudioFallback.preload = 'auto';
+      chimeAudioFallback.volume = audioVol;
+      chimeAudioFallback.load();
+    }catch(_e){
+      chimeAudioFallback = null;
+    }
+
+    recordConnectivityDiag_(
+      'CHIME_PRELOAD_STARTED',
+      'チャイム音源の事前読込みを開始',
+      {
+        primary:CHIME_SOURCES[0],
+        fallback:CHIME_SOURCES[1]
+      }
+    );
+  }
+
+  function waitForAudioEndOrTimeout_(audio, maxMs){
+    return new Promise(resolve=>{
+      let finished = false;
+      let timer = null;
+
+      const finish = (reason)=>{
+        if(finished) return;
+        finished = true;
+
+        try{
+          audio.removeEventListener('ended', onEnded);
+          audio.removeEventListener('error', onError);
+        }catch(_e){}
+
+        if(timer) clearTimeout(timer);
+        resolve(reason);
+      };
+
+      const onEnded = ()=>finish('ended');
+      const onError = ()=>finish('error');
+
+      try{
+        audio.addEventListener('ended', onEnded, {once:true});
+        audio.addEventListener('error', onError, {once:true});
+      }catch(_e){}
+
+      timer = setTimeout(
+        ()=>finish('timeout'),
+        Math.max(500, Number(maxMs || CHIME_WAIT_MAX_MS))
+      );
+    });
+  }
+
+  async function playPreparedChime_(audio, sourceName, serial){
+    if(!audio) return false;
+
+    try{
+      audio.pause();
+    }catch(_e){}
+
+    try{
+      audio.currentTime = 0;
+    }catch(_e){}
+
+    try{
+      audio.volume = audioVol;
+
+      const playStartedAt = performance.now();
+
+      await audio.play();
+
+      recordConnectivityDiag_(
+        'CHIME_PLAY_STARTED',
+        'チャイム再生開始を確認',
+        {
+          source:sourceName,
+          serial:serial,
+          playStartDelayMs:Math.round(
+            Math.max(0, performance.now() - playStartedAt)
+          ),
+          readyState:Number(audio.readyState || 0),
+          networkState:Number(audio.networkState || 0)
+        }
+      );
+
+      const endReason = await waitForAudioEndOrTimeout_(
+        audio,
+        CHIME_WAIT_MAX_MS
+      );
+
+      recordConnectivityDiag_(
+        'CHIME_PLAY_FINISHED',
+        'チャイム再生待機終了',
+        {
+          source:sourceName,
+          serial:serial,
+          endReason:endReason,
+          currentTime:Number(audio.currentTime || 0),
+          duration:Number.isFinite(Number(audio.duration))
+            ? Number(audio.duration)
+            : ''
+        }
+      );
+
+      return true;
+
+    }catch(error){
+      recordConnectivityDiag_(
+        'CHIME_PLAY_ERROR',
+        'チャイム再生失敗',
+        {
+          source:sourceName,
+          serial:serial,
+          name:String(error && error.name || ''),
+          message:String(error && error.message || error),
+          readyState:Number(audio.readyState || 0),
+          networkState:Number(audio.networkState || 0)
+        }
+      );
+
+      return false;
+    }
+  }
+
   async function chime(){
     unlockAll();
-    const candidates = ['./quiz-correct3.mp3','./クイズ・正解3.mp3'];
-    for(const src of candidates){ try{ const a=new Audio(src); a.volume=audioVol; await a.play(); return true; }catch(_e){} }
+    preloadChimeAudio_();
+
+    const serial = ++chimePlaybackSerial;
+    const startedAt = performance.now();
+
+    recordConnectivityDiag_(
+      'CHIME_REQUESTED',
+      'チャイム再生要求',
+      {
+        serial:serial
+      }
+    );
+
+    if(
+      await playPreparedChime_(
+        chimeAudioPrimary,
+        CHIME_SOURCES[0],
+        serial
+      )
+    ){
+      recordConnectivityDiag_(
+        'CHIME_SEQUENCE_COMPLETE',
+        'チャイム処理完了',
+        {
+          serial:serial,
+          totalMs:Math.round(
+            Math.max(0, performance.now() - startedAt)
+          ),
+          source:CHIME_SOURCES[0]
+        }
+      );
+      return true;
+    }
+
+    if(
+      await playPreparedChime_(
+        chimeAudioFallback,
+        CHIME_SOURCES[1],
+        serial
+      )
+    ){
+      recordConnectivityDiag_(
+        'CHIME_SEQUENCE_COMPLETE',
+        'チャイム処理完了',
+        {
+          serial:serial,
+          totalMs:Math.round(
+            Math.max(0, performance.now() - startedAt)
+          ),
+          source:CHIME_SOURCES[1]
+        }
+      );
+      return true;
+    }
+
+    // 最終フォールバック: 新しいAudioで1度だけ試す。
+    for(const src of CHIME_SOURCES){
+      try{
+        const a = new Audio(src);
+        a.preload = 'auto';
+        a.volume = audioVol;
+
+        if(await playPreparedChime_(a, src + '#new', serial)){
+          return true;
+        }
+      }catch(_e){}
+    }
+
     return false;
   }
 
@@ -4212,6 +4426,7 @@ const FLEET={
   vehicleSel.addEventListener('change', ()=>{ localStorage.setItem('vehicle',vehicleSel.value); populateDrivers(); sendHeartbeat('vehicle-change', true); });
   driverSel .addEventListener('change', ()=>{ localStorage.setItem('driver' ,driverSel.value ); sendHeartbeat('driver-change', true); });
   populateVehicles();
+  preloadChimeAudio_();
 
   const map=L.map('map',{zoomControl:false});
   const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
@@ -5043,16 +5258,34 @@ const FLEET={
       selected.delete(nm);
       done++;
     }
+    let manualChimeOk = false;
+
     if(done>0){
-      if(realMode) chime();
       showToast(`${done} 件（回収）を記録しました`,2);
       updatePointCount();
       sendHeartbeat('point-status-collected', true);
+
+      if(realMode){
+        manualChimeOk = await chime();
+      }
     }
+
     refreshFab();
 
     if(done===1 && selectedNow.length===1){
+      recordConnectivityDiag_(
+        'MANUAL_COLLECT_CHIME_BEFORE_GUIDE_COMPLETE',
+        '手動回収チャイム処理後に次地点案内へ進む',
+        {
+          target:selectedNow[0],
+          chimeOk:!!manualChimeOk
+        }
+      );
+
       guideNextAfter(selectedNow[0]);
+      resetAutoCollectGpsHistory_(
+        'manual-collected-' + selectedNow[0]
+      );
     }
   }
   function skipSelected(){
@@ -5448,7 +5681,19 @@ const FLEET={
     blinkTimer = setInterval(tick, 350);
   }
 
-  const nav={order:[],idx:0,active:false,watchId:null,thresholdM:25,arriveM:15,lastAnnounceTarget:null,farZoomM:100};
+  const nav={
+    order:[],
+    idx:0,
+    active:false,
+    watchId:null,
+    thresholdM:25,
+    arriveM:15,
+    lastAnnounceTarget:null,
+    farZoomM:100,
+    lastGpsSample:null,
+    lastGpsTargetName:'',
+    lastGpsTargetDistanceM:null
+  };
 
   function rebuildOrderFromStrictChain(){ nav.order = strictOrder.slice(); }
 
@@ -5675,6 +5920,7 @@ const FLEET={
   }
 
   function resumeGuidance(){
+    resetAutoCollectGpsHistory_('resume-guidance');
     if(points.length===0){ alert('地点がありません'); return; }
     if(strictOrder.length===0){
       alert('Description による鎖が見つかりません（先頭行から辿れませんでした）');
@@ -5954,7 +6200,7 @@ const FLEET={
     }
   }
 
-  // Ver189.5.7.3.1.18: 運転者プルダウンとの重なりを避けるため、
+  // Ver189.5.7.3.1.19: 運転者プルダウンとの重なりを避けるため、
   // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -6078,7 +6324,7 @@ const FLEET={
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.18\n' +
+      '音声待受診断 Ver189.5.7.3.1.19\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -6352,7 +6598,7 @@ const FLEET={
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.18: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.19: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -7240,7 +7486,7 @@ const FLEET={
 
   startRemoteCommandPolling();
 
-  // Ver189.5.7.3.1.18 診断・Watchdog開始
+  // Ver189.5.7.3.1.19 診断・Watchdog開始
   recordConnectivityDiag_(
     'APP_DIAGNOSTIC_START',
     '通信診断・Watchdogを開始',
@@ -7259,7 +7505,7 @@ const FLEET={
   startWakeLockMonitor_();
   startHeartbeatInternalMonitor_();
 
-  // Ver189.5.7.3.1.18 起動時キャッシュ診断・実行コード識別
+  // Ver189.5.7.3.1.19 起動時キャッシュ診断・実行コード識別
   recordRuntimeCodeIdentity_('startup-immediate');
   clearRuntimeCaches_().then(function(){
     recordRuntimeCodeIdentity_('after-cache-cleanup');
@@ -7297,10 +7543,130 @@ const FLEET={
     }catch(_e){}
   }
 
+
+  function localXYMeters_(lat, lon, refLat, refLon){
+    const rad = Math.PI / 180;
+    const y = (lat - refLat) * 111320;
+    const x = (lon - refLon) *
+      111320 *
+      Math.cos(refLat * rad);
+
+    return {x:x, y:y};
+  }
+
+  function pointToSegmentDistanceMeters_(pointLat, pointLon, aLat, aLon, bLat, bLon){
+    const a = localXYMeters_(aLat, aLon, pointLat, pointLon);
+    const b = localXYMeters_(bLat, bLon, pointLat, pointLon);
+
+    const vx = b.x - a.x;
+    const vy = b.y - a.y;
+    const len2 = vx * vx + vy * vy;
+
+    if(len2 <= 0.000001){
+      return {
+        distanceM:Math.sqrt(a.x*a.x + a.y*a.y),
+        t:0,
+        closestLat:aLat,
+        closestLon:aLon
+      };
+    }
+
+    let t = -((a.x * vx) + (a.y * vy)) / len2;
+    t = Math.max(0, Math.min(1, t));
+
+    const cx = a.x + vx * t;
+    const cy = a.y + vy * t;
+
+    const closestLat = aLat + (bLat - aLat) * t;
+    const closestLon = aLon + (bLon - aLon) * t;
+
+    return {
+      distanceM:Math.sqrt(cx*cx + cy*cy),
+      t:t,
+      closestLat:closestLat,
+      closestLon:closestLon
+    };
+  }
+
+  function resetAutoCollectGpsHistory_(reason){
+    nav.lastGpsSample = null;
+    nav.lastGpsTargetName = '';
+    nav.lastGpsTargetDistanceM = null;
+
+    recordConnectivityDiag_(
+      'GPS_AUTOCOLLECT_HISTORY_RESET',
+      '自動回収GPS履歴をリセット',
+      {
+        reason:String(reason || '')
+      }
+    );
+  }
+
+  function recordGpsTargetDiagnostic_(pos, currentPoint, distanceM){
+    if(!pos || !pos.coords || !currentPoint) return;
+
+    const nowMs = Number(pos.timestamp || Date.now());
+    const previous = nav.lastGpsSample;
+    const sameTarget =
+      previous &&
+      nav.lastGpsTargetName === currentPoint.name;
+
+    const elapsedMs =
+      sameTarget && previous.timestampMs
+        ? Math.max(0, nowMs - previous.timestampMs)
+        : '';
+
+    const segmentM =
+      sameTarget
+        ? meters(
+            [previous.lat, previous.lon],
+            [pos.coords.latitude, pos.coords.longitude]
+          )
+        : '';
+
+    recordConnectivityDiag_(
+      'GPS_TARGET_SAMPLE',
+      'GPS更新ごとの自動回収対象距離',
+      {
+        target:String(currentPoint.name || ''),
+        lat:Number(pos.coords.latitude),
+        lon:Number(pos.coords.longitude),
+        accuracy:Number.isFinite(Number(pos.coords.accuracy))
+          ? Number(pos.coords.accuracy)
+          : '',
+        altitude:Number.isFinite(Number(pos.coords.altitude))
+          ? Number(pos.coords.altitude)
+          : '',
+        speed:Number.isFinite(Number(pos.coords.speed))
+          ? Number(pos.coords.speed)
+          : '',
+        heading:Number.isFinite(Number(pos.coords.heading))
+          ? Number(pos.coords.heading)
+          : '',
+        targetDistanceM:Number(distanceM.toFixed(2)),
+        previousTargetDistanceM:
+          sameTarget &&
+          Number.isFinite(Number(nav.lastGpsTargetDistanceM))
+            ? Number(Number(nav.lastGpsTargetDistanceM).toFixed(2))
+            : '',
+        elapsedSincePreviousGpsMs:elapsedMs,
+        movedSincePreviousGpsM:
+          segmentM === ''
+            ? ''
+            : Number(Number(segmentM).toFixed(2)),
+        autoCollectM:AUTO_COLLECT_M,
+        passThroughM:AUTO_COLLECT_PASS_THROUGH_M
+      }
+    );
+  }
+
   function guideNextAfter(doneName){
     const nx = nextByDescription(doneName);
     if(nx){
       nav.active=true;
+      resetAutoCollectGpsHistory_(
+        'guide-next-' + nx
+      );
       nav.lastAnnounceTarget = nx;
       speakSafe(getSpeakOf(nx)+' に向かってください。');
       focusTarget(nx);
@@ -7319,78 +7685,324 @@ const FLEET={
     }
   }
 
-  function autoCollectIfArrived(lat,lon, curName){
+  async function autoCollectIfArrived(lat,lon,curName,pos){
     if(!realMode) return false;
+
     const p = nameIndex.get(curName);
     if(!p || p.status==='collected') return false;
 
-    const dPoint = meters([lat,lon],[p.lat,p.lon]);
+    const dPoint = meters(
+      [lat,lon],
+      [p.lat,p.lon]
+    );
+
     let arrived = (dPoint <= AUTO_COLLECT_M);
+    let arrivalReason = arrived
+      ? 'DIRECT_RADIUS'
+      : '';
+
+    let passThroughInfo = null;
+
+    // Ver1.19:
+    // 前回GPS→今回GPSの線分が10m圏を通過していた場合、
+    // GPS更新が粗くても「10m圏を飛び越えた」と判断して自動回収する。
+    const prev = nav.lastGpsSample;
+
+    if(
+      !arrived &&
+      prev &&
+      nav.lastGpsTargetName === p.name
+    ){
+      const segmentM = meters(
+        [prev.lat, prev.lon],
+        [lat, lon]
+      );
+
+      if(
+        Number.isFinite(segmentM) &&
+        segmentM > 0 &&
+        segmentM <= AUTO_COLLECT_PASS_THROUGH_MAX_SEGMENT_M
+      ){
+        const seg = pointToSegmentDistanceMeters_(
+          p.lat,
+          p.lon,
+          prev.lat,
+          prev.lon,
+          lat,
+          lon
+        );
+
+        passThroughInfo = {
+          segmentM:Number(segmentM.toFixed(2)),
+          segmentClosestDistanceM:
+            Number(seg.distanceM.toFixed(2)),
+          t:Number(seg.t.toFixed(4)),
+          previousDistanceM:
+            Number.isFinite(Number(nav.lastGpsTargetDistanceM))
+              ? Number(Number(nav.lastGpsTargetDistanceM).toFixed(2))
+              : '',
+          currentDistanceM:Number(dPoint.toFixed(2)),
+          previousAccuracy:
+            Number.isFinite(Number(prev.accuracy))
+              ? Number(prev.accuracy)
+              : '',
+          currentAccuracy:
+            pos && pos.coords &&
+            Number.isFinite(Number(pos.coords.accuracy))
+              ? Number(pos.coords.accuracy)
+              : '',
+          elapsedMs:
+            prev.timestampMs
+              ? Math.max(
+                  0,
+                  Number(
+                    pos && pos.timestamp
+                      ? pos.timestamp
+                      : Date.now()
+                  ) - prev.timestampMs
+                )
+              : ''
+        };
+
+        if(
+          seg.distanceM <= AUTO_COLLECT_PASS_THROUGH_M &&
+          seg.t > 0 &&
+          seg.t < 1
+        ){
+          arrived = true;
+          arrivalReason = 'PASS_THROUGH_SEGMENT';
+
+          recordConnectivityDiag_(
+            'GPS_AUTO_COLLECT_PASS_THROUGH',
+            'GPS更新間で10m圏を通過したため補完自動回収',
+            {
+              target:p.name,
+              ...passThroughInfo
+            }
+          );
+        }
+      }
+    }
 
     const ex = exceptions.get(p.name);
+
     if(!arrived && ex){
-      const dEx = meters([lat,lon],[ex.lat,ex.lon]);
-      if(dEx <= EXCEPTION_M) arrived = true;
+      const dEx = meters(
+        [lat,lon],
+        [ex.lat,ex.lon]
+      );
+
+      if(dEx <= EXCEPTION_M){
+        arrived = true;
+        arrivalReason = 'EXCEPTION_RADIUS';
+      }
     }
 
-    if(arrived){
-      const vehicle=vehicleSel.value; const driver=driverSel.value;
-      pushLogRow([nowStamp(),p.name,lat,lon,vehicle,driver,'回収'], '回収');
-
-      p.status='collected';
-      p.marker.setIcon(redIcon);
-      updatePointCount();
-
-      chime();
-      showToast(`1件（回収）を記録しました：${p.name}`,2);
-      sendHeartbeat('auto-collected', true);
-
-      guideNextAfter(p.name);
-      return true;
+    if(!arrived){
+      return false;
     }
-    return false;
+
+    const vehicle = vehicleSel.value;
+    const driver = driverSel.value;
+
+    recordConnectivityDiag_(
+      'GPS_AUTO_COLLECT_TRIGGERED',
+      '自動回収条件成立',
+      {
+        target:p.name,
+        arrivalReason:arrivalReason,
+        targetDistanceM:Number(dPoint.toFixed(2)),
+        accuracy:
+          pos && pos.coords &&
+          Number.isFinite(Number(pos.coords.accuracy))
+            ? Number(pos.coords.accuracy)
+            : '',
+        passThrough:passThroughInfo || {}
+      }
+    );
+
+    pushLogRow(
+      [
+        nowStamp(),
+        p.name,
+        lat,
+        lon,
+        vehicle,
+        driver,
+        '回収'
+      ],
+      '回収'
+    );
+
+    // 二重回収防止のため、音声処理を待つ前に回収済へ確定。
+    p.status = 'collected';
+    p.marker.setIcon(redIcon);
+    updatePointCount();
+
+    showToast(
+      `1件（回収）を記録しました：${p.name}`,
+      2
+    );
+
+    sendHeartbeat('auto-collected', true);
+
+    // Ver1.19:
+    // チャイムの再生開始～終了/タイムアウトを待ってから
+    // 次地点案内を読み上げる。
+    const chimeStartedAt = performance.now();
+    const chimeOk = await chime();
+
+    recordConnectivityDiag_(
+      'AUTO_COLLECT_CHIME_BEFORE_GUIDE_COMPLETE',
+      '自動回収チャイム処理後に次地点案内へ進む',
+      {
+        target:p.name,
+        chimeOk:!!chimeOk,
+        waitedMs:Math.round(
+          Math.max(
+            0,
+            performance.now() - chimeStartedAt
+          )
+        )
+      }
+    );
+
+    guideNextAfter(p.name);
+    resetAutoCollectGpsHistory_(
+      'auto-collected-' + p.name
+    );
+
+    return true;
   }
 
-  function onPos(pos){
+  async function onPos(pos){
     if(!realMode) return;
-    ensureLocLayer(pos.coords.latitude,pos.coords.longitude,pos.coords.accuracy,pos.coords);
+
+    ensureLocLayer(
+      pos.coords.latitude,
+      pos.coords.longitude,
+      pos.coords.accuracy,
+      pos.coords
+    );
+
     if(!nav.active) return;
 
     let cur = nav.order[nav.idx];
     let currentPoint = nameIndex.get(cur);
 
-    if(!currentPoint || currentPoint.status!=='normal'){
+    if(
+      !currentPoint ||
+      currentPoint.status!=='normal'
+    ){
       const k = strictOrder.indexOf(cur);
-      if(k>=0 && k+1 < strictOrder.length){
+
+      if(
+        k>=0 &&
+        k+1 < strictOrder.length
+      ){
         const prev = cur;
-        nav.idx = k+1; cur = nav.order[nav.idx] = strictOrder[nav.idx];
-        currentPoint = nameIndex.get(cur);
+
+        nav.idx = k+1;
+        cur = nav.order[nav.idx] =
+          strictOrder[nav.idx];
+
+        currentPoint =
+          nameIndex.get(cur);
+
+        resetAutoCollectGpsHistory_(
+          'target-advanced-' + cur
+        );
+
         if(currentPoint){
-          speakSafe(getSpeakOf(currentPoint)+' に向かってください。');
-          nav.lastAnnounceTarget=cur;
+          speakSafe(
+            getSpeakOf(currentPoint) +
+            ' に向かってください。'
+          );
+
+          nav.lastAnnounceTarget = cur;
           focusTarget(cur);
           autoZoomForNext(prev, cur);
         }
+
       }else{
-        speakSafe('すべて完了しました。');
-        nav.active=false;
-        if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
-        nav.watchId=null;
+        speakSafe(
+          'すべて完了しました。'
+        );
+
+        nav.active = false;
+
+        if(nav.watchId){
+          navigator.geolocation.clearWatch(
+            nav.watchId
+          );
+        }
+
+        nav.watchId = null;
         stopBlink();
+        resetAutoCollectGpsHistory_(
+          'route-complete'
+        );
         return;
       }
     }
 
-    const lat=pos.coords.latitude, lon=pos.coords.longitude;
-    const d = meters([lat,lon], [currentPoint.lat,currentPoint.lon]);
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+
+    const d = meters(
+      [lat,lon],
+      [currentPoint.lat,currentPoint.lon]
+    );
+
+    recordGpsTargetDiagnostic_(
+      pos,
+      currentPoint,
+      d
+    );
 
     if(d >= POPUP_STAY_UNTIL_M){
-      if(currentPoint.marker && !currentPoint.marker.isPopupOpen()) currentPoint.marker.openPopup();
+      if(
+        currentPoint.marker &&
+        !currentPoint.marker.isPopupOpen()
+      ){
+        currentPoint.marker.openPopup();
+      }
     }else{
-      if(currentPoint.marker && currentPoint.marker.isPopupOpen()) currentPoint.marker.closePopup();
+      if(
+        currentPoint.marker &&
+        currentPoint.marker.isPopupOpen()
+      ){
+        currentPoint.marker.closePopup();
+      }
     }
 
-    autoCollectIfArrived(lat,lon,cur);
+    const collected = await autoCollectIfArrived(
+      lat,
+      lon,
+      cur,
+      pos
+    );
+
+    // 回収されなかった場合のみ、
+    // 次回GPSとの通過判定用に今回位置を保存。
+    if(!collected){
+      nav.lastGpsSample = {
+        lat:lat,
+        lon:lon,
+        accuracy:
+          Number.isFinite(Number(pos.coords.accuracy))
+            ? Number(pos.coords.accuracy)
+            : '',
+        timestampMs:Number(
+          pos.timestamp || Date.now()
+        )
+      };
+
+      nav.lastGpsTargetName =
+        currentPoint.name;
+
+      nav.lastGpsTargetDistanceM = d;
+    }
   }
 
   let routeLayer=null, routeLatLngs=[];
