@@ -16,7 +16,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.22: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.23: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -232,7 +232,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.22: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.23: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -286,7 +286,7 @@ if ('serviceWorker' in navigator) {
 position:fixed;left:8px;bottom:8px;z-index:2147483646;
 font:12px/1.2 monospace;background:rgba(0,0,0,.72);
 color:#fff;padding:4px 6px;border-radius:5px;pointer-events:none;">
-Ver189.5.7.3.1.22 / INDEX:189573122
+Ver189.5.7.3.1.23 / INDEX:189573123
 </div>
 
 <div id="map"></div>
@@ -421,12 +421,12 @@ Ver189.5.7.3.1.22 / INDEX:189573122
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.22';
-  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.22-INDEX-189573122';
-  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.22-INLINEJS-189573122';
-  const CACHE_BUST_TAG = '189573122';
+  const VERSION = 'Ver189.5.7.3.1.23';
+  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.23-INDEX-189573123';
+  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.23-INLINEJS-189573123';
+  const CACHE_BUST_TAG = '189573123';
 
-  // Ver189.5.7.3.1.22 センター初期化協調制御
+  // Ver189.5.7.3.1.23 センター初期化協調制御
   const CENTER_INIT_FLAG_POLL_MS = 3000;
   const CENTER_INIT_RETRY_DELAY_MS = 6000;
   const CENTER_INIT_MAX_WAIT_MS = 120000;
@@ -446,7 +446,7 @@ Ver189.5.7.3.1.22 / INDEX:189573122
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
   const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
 
-  // Ver189.5.7.3.1.22 通信停止原因完全診断・自動復旧Watchdog
+  // Ver189.5.7.3.1.23 通信停止原因完全診断・自動復旧Watchdog
   const CONNECTIVITY_DIAG_QUEUE_KEY = 'torimorenuConnectivityDiagQueue_v1';
   const CONNECTIVITY_DIAG_MAX_LOCAL = 400;
   const CONNECTIVITY_DIAG_FLUSH_MAX = 50;
@@ -458,7 +458,7 @@ Ver189.5.7.3.1.22 / INDEX:189573122
   const WATCHDOG_STRONG_RECOVER_MS = 240 * 1000;
   const WATCHDOG_COOLDOWN_MS = 60 * 1000;
 
-  // Ver189.5.7.3.1.22 端末・ブラウザ深掘り診断
+  // Ver189.5.7.3.1.23 端末・ブラウザ深掘り診断
   const DEEP_DIAG_SAMPLE_INTERVAL_MS = 30 * 1000;
   const EVENT_LOOP_INTERVAL_MS = 5 * 1000;
   const EVENT_LOOP_WARN_DRIFT_MS = 3000;
@@ -476,7 +476,7 @@ Ver189.5.7.3.1.22 / INDEX:189573122
   let cachedLongTask = null;
   let deepDiagStarted = false;
 
-  // Ver189.5.7.3.1.22 Android OS / Chrome休止・再生成推定
+  // Ver189.5.7.3.1.23 Android OS / Chrome休止・再生成推定
   const SESSION_DIAG_ID_KEY = 'torimorenuSessionDiagId_v1';
   const SESSION_LAST_ALIVE_KEY = 'torimorenuSessionLastAlive_v1';
   const SESSION_CLEAN_EXIT_KEY = 'torimorenuSessionCleanExit_v1';
@@ -552,7 +552,7 @@ Ver189.5.7.3.1.22 / INDEX:189573122
   function init(){
   const AUTO_COLLECT_M = 10;
 
-  // Ver189.5.7.3.1.22 GPS通過補完・チャイム遅延対策
+  // Ver189.5.7.3.1.23 GPS通過補完・チャイム遅延対策
   const AUTO_COLLECT_PASS_THROUGH_M = 10;
   const AUTO_COLLECT_PASS_THROUGH_MAX_SEGMENT_M = 80;
   const GPS_TARGET_DIAG_NEAR_M = 80;
@@ -638,7 +638,15 @@ Ver189.5.7.3.1.22 / INDEX:189573122
   let heartbeatConsecutiveFailures = 0;
   let heartbeatSequence = Number(localStorage.getItem('torimorenuHeartbeatSequence') || '0');
 
-  // Ver189.5.7.3.1.22 Heartbeatハング完全解析・Promise監視
+  // Ver189.5.7.3.1.23 回収状態再送保証
+  const CRITICAL_HB_QUEUE_KEY = 'torimorenuCriticalHeartbeatQueueV123';
+  const CRITICAL_HB_RETRY_DELAYS_MS = [1500, 3500, 7000, 12000, 20000, 30000];
+  const CRITICAL_HB_MAX_AGE_MS = 20 * 60 * 1000;
+  let criticalHeartbeatRetryTimer = null;
+  let criticalHeartbeatSending = false;
+
+
+  // Ver189.5.7.3.1.23 Heartbeatハング完全解析・Promise監視
   const HEARTBEAT_PROMISE_WARN_MS = 15000;
   const HEARTBEAT_BUSY_FORCE_RELEASE_MS = 30000;
   const HEARTBEAT_BUSY_WATCH_INTERVAL_MS = 5000;
@@ -648,7 +656,7 @@ Ver189.5.7.3.1.22 / INDEX:189573122
   let heartbeatCurrentAbortController = null;
   let heartbeatBusyWatchTimer = null;
 
-  // Ver189.5.7.3.1.22 ネットワークスタック完全解析
+  // Ver189.5.7.3.1.23 ネットワークスタック完全解析
   const NETWORK_PROBE_INTERVAL_MS = 60 * 1000;
   const NETWORK_PROBE_TIMEOUT_MS = 12000;
   const NETWORK_PROBE_COOLDOWN_MS = 20000;
@@ -657,7 +665,7 @@ Ver189.5.7.3.1.22 / INDEX:189573122
   let networkProbeRunning = false;
   let networkProbeLastAt = 0;
 
-  // Ver189.5.7.3.1.22 JavaScriptイベントループ・NetworkService完全解析
+  // Ver189.5.7.3.1.23 JavaScriptイベントループ・NetworkService完全解析
   const JS_LOOP_PROBE_TIMEOUT_MS = 5000;
   const RESOURCE_TIMING_MAX = 40;
   const WAKELOCK_RETRY_MS = 15000;
@@ -680,7 +688,7 @@ Ver189.5.7.3.1.22 / INDEX:189573122
     localStorage.getItem('torimorenuHeartbeatOperationCounter') || '0'
   );
 
-  // Ver189.5.7.3.1.22 Heartbeat内部処理完全分解・再入/未完了Promise監視
+  // Ver189.5.7.3.1.23 Heartbeat内部処理完全分解・再入/未完了Promise監視
   const HEARTBEAT_INTERNAL_MONITOR_INTERVAL_MS = 5000;
   const HEARTBEAT_PENDING_WARN_MS = 20000;
   const HEARTBEAT_PENDING_CRITICAL_MS = 45000;
@@ -701,7 +709,7 @@ Ver189.5.7.3.1.22 / INDEX:189573122
 
 
 
-  // Ver189.5.7.3.1.22 キャッシュ完全対策・実行コード識別
+  // Ver189.5.7.3.1.23 キャッシュ完全対策・実行コード識別
 
   function scheduleHeartbeatAfterCenterInitialization_(reason){
     if(centerInitializationRetryTimer) clearTimeout(centerInitializationRetryTimer);
@@ -2072,6 +2080,336 @@ Ver189.5.7.3.1.22 / INDEX:189573122
     return result;
   }
 
+
+  function isCriticalHeartbeatReason_(reason){
+    const r = String(reason || '').toLowerCase();
+    return (
+      r === 'auto-collected' ||
+      r === 'point-status-collected' ||
+      r === 'collection' ||
+      r === 'manual-collected'
+    );
+  }
+
+  function loadCriticalHeartbeatQueue_(){
+    try{
+      const value = JSON.parse(
+        localStorage.getItem(CRITICAL_HB_QUEUE_KEY) || '[]'
+      );
+      return Array.isArray(value) ? value : [];
+    }catch(_e){
+      return [];
+    }
+  }
+
+  function saveCriticalHeartbeatQueue_(rows){
+    try{
+      localStorage.setItem(
+        CRITICAL_HB_QUEUE_KEY,
+        JSON.stringify(Array.isArray(rows) ? rows : [])
+      );
+    }catch(_e){}
+  }
+
+  function pruneCriticalHeartbeatQueue_(rows){
+    const now = Date.now();
+    const byVehicle = new Map();
+
+    (Array.isArray(rows) ? rows : []).forEach(function(item){
+      if(!item || !item.payload) return;
+
+      const createdAt = Number(item.createdAt || 0);
+      if(createdAt > 0 && (now - createdAt) > CRITICAL_HB_MAX_AGE_MS){
+        return;
+      }
+
+      const vehicle =
+        String(item.payload.vehicle || item.payload.deviceId || '');
+
+      const revision =
+        Number(item.payload.heartbeatStateRevisionMs || 0);
+
+      const prev = byVehicle.get(vehicle);
+
+      if(
+        !prev ||
+        revision >= Number(prev.payload.heartbeatStateRevisionMs || 0)
+      ){
+        byVehicle.set(vehicle, item);
+      }
+    });
+
+    return Array.from(byVehicle.values());
+  }
+
+  function enqueueCriticalHeartbeatPayload_(payload){
+    if(!payload || !isCriticalHeartbeatReason_(payload.reason)){
+      return null;
+    }
+
+    const snapshot = JSON.parse(JSON.stringify(payload));
+
+    snapshot.deliveryClass = 'critical-collection';
+    snapshot.criticalDelivery = true;
+    snapshot.criticalEventId =
+      'CRIT-' +
+      String(snapshot.vehicle || snapshot.deviceId || 'UNKNOWN') +
+      '-' + Date.now() + '-' +
+      Math.floor(Math.random() * 1000000);
+
+    snapshot.heartbeatStateRevisionMs = Date.now();
+
+    let queue = loadCriticalHeartbeatQueue_();
+
+    queue.push({
+      criticalEventId:snapshot.criticalEventId,
+      createdAt:Date.now(),
+      attempt:0,
+      nextAttemptAt:Date.now(),
+      payload:snapshot
+    });
+
+    queue = pruneCriticalHeartbeatQueue_(queue);
+    saveCriticalHeartbeatQueue_(queue);
+
+    recordConnectivityDiag_(
+      'CRITICAL_HEARTBEAT_QUEUED',
+      '回収確定Heartbeatを再送保証キューへ登録',
+      {
+        vehicle:String(snapshot.vehicle || ''),
+        lastPlace:String(snapshot.lastPlace || ''),
+        reason:String(snapshot.reason || ''),
+        criticalEventId:String(snapshot.criticalEventId || ''),
+        stateRevisionMs:Number(snapshot.heartbeatStateRevisionMs || 0),
+        heartbeatSequence:Number(snapshot.heartbeatSequence || 0)
+      }
+    );
+
+    scheduleCriticalHeartbeatRetry_(100);
+    return snapshot;
+  }
+
+  function buildHeartbeatAckUrl_(payload, callbackName){
+    const sep = GAS_ENDPOINT.indexOf('?') >= 0 ? '&' : '?';
+
+    const q = new URLSearchParams({
+      action:'heartbeatAck',
+      vehicle:String(payload.vehicle || ''),
+      deviceId:String(payload.deviceId || ''),
+      criticalEventId:String(payload.criticalEventId || ''),
+      stateRevisionMs:String(payload.heartbeatStateRevisionMs || 0),
+      callback:String(callbackName || ''),
+      _:String(Date.now())
+    });
+
+    return GAS_ENDPOINT + sep + q.toString();
+  }
+
+  function heartbeatAckJsonp_(payload){
+    return new Promise(function(resolve){
+      const cb =
+        '__torimorenuHbAck_' +
+        Date.now() + '_' +
+        Math.floor(Math.random() * 1000000);
+
+      let done = false;
+      let script = null;
+
+      const finish = function(result){
+        if(done) return;
+        done = true;
+
+        try{ delete window[cb]; }catch(_e){}
+
+        try{
+          if(script && script.parentNode){
+            script.parentNode.removeChild(script);
+          }
+        }catch(_e){}
+
+        resolve(result || {ok:false,acked:false,error:'empty'});
+      };
+
+      window[cb] = function(data){
+        finish(data || {});
+      };
+
+      script = document.createElement('script');
+      script.async = true;
+      script.src = buildHeartbeatAckUrl_(payload, cb);
+
+      script.onerror = function(){
+        finish({
+          ok:false,
+          acked:false,
+          error:'jsonp-load-error'
+        });
+      };
+
+      document.head.appendChild(script);
+
+      setTimeout(function(){
+        finish({
+          ok:false,
+          acked:false,
+          error:'jsonp-timeout'
+        });
+      }, 6000);
+    });
+  }
+
+  async function postCriticalHeartbeatSnapshot_(item){
+    if(!item || !item.payload) return false;
+
+    const payload = JSON.parse(JSON.stringify(item.payload));
+
+    payload.payloadType = 'heartbeat';
+    payload.deliveryClass = 'critical-collection';
+    payload.criticalDelivery = true;
+    payload.clientBuildId = INDEX_BUILD_ID;
+    payload.clientFetchStartedAtMs = Date.now();
+    payload.clientFetchStartedAtIso = new Date().toISOString();
+    payload.heartbeatOperationId =
+      'CRITICAL-RETRY-' +
+      String(payload.vehicle || '') +
+      '-' + Date.now();
+
+    recordConnectivityDiag_(
+      'CRITICAL_HEARTBEAT_RETRY_BEGIN',
+      '回収確定Heartbeatの再送開始',
+      {
+        vehicle:String(payload.vehicle || ''),
+        lastPlace:String(payload.lastPlace || ''),
+        criticalEventId:String(payload.criticalEventId || ''),
+        attempt:Number(item.attempt || 0) + 1,
+        stateRevisionMs:Number(payload.heartbeatStateRevisionMs || 0)
+      }
+    );
+
+    try{
+      await fetch(GAS_ENDPOINT,{
+        method:'POST',
+        mode:'no-cors',
+        cache:'no-store',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
+      });
+    }catch(error){
+      recordConnectivityDiag_(
+        'CRITICAL_HEARTBEAT_RETRY_FETCH_ERROR',
+        '回収確定Heartbeat再送fetchで例外',
+        {
+          vehicle:String(payload.vehicle || ''),
+          criticalEventId:String(payload.criticalEventId || ''),
+          name:String(error && error.name || ''),
+          message:String(error && error.message || error)
+        }
+      );
+      return false;
+    }
+
+    const ack = await heartbeatAckJsonp_(payload);
+
+    recordConnectivityDiag_(
+      ack && ack.acked
+        ? 'CRITICAL_HEARTBEAT_ACKED'
+        : 'CRITICAL_HEARTBEAT_ACK_PENDING',
+      ack && ack.acked
+        ? 'センターheartbeat行への回収状態反映を確認'
+        : 'センター反映未確認のため再送継続',
+      {
+        vehicle:String(payload.vehicle || ''),
+        lastPlace:String(payload.lastPlace || ''),
+        criticalEventId:String(payload.criticalEventId || ''),
+        stateRevisionMs:Number(payload.heartbeatStateRevisionMs || 0),
+        ack:ack || {}
+      }
+    );
+
+    return !!(ack && ack.acked);
+  }
+
+  function scheduleCriticalHeartbeatRetry_(delayMs){
+    if(criticalHeartbeatRetryTimer){
+      clearTimeout(criticalHeartbeatRetryTimer);
+      criticalHeartbeatRetryTimer = null;
+    }
+
+    criticalHeartbeatRetryTimer = setTimeout(function(){
+      criticalHeartbeatRetryTimer = null;
+      flushCriticalHeartbeatQueue_();
+    }, Math.max(50, Number(delayMs || 0)));
+  }
+
+  async function flushCriticalHeartbeatQueue_(){
+    if(criticalHeartbeatSending) return;
+
+    if(navigator.onLine === false){
+      scheduleCriticalHeartbeatRetry_(5000);
+      return;
+    }
+
+    let queue =
+      pruneCriticalHeartbeatQueue_(loadCriticalHeartbeatQueue_());
+
+    saveCriticalHeartbeatQueue_(queue);
+
+    if(!queue.length) return;
+
+    criticalHeartbeatSending = true;
+
+    try{
+      const item = queue[0];
+      const acked = await postCriticalHeartbeatSnapshot_(item);
+
+      queue = loadCriticalHeartbeatQueue_();
+
+      const qIndex = queue.findIndex(function(x){
+        return String(x && x.criticalEventId || '') ===
+          String(item.criticalEventId || '');
+      });
+
+      if(qIndex >= 0){
+        if(acked){
+          queue.splice(qIndex, 1);
+        }else{
+          queue[qIndex].attempt =
+            Number(queue[qIndex].attempt || 0) + 1;
+
+          const attempt = queue[qIndex].attempt;
+
+          const delay =
+            CRITICAL_HB_RETRY_DELAYS_MS[
+              Math.min(
+                attempt - 1,
+                CRITICAL_HB_RETRY_DELAYS_MS.length - 1
+              )
+            ];
+
+          queue[qIndex].nextAttemptAt =
+            Date.now() + delay;
+        }
+      }
+
+      queue = pruneCriticalHeartbeatQueue_(queue);
+      saveCriticalHeartbeatQueue_(queue);
+
+      if(queue.length){
+        const next = queue[0];
+
+        const wait = Math.max(
+          250,
+          Number(next.nextAttemptAt || Date.now()) - Date.now()
+        );
+
+        scheduleCriticalHeartbeatRetry_(wait);
+      }
+
+    }finally{
+      criticalHeartbeatSending = false;
+    }
+  }
+
   async function makeHeartbeatPayload(reason){
     const battery = await getBatterySnapshot();
     const pos = await getHeartbeatLatLon();
@@ -2117,6 +2455,14 @@ Ver189.5.7.3.1.22 / INDEX:189573122
       realMode: !!realMode,
       pendingCount: Array.isArray(pendingRows) ? pendingRows.length : 0,
       reason: String(reason || 'interval'),
+
+      // Ver189.5.7.3.1.23
+      heartbeatStateRevisionMs: Date.now(),
+      deliveryClass: isCriticalHeartbeatReason_(reason)
+        ? 'critical-collection'
+        : 'normal',
+      criticalEventId: '',
+
       userAgent: navigator.userAgent || '',
       pageUrl: location.href || ''
     };
@@ -3245,7 +3591,7 @@ Ver189.5.7.3.1.22 / INDEX:189573122
     const startedWall=Date.now(), startedPerf=performance.now();
     const pendingKey=registerHeartbeatPendingPromise_(operationId,'heartbeat-fetch');
 
-    // Ver189.5.7.3.1.22 GAS側計測との相関用
+    // Ver189.5.7.3.1.23 GAS側計測との相関用
     payload.heartbeatOperationId=String(operationId||'');
     payload.clientFetchStartedAtMs=Date.now();
     payload.clientFetchStartedAtIso=new Date().toISOString();
@@ -3752,6 +4098,27 @@ Ver189.5.7.3.1.22 / INDEX:189573122
         }
       );
 
+      // Ver189.5.7.3.1.23:
+      // 回収確定Heartbeatは通常Heartbeatとは別の永続再送キューへ保存。
+      if(isCriticalHeartbeatReason_(payload.reason)){
+        const criticalSnapshot =
+          enqueueCriticalHeartbeatPayload_(payload);
+
+        if(criticalSnapshot){
+          payload.criticalEventId =
+            criticalSnapshot.criticalEventId;
+
+          payload.heartbeatStateRevisionMs =
+            criticalSnapshot.heartbeatStateRevisionMs;
+
+          payload.deliveryClass =
+            'critical-collection';
+
+          payload.criticalDelivery = true;
+        }
+      }
+
+
       heartbeatInternalTrace_(
         'HB_STEP09_FETCH_AWAIT_BEGIN',
         'STEP09 Heartbeat fetch await開始直前',
@@ -3966,7 +4333,17 @@ Ver189.5.7.3.1.22 / INDEX:189573122
   function startHeartbeat(){
     if(heartbeatTimer) clearInterval(heartbeatTimer);
     startHeartbeatBusyWatchdog_();
-    setTimeout(function(){ sendHeartbeat('startup', true); }, 1500);
+
+    // Ver189.5.7.3.1.23:
+    // 再読込前に未確認だった回収確定Heartbeatを復元。
+    setTimeout(function(){
+      flushCriticalHeartbeatQueue_();
+    }, 500);
+
+    setTimeout(function(){
+      sendHeartbeat('startup', true);
+    }, 1500);
+
     heartbeatTimer = setInterval(function(){
       sendHeartbeat('interval', false);
     }, HEARTBEAT_INTERVAL_MS);
@@ -5716,7 +6093,7 @@ const blueIcon=L.icon({
     lastGpsTargetName:'',
     lastGpsTargetDistanceM:null,
 
-    // Ver189.5.7.3.1.22
+    // Ver189.5.7.3.1.23
     // 自動/手動回収後、チャイム→次地点案内が完了するまで
     // onPos側の次地点自動案内を止める。
     guideTransitionPending:false,
@@ -6228,7 +6605,7 @@ const blueIcon=L.icon({
     }
   }
 
-  // Ver189.5.7.3.1.22: 運転者プルダウンとの重なりを避けるため、
+  // Ver189.5.7.3.1.23: 運転者プルダウンとの重なりを避けるため、
   // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -6352,7 +6729,7 @@ const blueIcon=L.icon({
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.22\n' +
+      '音声待受診断 Ver189.5.7.3.1.23\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -6626,7 +7003,7 @@ const blueIcon=L.icon({
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.22: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.23: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -7514,7 +7891,7 @@ const blueIcon=L.icon({
 
   startRemoteCommandPolling();
 
-  // Ver189.5.7.3.1.22 診断・Watchdog開始
+  // Ver189.5.7.3.1.23 診断・Watchdog開始
   recordConnectivityDiag_(
     'APP_DIAGNOSTIC_START',
     '通信診断・Watchdogを開始',
@@ -7533,7 +7910,7 @@ const blueIcon=L.icon({
   startWakeLockMonitor_();
   startHeartbeatInternalMonitor_();
 
-  // Ver189.5.7.3.1.22 起動時キャッシュ診断・実行コード識別
+  // Ver189.5.7.3.1.23 起動時キャッシュ診断・実行コード識別
   recordRuntimeCodeIdentity_('startup-immediate');
   clearRuntimeCaches_().then(function(){
     recordRuntimeCodeIdentity_('after-cache-cleanup');
@@ -7874,7 +8251,7 @@ const blueIcon=L.icon({
 
     sendHeartbeat('auto-collected', true);
 
-    // Ver189.5.7.3.1.22:
+    // Ver189.5.7.3.1.23:
     // chime待機中のonPos再入による二重案内を防止。
     nav.guideTransitionPending = true;
     nav.guideTransitionFrom = p.name;
@@ -7934,7 +8311,7 @@ const blueIcon=L.icon({
 
     if(!nav.active) return;
 
-    // Ver189.5.7.3.1.22:
+    // Ver189.5.7.3.1.23:
     // 回収直後のchime()待機中にwatchPositionが再発火すると、
     // 既存onPos側とguideNextAfter側の両方が次地点を読み上げていた。
     // 移行完了まではonPos側のナビ進行を一時停止する。
@@ -8207,14 +8584,25 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 
 
-  // Ver189.5.7.3.1.22 起動完了後チャイムプリロード・TDZ完全対策
+  // Ver189.5.7.3.1.23 起動完了後チャイムプリロード・TDZ完全対策
+
+  window.addEventListener('online', function(){
+    scheduleCriticalHeartbeatRetry_(100);
+  });
+
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'visible'){
+      scheduleCriticalHeartbeatRetry_(250);
+    }
+  });
+
   window.addEventListener('load', function(){
     setTimeout(function(){
       try{
         preloadChimeAudio_();
-        console.log('[Ver189.5.7.3.1.22] 起動完了後チャイムプリロード実行');
+        console.log('[Ver189.5.7.3.1.23] 起動完了後チャイムプリロード実行');
       }catch(error){
-        console.warn('[Ver189.5.7.3.1.22] 起動完了後チャイムプリロード失敗:', error);
+        console.warn('[Ver189.5.7.3.1.23] 起動完了後チャイムプリロード失敗:', error);
       }
     }, 0);
   }, { once:true });
