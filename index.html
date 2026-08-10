@@ -16,7 +16,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.25: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.26: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -232,7 +232,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.25: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.26: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -286,7 +286,7 @@ if ('serviceWorker' in navigator) {
 position:fixed;left:8px;bottom:8px;z-index:2147483646;
 font:12px/1.2 monospace;background:rgba(0,0,0,.72);
 color:#fff;padding:4px 6px;border-radius:5px;pointer-events:none;">
-Ver189.5.7.3.1.25 / INDEX:189573125
+Ver189.5.7.3.1.26 / INDEX:189573126
 </div>
 
 <div id="map"></div>
@@ -421,12 +421,12 @@ Ver189.5.7.3.1.25 / INDEX:189573125
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.25';
-  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.25-INDEX-189573125';
-  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.25-INLINEJS-189573125';
-  const CACHE_BUST_TAG = '189573125';
+  const VERSION = 'Ver189.5.7.3.1.26';
+  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.26-INDEX-189573126';
+  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.26-INLINEJS-189573126';
+  const CACHE_BUST_TAG = '189573126';
 
-  // Ver189.5.7.3.1.25 センター初期化協調制御
+  // Ver189.5.7.3.1.26 センター初期化協調制御
   const CENTER_INIT_FLAG_POLL_MS = 3000;
   const CENTER_INIT_RETRY_DELAY_MS = 6000;
   const CENTER_INIT_MAX_WAIT_MS = 120000;
@@ -446,7 +446,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
   const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
 
-  // Ver189.5.7.3.1.25 通信停止原因完全診断・自動復旧Watchdog
+  // Ver189.5.7.3.1.26 通信停止原因完全診断・自動復旧Watchdog
   const CONNECTIVITY_DIAG_QUEUE_KEY = 'torimorenuConnectivityDiagQueue_v1';
   const CONNECTIVITY_DIAG_MAX_LOCAL = 400;
   const CONNECTIVITY_DIAG_FLUSH_MAX = 50;
@@ -458,7 +458,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
   const WATCHDOG_STRONG_RECOVER_MS = 240 * 1000;
   const WATCHDOG_COOLDOWN_MS = 60 * 1000;
 
-  // Ver189.5.7.3.1.25 端末・ブラウザ深掘り診断
+  // Ver189.5.7.3.1.26 端末・ブラウザ深掘り診断
   const DEEP_DIAG_SAMPLE_INTERVAL_MS = 30 * 1000;
   const EVENT_LOOP_INTERVAL_MS = 5 * 1000;
   const EVENT_LOOP_WARN_DRIFT_MS = 3000;
@@ -476,7 +476,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
   let cachedLongTask = null;
   let deepDiagStarted = false;
 
-  // Ver189.5.7.3.1.25 Android OS / Chrome休止・再生成推定
+  // Ver189.5.7.3.1.26 Android OS / Chrome休止・再生成推定
   const SESSION_DIAG_ID_KEY = 'torimorenuSessionDiagId_v1';
   const SESSION_LAST_ALIVE_KEY = 'torimorenuSessionLastAlive_v1';
   const SESSION_CLEAN_EXIT_KEY = 'torimorenuSessionCleanExit_v1';
@@ -552,7 +552,13 @@ Ver189.5.7.3.1.25 / INDEX:189573125
   function init(){
   const AUTO_COLLECT_M = 10;
 
-  // Ver189.5.7.3.1.25 GPS通過補完・チャイム遅延対策
+  // Ver189.5.7.3.1.26 4502 GPS補完
+  const AUTO_COLLECT_4502_MAX_M = 22;
+  const AUTO_COLLECT_4502_MAX_ACCURACY_M = 35;
+  const AUTO_COLLECT_4502_PASS_THROUGH_MAX_M = 18;
+  const AUTO_COLLECT_4502_MAX_SEGMENT_M = 120;
+
+  // Ver189.5.7.3.1.26 GPS通過補完・チャイム遅延対策
   const AUTO_COLLECT_PASS_THROUGH_M = 10;
   const AUTO_COLLECT_PASS_THROUGH_MAX_SEGMENT_M = 80;
   const GPS_TARGET_DIAG_NEAR_M = 80;
@@ -638,7 +644,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
   let heartbeatConsecutiveFailures = 0;
   let heartbeatSequence = Number(localStorage.getItem('torimorenuHeartbeatSequence') || '0');
 
-  // Ver189.5.7.3.1.25 回収状態再送保証
+  // Ver189.5.7.3.1.26 回収状態再送保証
   const CRITICAL_HB_QUEUE_KEY = 'torimorenuCriticalHeartbeatQueueV123';
   const CRITICAL_HB_RETRY_DELAYS_MS = [1500, 3500, 7000, 12000, 20000, 30000];
   const CRITICAL_HB_MAX_AGE_MS = 20 * 60 * 1000;
@@ -646,7 +652,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
   let criticalHeartbeatSending = false;
 
 
-  // Ver189.5.7.3.1.25 Heartbeatハング完全解析・Promise監視
+  // Ver189.5.7.3.1.26 Heartbeatハング完全解析・Promise監視
   const HEARTBEAT_PROMISE_WARN_MS = 15000;
   const HEARTBEAT_BUSY_FORCE_RELEASE_MS = 30000;
   const HEARTBEAT_BUSY_WATCH_INTERVAL_MS = 5000;
@@ -656,7 +662,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
   let heartbeatCurrentAbortController = null;
   let heartbeatBusyWatchTimer = null;
 
-  // Ver189.5.7.3.1.25 ネットワークスタック完全解析
+  // Ver189.5.7.3.1.26 ネットワークスタック完全解析
   const NETWORK_PROBE_INTERVAL_MS = 60 * 1000;
   const NETWORK_PROBE_TIMEOUT_MS = 12000;
   const NETWORK_PROBE_COOLDOWN_MS = 20000;
@@ -665,7 +671,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
   let networkProbeRunning = false;
   let networkProbeLastAt = 0;
 
-  // Ver189.5.7.3.1.25 JavaScriptイベントループ・NetworkService完全解析
+  // Ver189.5.7.3.1.26 JavaScriptイベントループ・NetworkService完全解析
   const JS_LOOP_PROBE_TIMEOUT_MS = 5000;
   const RESOURCE_TIMING_MAX = 40;
   const WAKELOCK_RETRY_MS = 15000;
@@ -688,7 +694,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
     localStorage.getItem('torimorenuHeartbeatOperationCounter') || '0'
   );
 
-  // Ver189.5.7.3.1.25 Heartbeat内部処理完全分解・再入/未完了Promise監視
+  // Ver189.5.7.3.1.26 Heartbeat内部処理完全分解・再入/未完了Promise監視
   const HEARTBEAT_INTERNAL_MONITOR_INTERVAL_MS = 5000;
   const HEARTBEAT_PENDING_WARN_MS = 20000;
   const HEARTBEAT_PENDING_CRITICAL_MS = 45000;
@@ -709,7 +715,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
 
 
 
-  // Ver189.5.7.3.1.25 キャッシュ完全対策・実行コード識別
+  // Ver189.5.7.3.1.26 キャッシュ完全対策・実行コード識別
 
   function scheduleHeartbeatAfterCenterInitialization_(reason){
     if(centerInitializationRetryTimer) clearTimeout(centerInitializationRetryTimer);
@@ -2153,7 +2159,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
 
 
   // ==========================================================
-  // Ver189.5.7.3.1.25
+  // Ver189.5.7.3.1.26
   // Critical Heartbeat functions
   // すべてトップレベル関数として定義し、スコープ事故を防止する。
   // ==========================================================
@@ -2353,113 +2359,121 @@ Ver189.5.7.3.1.25 / INDEX:189573125
     return snapshot;
   }
 
-  function buildHeartbeatAckUrl_(payload, callbackName){
+    function buildHeartbeatAckUrl_(payload){
     const sep =
       GAS_ENDPOINT.indexOf('?') >= 0
         ? '&'
         : '?';
 
     const q = new URLSearchParams({
-      action:
-        'heartbeatAck',
-      vehicle:
-        String(payload.vehicle || ''),
-      deviceId:
-        String(payload.deviceId || ''),
-      criticalEventId:
-        String(payload.criticalEventId || ''),
-      stateRevisionMs:
-        String(
-          payload.heartbeatStateRevisionMs || 0
-        ),
-      callback:
-        String(callbackName || ''),
-      _:
-        String(Date.now())
+      action:'heartbeatAck',
+      vehicle:String(payload.vehicle || ''),
+      deviceId:String(payload.deviceId || ''),
+      criticalEventId:String(payload.criticalEventId || ''),
+      stateRevisionMs:String(payload.heartbeatStateRevisionMs || 0),
+      _:String(Date.now())
     });
 
-    return GAS_ENDPOINT +
-      sep +
-      q.toString();
+    return GAS_ENDPOINT + sep + q.toString();
   }
 
-  function heartbeatAckJsonp_(payload){
-    return new Promise(function(resolve){
-      const cb =
-        '__torimorenuHbAck_' +
-        Date.now() +
-        '_' +
-        Math.floor(
-          Math.random() * 1000000
-        );
+    async function heartbeatAckFetch_(payload){
+    const startedAt = performance.now();
+    const controller =
+      typeof AbortController !== 'undefined'
+        ? new AbortController()
+        : null;
 
-      let done = false;
-      let script = null;
+    let timer = null;
 
-      const finish = function(result){
-        if(done) return;
-        done = true;
+    if(controller){
+      timer = setTimeout(function(){
+        try{ controller.abort(); }catch(_e){}
+      }, 8000);
+    }
 
-        try{
-          delete window[cb];
-        }catch(_e){}
-
-        try{
-          if(
-            script &&
-            script.parentNode
-          ){
-            script.parentNode.removeChild(
-              script
-            );
-          }
-        }catch(_e){}
-
-        resolve(
-          result || {
-            ok:false,
-            acked:false,
-            error:'empty'
-          }
-        );
-      };
-
-      window[cb] = function(data){
-        finish(data || {});
-      };
-
-      script =
-        document.createElement('script');
-
-      script.async =
-        true;
-
-      script.src =
-        buildHeartbeatAckUrl_(
-          payload,
-          cb
-        );
-
-      script.onerror = function(){
-        finish({
-          ok:false,
-          acked:false,
-          error:'jsonp-load-error'
-        });
-      };
-
-      document.head.appendChild(
-        script
+    try{
+      recordConnectivityDiag_(
+        'CRITICAL_HEARTBEAT_ACK_FETCH_BEGIN',
+        'Critical Heartbeat ACK確認fetch開始',
+        {
+          vehicle:String(payload.vehicle || ''),
+          criticalEventId:String(payload.criticalEventId || ''),
+          stateRevisionMs:Number(payload.heartbeatStateRevisionMs || 0)
+        }
       );
 
-      setTimeout(function(){
-        finish({
+      const response = await fetch(
+        buildHeartbeatAckUrl_(payload),
+        {
+          method:'GET',
+          mode:'cors',
+          cache:'no-store',
+          redirect:'follow',
+          signal:controller ? controller.signal : undefined
+        }
+      );
+
+      const raw = await response.text();
+      let data = {};
+
+      try{
+        data = JSON.parse(raw || '{}');
+      }catch(parseError){
+        data = {
           ok:false,
           acked:false,
-          error:'jsonp-timeout'
-        });
-      }, 6000);
-    });
+          error:'ack-json-parse-error',
+          httpStatus:response.status,
+          raw:String(raw || '').substring(0,300)
+        };
+      }
+
+      recordConnectivityDiag_(
+        data && data.acked
+          ? 'CRITICAL_HEARTBEAT_ACK_FETCHED'
+          : 'CRITICAL_HEARTBEAT_ACK_FETCH_PENDING',
+        data && data.acked
+          ? 'fetchでCritical Heartbeat反映確認'
+          : 'fetch ACKは取得したが反映未確認',
+        {
+          vehicle:String(payload.vehicle || ''),
+          criticalEventId:String(payload.criticalEventId || ''),
+          httpStatus:Number(response.status || 0),
+          durationMs:Math.round(Math.max(0,performance.now()-startedAt)),
+          ack:data || {}
+        }
+      );
+
+      return data || {ok:false,acked:false,error:'empty-ack'};
+
+    }catch(error){
+      recordConnectivityDiag_(
+        'CRITICAL_HEARTBEAT_ACK_FETCH_ERROR',
+        'Critical Heartbeat ACK確認fetch失敗',
+        {
+          vehicle:String(payload.vehicle || ''),
+          criticalEventId:String(payload.criticalEventId || ''),
+          durationMs:Math.round(Math.max(0,performance.now()-startedAt)),
+          name:String(error && error.name || ''),
+          message:String(error && error.message || error)
+        }
+      );
+
+      return {
+        ok:false,
+        acked:false,
+        error:
+          error && error.name === 'AbortError'
+            ? 'ack-fetch-timeout'
+            : 'ack-fetch-error',
+        name:String(error && error.name || ''),
+        message:String(error && error.message || error)
+      };
+
+    }finally{
+      if(timer) clearTimeout(timer);
+    }
   }
 
   async function postCriticalHeartbeatSnapshot_(item){
@@ -2561,7 +2575,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
     }
 
     const ack =
-      await heartbeatAckJsonp_(payload);
+      await heartbeatAckFetch_(payload);
 
     recordConnectivityDiag_(
       ack && ack.acked
@@ -2811,7 +2825,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
       pendingCount: Array.isArray(pendingRows) ? pendingRows.length : 0,
       reason: String(reason || 'interval'),
 
-      // Ver189.5.7.3.1.25
+      // Ver189.5.7.3.1.26
       heartbeatStateRevisionMs: Date.now(),
       deliveryClass: isCriticalHeartbeatReason_(reason)
         ? 'critical-collection'
@@ -3946,7 +3960,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
     const startedWall=Date.now(), startedPerf=performance.now();
     const pendingKey=registerHeartbeatPendingPromise_(operationId,'heartbeat-fetch');
 
-    // Ver189.5.7.3.1.25 GAS側計測との相関用
+    // Ver189.5.7.3.1.26 GAS側計測との相関用
     payload.heartbeatOperationId=String(operationId||'');
     payload.clientFetchStartedAtMs=Date.now();
     payload.clientFetchStartedAtIso=new Date().toISOString();
@@ -4453,7 +4467,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
         }
       );
 
-      // Ver189.5.7.3.1.25:
+      // Ver189.5.7.3.1.26:
       // 回収確定Heartbeatは通常Heartbeatとは別の永続再送キューへ保存。
       if(isCriticalHeartbeatReason_(payload.reason)){
         const criticalSnapshot =
@@ -4689,7 +4703,7 @@ Ver189.5.7.3.1.25 / INDEX:189573125
     if(heartbeatTimer) clearInterval(heartbeatTimer);
     startHeartbeatBusyWatchdog_();
 
-    // Ver189.5.7.3.1.25:
+    // Ver189.5.7.3.1.26:
     // 再読込前に未確認だった回収確定Heartbeatを復元。
     setTimeout(function(){
       flushCriticalHeartbeatQueue_();
@@ -6448,7 +6462,7 @@ const blueIcon=L.icon({
     lastGpsTargetName:'',
     lastGpsTargetDistanceM:null,
 
-    // Ver189.5.7.3.1.25
+    // Ver189.5.7.3.1.26
     // 自動/手動回収後、チャイム→次地点案内が完了するまで
     // onPos側の次地点自動案内を止める。
     guideTransitionPending:false,
@@ -6960,7 +6974,7 @@ const blueIcon=L.icon({
     }
   }
 
-  // Ver189.5.7.3.1.25: 運転者プルダウンとの重なりを避けるため、
+  // Ver189.5.7.3.1.26: 運転者プルダウンとの重なりを避けるため、
   // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -7084,7 +7098,7 @@ const blueIcon=L.icon({
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.25\n' +
+      '音声待受診断 Ver189.5.7.3.1.26\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -7358,7 +7372,7 @@ const blueIcon=L.icon({
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.25: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.26: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -8246,7 +8260,7 @@ const blueIcon=L.icon({
 
   startRemoteCommandPolling();
 
-  // Ver189.5.7.3.1.25 診断・Watchdog開始
+  // Ver189.5.7.3.1.26 診断・Watchdog開始
   recordConnectivityDiag_(
     'APP_DIAGNOSTIC_START',
     '通信診断・Watchdogを開始',
@@ -8265,7 +8279,7 @@ const blueIcon=L.icon({
   startWakeLockMonitor_();
   startHeartbeatInternalMonitor_();
 
-  // Ver189.5.7.3.1.25 起動時キャッシュ診断・実行コード識別
+  // Ver189.5.7.3.1.26 起動時キャッシュ診断・実行コード識別
   recordRuntimeCodeIdentity_('startup-immediate');
   clearRuntimeCaches_().then(function(){
     recordRuntimeCodeIdentity_('after-cache-cleanup');
@@ -8303,6 +8317,65 @@ const blueIcon=L.icon({
     }catch(_e){}
   }
 
+
+
+  function getAutoCollectPolicy_(vehicleValue, accuracyValue, previousAccuracyValue, elapsedMs){
+    const vehicle = String(vehicleValue || '');
+    const accuracy = Number(accuracyValue);
+    const previousAccuracy = Number(previousAccuracyValue);
+
+    let directRadiusM = AUTO_COLLECT_M;
+    let passThroughRadiusM = AUTO_COLLECT_PASS_THROUGH_M;
+    let maxSegmentM = AUTO_COLLECT_PASS_THROUGH_MAX_SEGMENT_M;
+    let adaptive = false;
+    let poorAccuracy = false;
+
+    if(vehicle === '4502'){
+      if(Number.isFinite(accuracy)){
+        if(accuracy > 12 && accuracy <= AUTO_COLLECT_4502_MAX_ACCURACY_M){
+          directRadiusM = Math.min(
+            AUTO_COLLECT_4502_MAX_M,
+            AUTO_COLLECT_M + (accuracy - 12) * 0.52
+          );
+          passThroughRadiusM = Math.min(
+            AUTO_COLLECT_4502_PASS_THROUGH_MAX_M,
+            directRadiusM
+          );
+          adaptive = directRadiusM > AUTO_COLLECT_M;
+        }else if(accuracy > AUTO_COLLECT_4502_MAX_ACCURACY_M){
+          // 35mを超える精度値は信用して半径を拡大しない。
+          poorAccuracy = true;
+          directRadiusM = AUTO_COLLECT_M;
+          passThroughRadiusM = AUTO_COLLECT_PASS_THROUGH_M;
+        }
+      }
+
+      const prevGood =
+        !Number.isFinite(previousAccuracy) ||
+        previousAccuracy <= AUTO_COLLECT_4502_MAX_ACCURACY_M;
+      const curGood =
+        !Number.isFinite(accuracy) ||
+        accuracy <= AUTO_COLLECT_4502_MAX_ACCURACY_M;
+      const elapsedGood =
+        !Number.isFinite(Number(elapsedMs)) ||
+        Number(elapsedMs) <= 5000;
+
+      if(prevGood && curGood && elapsedGood){
+        maxSegmentM = AUTO_COLLECT_4502_MAX_SEGMENT_M;
+      }
+    }
+
+    return {
+      vehicle:vehicle,
+      directRadiusM:Number(directRadiusM),
+      passThroughRadiusM:Number(passThroughRadiusM),
+      maxSegmentM:Number(maxSegmentM),
+      adaptive:adaptive,
+      poorAccuracy:poorAccuracy,
+      accuracy:Number.isFinite(accuracy) ? accuracy : '',
+      previousAccuracy:Number.isFinite(previousAccuracy) ? previousAccuracy : ''
+    };
+  }
 
   function localXYMeters_(lat, lon, refLat, refLon){
     const rad = Math.PI / 180;
@@ -8384,6 +8457,13 @@ const blueIcon=L.icon({
           )
         : '';
 
+    const gpsPolicy = getAutoCollectPolicy_(
+      vehicleSel ? String(vehicleSel.value || '') : '',
+      pos && pos.coords ? pos.coords.accuracy : '',
+      sameTarget && previous ? previous.accuracy : '',
+      elapsedMs
+    );
+
     recordConnectivityDiag_(
       'GPS_TARGET_SAMPLE',
       'GPS更新ごとの自動回収対象距離',
@@ -8415,7 +8495,11 @@ const blueIcon=L.icon({
             ? ''
             : Number(Number(segmentM).toFixed(2)),
         autoCollectM:AUTO_COLLECT_M,
-        passThroughM:AUTO_COLLECT_PASS_THROUGH_M
+        effectiveAutoCollectM:Number(gpsPolicy.directRadiusM.toFixed(2)),
+        passThroughM:Number(gpsPolicy.passThroughRadiusM.toFixed(2)),
+        passThroughMaxSegmentM:gpsPolicy.maxSegmentM,
+        gpsAdaptive4502:gpsPolicy.adaptive,
+        gpsPoorAccuracy4502:gpsPolicy.poorAccuracy
       }
     );
   }
@@ -8456,17 +8540,61 @@ const blueIcon=L.icon({
       [p.lat,p.lon]
     );
 
-    let arrived = (dPoint <= AUTO_COLLECT_M);
+    const currentAccuracy =
+      pos && pos.coords &&
+      Number.isFinite(Number(pos.coords.accuracy))
+        ? Number(pos.coords.accuracy)
+        : '';
+
+    const prev = nav.lastGpsSample;
+
+    const elapsedForPolicy =
+      prev && prev.timestampMs
+        ? Math.max(
+            0,
+            Number(pos && pos.timestamp ? pos.timestamp : Date.now()) -
+            Number(prev.timestampMs || 0)
+          )
+        : '';
+
+    const gpsPolicy = getAutoCollectPolicy_(
+      vehicleSel ? String(vehicleSel.value || '') : '',
+      currentAccuracy,
+      prev ? prev.accuracy : '',
+      elapsedForPolicy
+    );
+
+    let arrived = (dPoint <= gpsPolicy.directRadiusM);
     let arrivalReason = arrived
-      ? 'DIRECT_RADIUS'
+      ? (gpsPolicy.adaptive ? 'DIRECT_RADIUS_4502_ADAPTIVE' : 'DIRECT_RADIUS')
       : '';
+
+    if(gpsPolicy.adaptive){
+      recordConnectivityDiag_(
+        'GPS_4502_ADAPTIVE_RADIUS',
+        '4502のGPS精度に応じて自動回収半径を安全範囲で補正',
+        {
+          target:p.name,
+          accuracy:currentAccuracy,
+          targetDistanceM:Number(dPoint.toFixed(2)),
+          effectiveRadiusM:Number(gpsPolicy.directRadiusM.toFixed(2))
+        }
+      );
+    }else if(gpsPolicy.poorAccuracy && dPoint <= 35){
+      recordConnectivityDiag_(
+        'GPS_4502_POOR_ACCURACY_GUARD',
+        '4502のGPS精度が35m超のため判定半径を拡大せず保護',
+        {
+          target:p.name,
+          accuracy:currentAccuracy,
+          targetDistanceM:Number(dPoint.toFixed(2))
+        }
+      );
+    }
 
     let passThroughInfo = null;
 
-    // Ver1.19:
-    // 前回GPS→今回GPSの線分が10m圏を通過していた場合、
-    // GPS更新が粗くても「10m圏を飛び越えた」と判断して自動回収する。
-    const prev = nav.lastGpsSample;
+    // 前回GPS→今回GPSの線分が判定圏を通過した場合の補完。
 
     if(
       !arrived &&
@@ -8481,7 +8609,7 @@ const blueIcon=L.icon({
       if(
         Number.isFinite(segmentM) &&
         segmentM > 0 &&
-        segmentM <= AUTO_COLLECT_PASS_THROUGH_MAX_SEGMENT_M
+        segmentM <= gpsPolicy.maxSegmentM
       ){
         const seg = pointToSegmentDistanceMeters_(
           p.lat,
@@ -8525,12 +8653,14 @@ const blueIcon=L.icon({
         };
 
         if(
-          seg.distanceM <= AUTO_COLLECT_PASS_THROUGH_M &&
+          seg.distanceM <= gpsPolicy.passThroughRadiusM &&
           seg.t > 0 &&
           seg.t < 1
         ){
           arrived = true;
-          arrivalReason = 'PASS_THROUGH_SEGMENT';
+          arrivalReason = gpsPolicy.passThroughRadiusM > AUTO_COLLECT_PASS_THROUGH_M
+            ? 'PASS_THROUGH_4502_ADAPTIVE'
+            : 'PASS_THROUGH_SEGMENT';
 
           recordConnectivityDiag_(
             'GPS_AUTO_COLLECT_PASS_THROUGH',
@@ -8572,11 +8702,10 @@ const blueIcon=L.icon({
         target:p.name,
         arrivalReason:arrivalReason,
         targetDistanceM:Number(dPoint.toFixed(2)),
-        accuracy:
-          pos && pos.coords &&
-          Number.isFinite(Number(pos.coords.accuracy))
-            ? Number(pos.coords.accuracy)
-            : '',
+        accuracy:currentAccuracy,
+        effectiveAutoCollectM:Number(gpsPolicy.directRadiusM.toFixed(2)),
+        effectivePassThroughM:Number(gpsPolicy.passThroughRadiusM.toFixed(2)),
+        gpsAdaptive4502:gpsPolicy.adaptive,
         passThrough:passThroughInfo || {}
       }
     );
@@ -8606,7 +8735,7 @@ const blueIcon=L.icon({
 
     sendHeartbeat('auto-collected', true);
 
-    // Ver189.5.7.3.1.25:
+    // Ver189.5.7.3.1.26:
     // chime待機中のonPos再入による二重案内を防止。
     nav.guideTransitionPending = true;
     nav.guideTransitionFrom = p.name;
@@ -8666,7 +8795,7 @@ const blueIcon=L.icon({
 
     if(!nav.active) return;
 
-    // Ver189.5.7.3.1.25:
+    // Ver189.5.7.3.1.26:
     // 回収直後のchime()待機中にwatchPositionが再発火すると、
     // 既存onPos側とguideNextAfter側の両方が次地点を読み上げていた。
     // 移行完了まではonPos側のナビ進行を一時停止する。
@@ -8939,7 +9068,7 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 
 
-  // Ver189.5.7.3.1.25 起動完了後チャイムプリロード・TDZ完全対策
+  // Ver189.5.7.3.1.26 起動完了後チャイムプリロード・TDZ完全対策
 
   window.addEventListener('online', function(){
     if(typeof scheduleCriticalHeartbeatRetry_ === 'function'){
@@ -8959,9 +9088,9 @@ document.addEventListener('DOMContentLoaded', function(){
     setTimeout(function(){
       try{
         preloadChimeAudio_();
-        console.log('[Ver189.5.7.3.1.25] 起動完了後チャイムプリロード実行');
+        console.log('[Ver189.5.7.3.1.26] 起動完了後チャイムプリロード実行');
       }catch(error){
-        console.warn('[Ver189.5.7.3.1.25] 起動完了後チャイムプリロード失敗:', error);
+        console.warn('[Ver189.5.7.3.1.26] 起動完了後チャイムプリロード失敗:', error);
       }
     }, 0);
   }, { once:true });
