@@ -16,7 +16,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.30: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.31: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -232,7 +232,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.30: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.31: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -286,7 +286,7 @@ if ('serviceWorker' in navigator) {
 position:fixed;left:8px;bottom:8px;z-index:2147483646;
 font:12px/1.2 monospace;background:rgba(0,0,0,.72);
 color:#fff;padding:4px 6px;border-radius:5px;pointer-events:none;">
-Ver189.5.7.3.1.30 / INDEX:189573130
+Ver189.5.7.3.1.31 / INDEX:189573131
 </div>
 
 <div id="map"></div>
@@ -421,12 +421,12 @@ Ver189.5.7.3.1.30 / INDEX:189573130
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.30';
-  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.30-INDEX-189573130';
-  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.30-INLINEJS-189573130';
-  const CACHE_BUST_TAG = '189573130';
+  const VERSION = 'Ver189.5.7.3.1.31';
+  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.31-INDEX-189573131';
+  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.31-INLINEJS-189573131';
+  const CACHE_BUST_TAG = '189573131';
 
-  // Ver189.5.7.3.1.30 センター初期化協調制御
+  // Ver189.5.7.3.1.31 センター初期化協調制御
   const CENTER_INIT_FLAG_POLL_MS = 3000;
   const CENTER_INIT_RETRY_DELAY_MS = 6000;
   const CENTER_INIT_MAX_WAIT_MS = 120000;
@@ -446,7 +446,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
   const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
 
-  // Ver189.5.7.3.1.30 通信停止原因完全診断・自動復旧Watchdog
+  // Ver189.5.7.3.1.31 通信停止原因完全診断・自動復旧Watchdog
   const CONNECTIVITY_DIAG_QUEUE_KEY = 'torimorenuConnectivityDiagQueue_v1';
   const CONNECTIVITY_DIAG_MAX_LOCAL = 400;
   const CONNECTIVITY_DIAG_FLUSH_MAX = 50;
@@ -458,7 +458,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
   const WATCHDOG_STRONG_RECOVER_MS = 240 * 1000;
   const WATCHDOG_COOLDOWN_MS = 60 * 1000;
 
-  // Ver189.5.7.3.1.30 端末・ブラウザ深掘り診断
+  // Ver189.5.7.3.1.31 端末・ブラウザ深掘り診断
   const DEEP_DIAG_SAMPLE_INTERVAL_MS = 30 * 1000;
   const EVENT_LOOP_INTERVAL_MS = 5 * 1000;
   const EVENT_LOOP_WARN_DRIFT_MS = 3000;
@@ -476,7 +476,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
   let cachedLongTask = null;
   let deepDiagStarted = false;
 
-  // Ver189.5.7.3.1.30 Android OS / Chrome休止・再生成推定
+  // Ver189.5.7.3.1.31 Android OS / Chrome休止・再生成推定
   const SESSION_DIAG_ID_KEY = 'torimorenuSessionDiagId_v1';
   const SESSION_LAST_ALIVE_KEY = 'torimorenuSessionLastAlive_v1';
   const SESSION_CLEAN_EXIT_KEY = 'torimorenuSessionCleanExit_v1';
@@ -552,13 +552,13 @@ Ver189.5.7.3.1.30 / INDEX:189573130
   function init(){
   const AUTO_COLLECT_M = 10;
 
-  // Ver189.5.7.3.1.30 4502 GPS補完
+  // Ver189.5.7.3.1.31 4502 GPS補完
   const AUTO_COLLECT_4502_MAX_M = 22;
   const AUTO_COLLECT_4502_MAX_ACCURACY_M = 35;
   const AUTO_COLLECT_4502_PASS_THROUGH_MAX_M = 18;
   const AUTO_COLLECT_4502_MAX_SEGMENT_M = 120;
 
-  // Ver189.5.7.3.1.30 GPS通過補完・チャイム遅延対策
+  // Ver189.5.7.3.1.31 GPS通過補完・チャイム遅延対策
   const AUTO_COLLECT_PASS_THROUGH_M = 10;
   const AUTO_COLLECT_PASS_THROUGH_MAX_SEGMENT_M = 80;
   const GPS_TARGET_DIAG_NEAR_M = 80;
@@ -644,7 +644,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
   let heartbeatConsecutiveFailures = 0;
   let heartbeatSequence = Number(localStorage.getItem('torimorenuHeartbeatSequence') || '0');
 
-  // Ver189.5.7.3.1.30 回収状態再送保証
+  // Ver189.5.7.3.1.31 回収状態再送保証
   const CRITICAL_HB_QUEUE_KEY = 'torimorenuCriticalHeartbeatQueueV123';
   const CRITICAL_HB_RETRY_DELAYS_MS = [1500, 3500, 7000, 12000, 20000, 30000];
   const CRITICAL_HB_MAX_AGE_MS = 20 * 60 * 1000;
@@ -653,7 +653,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
 
 
   // ==========================================================
-  // Ver189.5.7.3.1.30 回収記録送達保証
+  // Ver189.5.7.3.1.31 回収記録送達保証
   // ==========================================================
   const COLLECTION_DELIVERY_QUEUE_KEY =
     'torimorenuCollectionDeliveryQueueV127';
@@ -668,7 +668,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
   let collectionDeliveryBusy = false;
 
 
-  // Ver189.5.7.3.1.30 Heartbeatハング完全解析・Promise監視
+  // Ver189.5.7.3.1.31 Heartbeatハング完全解析・Promise監視
   const HEARTBEAT_PROMISE_WARN_MS = 15000;
   const HEARTBEAT_BUSY_FORCE_RELEASE_MS = 30000;
   const HEARTBEAT_BUSY_WATCH_INTERVAL_MS = 5000;
@@ -678,7 +678,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
   let heartbeatCurrentAbortController = null;
   let heartbeatBusyWatchTimer = null;
 
-  // Ver189.5.7.3.1.30 ネットワークスタック完全解析
+  // Ver189.5.7.3.1.31 ネットワークスタック完全解析
   const NETWORK_PROBE_INTERVAL_MS = 60 * 1000;
   const NETWORK_PROBE_TIMEOUT_MS = 12000;
   const NETWORK_PROBE_COOLDOWN_MS = 20000;
@@ -687,7 +687,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
   let networkProbeRunning = false;
   let networkProbeLastAt = 0;
 
-  // Ver189.5.7.3.1.30 JavaScriptイベントループ・NetworkService完全解析
+  // Ver189.5.7.3.1.31 JavaScriptイベントループ・NetworkService完全解析
   const JS_LOOP_PROBE_TIMEOUT_MS = 5000;
   const RESOURCE_TIMING_MAX = 40;
   const WAKELOCK_RETRY_MS = 15000;
@@ -710,7 +710,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
     localStorage.getItem('torimorenuHeartbeatOperationCounter') || '0'
   );
 
-  // Ver189.5.7.3.1.30 Heartbeat内部処理完全分解・再入/未完了Promise監視
+  // Ver189.5.7.3.1.31 Heartbeat内部処理完全分解・再入/未完了Promise監視
   const HEARTBEAT_INTERNAL_MONITOR_INTERVAL_MS = 5000;
   const HEARTBEAT_PENDING_WARN_MS = 20000;
   const HEARTBEAT_PENDING_CRITICAL_MS = 45000;
@@ -731,7 +731,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
 
 
 
-  // Ver189.5.7.3.1.30 キャッシュ完全対策・実行コード識別
+  // Ver189.5.7.3.1.31 キャッシュ完全対策・実行コード識別
 
   function scheduleHeartbeatAfterCenterInitialization_(reason){
     if(centerInitializationRetryTimer) clearTimeout(centerInitializationRetryTimer);
@@ -2177,7 +2177,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
 
 
   // ==========================================================
-  // Ver189.5.7.3.1.30
+  // Ver189.5.7.3.1.31
   // Critical Heartbeat functions
   // すべてトップレベル関数として定義し、スコープ事故を防止する。
   // ==========================================================
@@ -2843,7 +2843,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
       pendingCount: Array.isArray(pendingRows) ? pendingRows.length : 0,
       reason: String(reason || 'interval'),
 
-      // Ver189.5.7.3.1.30
+      // Ver189.5.7.3.1.31
       heartbeatStateRevisionMs: Date.now(),
       deliveryClass: isCriticalHeartbeatReason_(reason)
         ? 'critical-collection'
@@ -3978,7 +3978,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
     const startedWall=Date.now(), startedPerf=performance.now();
     const pendingKey=registerHeartbeatPendingPromise_(operationId,'heartbeat-fetch');
 
-    // Ver189.5.7.3.1.30 GAS側計測との相関用
+    // Ver189.5.7.3.1.31 GAS側計測との相関用
     payload.heartbeatOperationId=String(operationId||'');
     payload.clientFetchStartedAtMs=Date.now();
     payload.clientFetchStartedAtIso=new Date().toISOString();
@@ -4485,7 +4485,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
         }
       );
 
-      // Ver189.5.7.3.1.30:
+      // Ver189.5.7.3.1.31:
       // 回収確定Heartbeatは通常Heartbeatとは別の永続再送キューへ保存。
       if(isCriticalHeartbeatReason_(payload.reason)){
         const criticalSnapshot =
@@ -4721,7 +4721,7 @@ Ver189.5.7.3.1.30 / INDEX:189573130
     if(heartbeatTimer) clearInterval(heartbeatTimer);
     startHeartbeatBusyWatchdog_();
 
-    // Ver189.5.7.3.1.30:
+    // Ver189.5.7.3.1.31:
     // 再読込前に未確認だった回収確定Heartbeatを復元。
     setTimeout(function(){
       flushCriticalHeartbeatQueue_();
@@ -5521,21 +5521,6 @@ const FLEET={
   const nameIndex=new Map();
   let firstLoadedName=null;
   let currentCourseName='';
-
-  // ==========================================================
-  // Ver189.5.7.3.1.30 運行状態は端末localStorageだけに永続化
-  // GAS / heartbeat / Spreadsheet の列構造は変更しない。
-  // ==========================================================
-  const OPERATION_SESSION_KEY =
-    'torimorenuOperationSessionV130';
-  const OPERATION_SESSION_VERSION =
-    'OPSESSION-V130';
-  const OPERATION_SESSION_MAX_AGE_MS =
-    24 * 60 * 60 * 1000;
-  let operationSessionRestored = false;
-  let operationSessionRestoreDetail = null;
-  let operationSessionSaveTimer = null;
-  let operationSessionLastSavedAt = 0;
 const blueIcon=L.icon({
     iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
     iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34],
@@ -5668,631 +5653,6 @@ const blueIcon=L.icon({
     points.push(rec);
     nameIndex.set(name,rec);
   }
-
-  function operationLocalDateKey_(value){
-    const d = value instanceof Date ? value : new Date(value || Date.now());
-    if(Number.isNaN(d.getTime())) return '';
-    const pad = function(n){ return String(n).padStart(2,'0'); };
-    return (
-      d.getFullYear() + '-' +
-      pad(d.getMonth()+1) + '-' +
-      pad(d.getDate())
-    );
-  }
-
-  function getSavedOperationSession_(){
-    try{
-      const raw = localStorage.getItem(OPERATION_SESSION_KEY);
-      if(!raw) return null;
-
-      const session = JSON.parse(raw);
-      if(
-        !session ||
-        session.sessionVersion !== OPERATION_SESSION_VERSION
-      ){
-        return null;
-      }
-
-      const savedAtMs = Number(session.savedAtMs || 0);
-      const ageMs = Date.now() - savedAtMs;
-
-      if(
-        !Number.isFinite(savedAtMs) ||
-        savedAtMs <= 0 ||
-        ageMs < 0 ||
-        ageMs > OPERATION_SESSION_MAX_AGE_MS
-      ){
-        return null;
-      }
-
-      // 前日の運行を誤復元しない。
-      if(
-        String(session.workDate || '') !==
-        operationLocalDateKey_(Date.now())
-      ){
-        return null;
-      }
-
-      if(
-        !Array.isArray(session.points) ||
-        session.points.length <= 0
-      ){
-        return null;
-      }
-
-      return session;
-
-    }catch(error){
-      try{
-        recordConnectivityDiag_(
-          'OPERATION_SESSION_LOAD_ERROR',
-          '保存済み運行セッション読込失敗',
-          {
-            name:String(error && error.name || ''),
-            message:String(error && error.message || error)
-          }
-        );
-      }catch(_e){}
-      return null;
-    }
-  }
-
-  function getSavedOperationCourseName_(){
-    const session = getSavedOperationSession_();
-    return session
-      ? String(session.courseName || '')
-      : '';
-  }
-
-  function buildOperationSessionSnapshot_(reason){
-    if(
-      !Array.isArray(points) ||
-      points.length <= 0
-    ){
-      return null;
-    }
-
-    const course =
-      String(currentCourseName || '').trim();
-
-    if(!course){
-      return null;
-    }
-
-    const safePoints =
-      points.map(function(p){
-        return {
-          name:String(p && p.name || ''),
-          lat:Number(p && p.lat),
-          lon:Number(p && p.lon),
-          desc:String(p && p.desc || ''),
-          note:String(p && p.note || ''),
-          speak:String(p && p.speak || ''),
-          status:String(p && p.status || 'normal'),
-          seq:
-            p && Number.isFinite(Number(p.seq))
-              ? Number(p.seq)
-              : ''
-        };
-      }).filter(function(p){
-        return (
-          p.name &&
-          Number.isFinite(p.lat) &&
-          Number.isFinite(p.lon)
-        );
-      });
-
-    const safeRoute =
-      Array.isArray(routeLatLngs)
-        ? routeLatLngs
-            .map(function(v){
-              return [
-                Number(v && v[0]),
-                Number(v && v[1])
-              ];
-            })
-            .filter(function(v){
-              return (
-                Number.isFinite(v[0]) &&
-                Number.isFinite(v[1])
-              );
-            })
-        : [];
-
-    // localStorage肥大化防止。ルートは最大4000点へ間引き。
-    let persistedRoute = safeRoute;
-    if(safeRoute.length > 4000){
-      persistedRoute = [];
-      const step =
-        (safeRoute.length - 1) / 3999;
-
-      for(let i=0;i<4000;i++){
-        persistedRoute.push(
-          safeRoute[
-            Math.min(
-              safeRoute.length - 1,
-              Math.round(i * step)
-            )
-          ]
-        );
-      }
-    }
-
-    const currentTargetName =
-      (
-        nav &&
-        Array.isArray(nav.order) &&
-        nav.idx >= 0 &&
-        nav.idx < nav.order.length
-      )
-        ? String(nav.order[nav.idx] || '')
-        : '';
-
-    return {
-      sessionVersion:OPERATION_SESSION_VERSION,
-      appVersion:VERSION,
-      indexBuildId:INDEX_BUILD_ID,
-      savedAtMs:Date.now(),
-      savedAtIso:new Date().toISOString(),
-      workDate:operationLocalDateKey_(Date.now()),
-      saveReason:String(reason || ''),
-      vehicle:vehicleSel
-        ? String(vehicleSel.value || '')
-        : '',
-      driver:driverSel
-        ? String(driverSel.value || '')
-        : '',
-      courseName:course,
-      firstLoadedName:String(firstLoadedName || ''),
-      points:safePoints,
-      strictOrder:Array.isArray(strictOrder)
-        ? strictOrder.slice()
-        : [],
-      routeLatLngs:persistedRoute,
-      nav:{
-        idx:
-          nav && Number.isFinite(Number(nav.idx))
-            ? Number(nav.idx)
-            : 0,
-        order:
-          nav && Array.isArray(nav.order)
-            ? nav.order.slice()
-            : [],
-        active:!!(nav && nav.active),
-        currentTargetName:currentTargetName
-      },
-      realMode:!!realMode,
-      pointCount:safePoints.length,
-      collectedCount:safePoints.filter(function(p){
-        return p.status === 'collected';
-      }).length,
-      skippedCount:safePoints.filter(function(p){
-        return p.status === 'skipped';
-      }).length
-    };
-  }
-
-  function saveOperationSessionNow_(reason){
-    if(operationSessionSaveTimer){
-      clearTimeout(operationSessionSaveTimer);
-      operationSessionSaveTimer = null;
-    }
-
-    try{
-      const snapshot =
-        buildOperationSessionSnapshot_(reason);
-
-      if(!snapshot) return false;
-
-      localStorage.setItem(
-        OPERATION_SESSION_KEY,
-        JSON.stringify(snapshot)
-      );
-
-      operationSessionLastSavedAt =
-        snapshot.savedAtMs;
-
-      return true;
-
-    }catch(error){
-      try{
-        recordConnectivityDiag_(
-          'OPERATION_SESSION_SAVE_ERROR',
-          '運行セッション永続保存失敗',
-          {
-            reason:String(reason || ''),
-            name:String(error && error.name || ''),
-            message:String(error && error.message || error)
-          }
-        );
-      }catch(_e){}
-      return false;
-    }
-  }
-
-  function scheduleOperationSessionSave_(reason, delayMs){
-    if(operationSessionSaveTimer){
-      clearTimeout(operationSessionSaveTimer);
-      operationSessionSaveTimer = null;
-    }
-
-    operationSessionSaveTimer =
-      setTimeout(function(){
-        operationSessionSaveTimer = null;
-        saveOperationSessionNow_(reason);
-      }, Math.max(50, Number(delayMs || 250)));
-  }
-
-  function clearOperationSession_(reason){
-    try{
-      localStorage.removeItem(
-        OPERATION_SESSION_KEY
-      );
-
-      operationSessionRestored = false;
-      operationSessionRestoreDetail = null;
-      operationSessionLastSavedAt = 0;
-
-      try{
-        recordConnectivityDiag_(
-          'OPERATION_SESSION_CLEARED',
-          '保存済み運行セッションを削除',
-          {reason:String(reason || '')}
-        );
-      }catch(_e){}
-
-    }catch(_e){}
-  }
-
-  function removeAllPointLayersForRestore_(){
-    try{
-      points.forEach(function(p){
-        try{
-          if(p && p.selRing){
-            map.removeLayer(p.selRing);
-          }
-        }catch(_e){}
-
-        try{
-          if(p && p.marker){
-            map.removeLayer(p.marker);
-          }
-        }catch(_e){}
-      });
-    }catch(_e){}
-
-    points.length = 0;
-    nameIndex.clear();
-    selected.clear();
-    strictOrder = [];
-    firstLoadedName = null;
-    nextDistByName.clear();
-  }
-
-  function restoreOperationSession_(options){
-    const opts = options || {};
-    const session = getSavedOperationSession_();
-
-    if(!session){
-      return {
-        ok:false,
-        restored:false,
-        code:'NO_SAVED_OPERATION_SESSION'
-      };
-    }
-
-    // 現在すでに同一コースが正しく読込済みなら上書きしない。
-    if(
-      !opts.force &&
-      currentCourseName &&
-      points.length > 0 &&
-      strictOrder.length > 0
-    ){
-      return {
-        ok:true,
-        restored:false,
-        code:'CURRENT_SESSION_ALREADY_READY'
-      };
-    }
-
-    try{
-      removeAllPointLayersForRestore_();
-
-      currentCourseName =
-        String(session.courseName || '');
-
-      const savedPoints =
-        Array.isArray(session.points)
-          ? session.points
-          : [];
-
-      savedPoints.forEach(function(sp){
-        addPoint(
-          String(sp.name || ''),
-          Number(sp.lat),
-          Number(sp.lon),
-          String(sp.desc || ''),
-          String(sp.speak || ''),
-          String(sp.note || '')
-        );
-
-        const rec =
-          nameIndex.get(
-            String(sp.name || '')
-          );
-
-        if(rec){
-          const status =
-            String(sp.status || 'normal');
-
-          rec.status = status;
-
-          if(status === 'collected'){
-            rec.marker.setIcon(redIcon);
-          }else if(status === 'skipped'){
-            rec.marker.setIcon(yellowIcon);
-          }else{
-            rec.marker.setIcon(blueIcon);
-          }
-        }
-      });
-
-      firstLoadedName =
-        String(
-          session.firstLoadedName ||
-          (
-            savedPoints.length
-              ? savedPoints[0].name
-              : ''
-          ) ||
-          ''
-        ) || null;
-
-      // Description鎖からseq / nextDistByNameを再構築。
-      buildStrictOrderFromFirst({
-        silent:true
-      });
-
-      // 保存順序が現在の地点名と整合する場合は保存順序を優先。
-      if(
-        Array.isArray(session.strictOrder) &&
-        session.strictOrder.length > 0 &&
-        session.strictOrder.every(function(nm){
-          return nameIndex.has(String(nm || ''));
-        })
-      ){
-        strictOrder =
-          session.strictOrder.map(function(nm){
-            return String(nm);
-          });
-
-        strictOrder.forEach(function(nm,i){
-          const p = nameIndex.get(nm);
-          if(p){
-            p.seq = i + 1;
-            setPopupContent(p);
-          }
-        });
-      }
-
-      if(
-        Array.isArray(session.routeLatLngs) &&
-        session.routeLatLngs.length >= 2
-      ){
-        setRouteLatLngs(
-          session.routeLatLngs
-        );
-      }
-
-      if(nav){
-        nav.order =
-          (
-            session.nav &&
-            Array.isArray(session.nav.order) &&
-            session.nav.order.length > 0
-          )
-            ? session.nav.order
-                .map(function(nm){
-                  return String(nm);
-                })
-                .filter(function(nm){
-                  return nameIndex.has(nm);
-                })
-            : strictOrder.slice();
-
-        nav.idx =
-          session.nav &&
-          Number.isFinite(
-            Number(session.nav.idx)
-          )
-            ? Math.max(
-                0,
-                Math.min(
-                  Number(session.nav.idx),
-                  Math.max(
-                    0,
-                    nav.order.length - 1
-                  )
-                )
-              )
-            : 0;
-
-        // 安全上、GPSナビだけは自動再開しない。
-        // センター/端末から明示「再開」できる待機状態へ戻す。
-        nav.active = false;
-        nav.watchId = null;
-      }
-
-      if(vehicleSel && session.vehicle){
-        vehicleSel.value =
-          String(session.vehicle);
-      }
-
-      if(driverSel && session.driver){
-        driverSel.value =
-          String(session.driver);
-      }
-
-      try{
-        localStorage.setItem(
-          'vehicle',
-          String(session.vehicle || '')
-        );
-        localStorage.setItem(
-          'driver',
-          String(session.driver || '')
-        );
-      }catch(_e){}
-
-      updatePointCount();
-      refreshFab();
-
-      if(points.length > 0){
-        try{
-          map.fitBounds(
-            L.latLngBounds(
-              points.map(function(p){
-                return [p.lat,p.lon];
-              })
-            ),
-            {padding:[20,20]}
-          );
-        }catch(_e){}
-      }
-
-      operationSessionRestored = true;
-
-      operationSessionRestoreDetail = {
-        courseName:currentCourseName,
-        pointCount:points.length,
-        collectedCount:points.filter(function(p){
-          return p.status === 'collected';
-        }).length,
-        skippedCount:points.filter(function(p){
-          return p.status === 'skipped';
-        }).length,
-        strictOrderCount:strictOrder.length,
-        navIdx:nav ? nav.idx : 0,
-        currentTargetName:
-          (
-            nav &&
-            Array.isArray(nav.order) &&
-            nav.order.length > 0
-          )
-            ? String(nav.order[nav.idx] || '')
-            : '',
-        previousNavActive:
-          !!(
-            session.nav &&
-            session.nav.active
-          ),
-        savedAtIso:String(session.savedAtIso || '')
-      };
-
-      try{
-        recordConnectivityDiag_(
-          'OPERATION_SESSION_RESTORED',
-          '運行中コースを端末保存から自動復元',
-          operationSessionRestoreDetail
-        );
-      }catch(_e){}
-
-      showToast(
-        '運行状態を復元：' +
-        currentCourseName +
-        ' / 回収済' +
-        operationSessionRestoreDetail.collectedCount +
-        '件',
-        5
-      );
-
-      saveOperationSessionNow_(
-        'restored'
-      );
-
-      setTimeout(function(){
-        try{
-          sendHeartbeat(
-            'operation-session-restored',
-            true
-          );
-        }catch(_e){}
-      }, 500);
-
-      return {
-        ok:true,
-        restored:true,
-        code:'OPERATION_SESSION_RESTORED',
-        detail:operationSessionRestoreDetail
-      };
-
-    }catch(error){
-      try{
-        recordConnectivityDiag_(
-          'OPERATION_SESSION_RESTORE_ERROR',
-          '運行セッション復元失敗',
-          {
-            name:String(error && error.name || ''),
-            message:String(error && error.message || error)
-          }
-        );
-      }catch(_e){}
-
-      return {
-        ok:false,
-        restored:false,
-        code:'OPERATION_SESSION_RESTORE_ERROR',
-        message:String(
-          error &&
-          error.message ||
-          error
-        )
-      };
-    }
-  }
-
-  function ensureOperationSessionReadyForResume_(){
-    if(
-      currentCourseName &&
-      points.length > 0 &&
-      strictOrder.length > 0
-    ){
-      return {
-        ok:true,
-        restored:false
-      };
-    }
-
-    const result =
-      restoreOperationSession_({
-        force:true
-      });
-
-    return {
-      ok:!!(
-        currentCourseName &&
-        points.length > 0 &&
-        strictOrder.length > 0
-      ),
-      restored:!!(
-        result &&
-        result.restored
-      ),
-      detail:result || {}
-    };
-  }
-
-
-  setInterval(function(){
-    if(
-      currentCourseName &&
-      points.length > 0
-    ){
-      saveOperationSessionNow_(
-        'periodic-5s'
-      );
-    }
-  }, 5000);
 
   function updatePointCount(){
     const nRed=points.filter(p=>p.status==='collected').length;
@@ -7066,7 +6426,7 @@ const blueIcon=L.icon({
 
     const payload = makeCollectionPayload(row2, rt);
 
-    // Ver189.5.7.3.1.30:
+    // Ver189.5.7.3.1.31:
     // no-cors送信の成否だけに依存せず、recordIdがGAS logへ
     // 実在することをACK確認できるまでlocalStorageへ保持する。
     enqueueCollectionDelivery_(payload);
@@ -7266,7 +6626,6 @@ const blueIcon=L.icon({
     document.getElementById('file').value='';
     document.getElementById('fileRoute').value='';
     currentCourseName='';
-    clearOperationSession_('clear-all-points');
     updatePointCount();
     alert('回収地点と基本回収ルートを全て消去しました。');
   }
@@ -7428,7 +6787,6 @@ const blueIcon=L.icon({
               buildStrictOrderFromFirst();
               map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
               updatePointCount();
-              saveOperationSessionNow_('points-csv-loaded');
               showToast(`${added} 点読込（${d.enc} / speak${speakCount} / コース:${currentCourseName || '未設定'}）`,2);
             }else{
               alert('有効な列(Name,Latitude,Longitude)が見つかりません');
@@ -7472,7 +6830,6 @@ const blueIcon=L.icon({
         buildStrictOrderFromFirst();
         map.fitBounds(L.latLngBounds(points.map(p=>[p.lat,p.lon])),{padding:[20,20]});
         updatePointCount();
-        saveOperationSessionNow_('points-other-loaded');
       }
     }catch(e){ showErr(e); }
   }
@@ -7629,7 +6986,7 @@ const blueIcon=L.icon({
     lastGpsTargetName:'',
     lastGpsTargetDistanceM:null,
 
-    // Ver189.5.7.3.1.30
+    // Ver189.5.7.3.1.31
     // 自動/手動回収後、チャイム→次地点案内が完了するまで
     // onPos側の次地点自動案内を止める。
     guideTransitionPending:false,
@@ -7743,8 +7100,6 @@ const blueIcon=L.icon({
     blurAllInputs();
     unlockAll();
 
-    ensureOperationSessionReadyForResume_();
-
     if(points.length===0){ alert('地点がありません'); return; }
     const v=parseFloat(document.getElementById('thres').value); if(Number.isFinite(v)) nav.thresholdM=v;
     const a=parseFloat(document.getElementById('arrive').value); if(Number.isFinite(a)) nav.arriveM=a;
@@ -7784,7 +7139,6 @@ const blueIcon=L.icon({
     if(nav.watchId) navigator.geolocation.clearWatch(nav.watchId);
     nav.watchId=null;
     stopBlink();
-    saveOperationSessionNow_('pause-guidance');
 
     const maxSeq = getMaxCollectedSeq();
     const msg = `一時停止します。#${maxSeq}番目まで回収は済んでいます。`;
@@ -7836,7 +7190,6 @@ const blueIcon=L.icon({
     }
 
     nav.active = true;
-    saveOperationSessionNow_('resume-guidance-at-seq');
     togglePanel(false);
     speakSafe(`再開します。まずは ${getSpeakOf(cur)} に向かってください。`);
     nav.lastAnnounceTarget = cur;
@@ -7866,7 +7219,6 @@ const blueIcon=L.icon({
 
   function resumeGuidance(){
     resetAutoCollectGpsHistory_('resume-guidance');
-    ensureOperationSessionReadyForResume_();
     if(points.length===0){ alert('地点がありません'); return; }
     if(strictOrder.length===0){
       alert('Description による鎖が見つかりません（先頭行から辿れませんでした）');
@@ -8146,7 +7498,7 @@ const blueIcon=L.icon({
     }
   }
 
-  // Ver189.5.7.3.1.30: 運転者プルダウンとの重なりを避けるため、
+  // Ver189.5.7.3.1.31: 運転者プルダウンとの重なりを避けるため、
   // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -8270,7 +7622,7 @@ const blueIcon=L.icon({
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.30\n' +
+      '音声待受診断 Ver189.5.7.3.1.31\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -8544,7 +7896,7 @@ const blueIcon=L.icon({
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.30: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.31: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -9432,7 +8784,7 @@ const blueIcon=L.icon({
 
   startRemoteCommandPolling();
 
-  // Ver189.5.7.3.1.30 診断・Watchdog開始
+  // Ver189.5.7.3.1.31 診断・Watchdog開始
   recordConnectivityDiag_(
     'APP_DIAGNOSTIC_START',
     '通信診断・Watchdogを開始',
@@ -9451,7 +8803,7 @@ const blueIcon=L.icon({
   startWakeLockMonitor_();
   startHeartbeatInternalMonitor_();
 
-  // Ver189.5.7.3.1.30 起動時キャッシュ診断・実行コード識別
+  // Ver189.5.7.3.1.31 起動時キャッシュ診断・実行コード識別
   recordRuntimeCodeIdentity_('startup-immediate');
   clearRuntimeCaches_().then(function(){
     recordRuntimeCodeIdentity_('after-cache-cleanup');
@@ -9907,7 +9259,7 @@ const blueIcon=L.icon({
 
     sendHeartbeat('auto-collected', true);
 
-    // Ver189.5.7.3.1.30:
+    // Ver189.5.7.3.1.31:
     // chime待機中のonPos再入による二重案内を防止。
     nav.guideTransitionPending = true;
     nav.guideTransitionFrom = p.name;
@@ -9967,7 +9319,7 @@ const blueIcon=L.icon({
 
     if(!nav.active) return;
 
-    // Ver189.5.7.3.1.30:
+    // Ver189.5.7.3.1.31:
     // 回収直後のchime()待機中にwatchPositionが再発火すると、
     // 既存onPos側とguideNextAfter側の両方が次地点を読み上げていた。
     // 移行完了まではonPos側のナビ進行を一時停止する。
@@ -10108,9 +9460,6 @@ const blueIcon=L.icon({
     if(routeLatLngs.length>=2){
       routeLayer=L.polyline(routeLatLngs,{color:'#ff2d2d',weight:4,opacity:0.9,pane:'markerPane'}).addTo(map);
     }
-    if(currentCourseName && points.length > 0){
-      scheduleOperationSessionSave_('route-updated',250);
-    }
   }
   function fitRoute(){
     if(routeLatLngs.length>=2){ map.fitBounds(L.latLngBounds(routeLatLngs),{padding:[30,30]}); }
@@ -10243,7 +9592,7 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 
 
-  // Ver189.5.7.3.1.30 起動完了後チャイムプリロード・TDZ完全対策
+  // Ver189.5.7.3.1.31 起動完了後チャイムプリロード・TDZ完全対策
 
   window.addEventListener('online', function(){
     if(typeof scheduleCriticalHeartbeatRetry_ === 'function'){
@@ -10266,25 +9615,12 @@ document.addEventListener('DOMContentLoaded', function(){
     setTimeout(function(){
       try{
         preloadChimeAudio_();
-        console.log('[Ver189.5.7.3.1.30] 起動完了後チャイムプリロード実行');
+        console.log('[Ver189.5.7.3.1.31] 起動完了後チャイムプリロード実行');
       }catch(error){
-        console.warn('[Ver189.5.7.3.1.30] 起動完了後チャイムプリロード失敗:', error);
+        console.warn('[Ver189.5.7.3.1.31] 起動完了後チャイムプリロード失敗:', error);
       }
     }, 0);
   }, { once:true });
-
-
-  window.addEventListener('pagehide', function(){
-    try{ saveOperationSessionNow_('pagehide'); }catch(_e){}
-  });
-  window.addEventListener('beforeunload', function(){
-    try{ saveOperationSessionNow_('beforeunload'); }catch(_e){}
-  });
-  window.addEventListener('load', function(){
-    setTimeout(function(){
-      try{ restoreOperationSession_({force:false}); }catch(_e){}
-    },1500);
-  });
 
 </script>
 </body>
