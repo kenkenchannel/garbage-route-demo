@@ -16,7 +16,7 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  // Ver189.5.7.3.1.34: 呼び出し処理を妨げない非同期トレース
+  // Ver189.5.7.3.1.35: 呼び出し処理を妨げない非同期トレース
   function fireAudioTrace_(stage, callId, detail, payload){
     try{
       Promise.resolve(
@@ -232,7 +232,7 @@
 </style>
 <script>
 
-  // Ver189.5.7.3.1.34: 音声待受処理より前に定義する非同期トレース
+  // Ver189.5.7.3.1.35: 音声待受処理より前に定義する非同期トレース
   function safeFireAudioTrace_(stage, callId, detail, payload){
     try{
       if(typeof sendAudioTrace_ !== 'function'){
@@ -286,7 +286,7 @@ if ('serviceWorker' in navigator) {
 position:fixed;left:8px;bottom:8px;z-index:2147483646;
 font:12px/1.2 monospace;background:rgba(0,0,0,.72);
 color:#fff;padding:4px 6px;border-radius:5px;pointer-events:none;">
-Ver189.5.7.3.1.34 / INDEX:189573134
+Ver189.5.7.3.1.35 / INDEX:189573135
 </div>
 
 <div id="map"></div>
@@ -421,12 +421,12 @@ Ver189.5.7.3.1.34 / INDEX:189573134
 
 <script>
 (function(){
-  const VERSION = 'Ver189.5.7.3.1.34';
-  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.34-INDEX-189573134';
-  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.34-INLINEJS-189573134';
-  const CACHE_BUST_TAG = '189573134';
+  const VERSION = 'Ver189.5.7.3.1.35';
+  const INDEX_BUILD_ID = 'Ver189.5.7.3.1.35-INDEX-189573135';
+  const SCRIPT_BUILD_ID = 'Ver189.5.7.3.1.35-INLINEJS-189573135';
+  const CACHE_BUST_TAG = '189573135';
 
-  // Ver189.5.7.3.1.34 センター初期化協調制御
+  // Ver189.5.7.3.1.35 センター初期化協調制御
   const CENTER_INIT_FLAG_POLL_MS = 3000;
   const CENTER_INIT_RETRY_DELAY_MS = 6000;
   const CENTER_INIT_MAX_WAIT_MS = 120000;
@@ -446,7 +446,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
   const HEARTBEAT_INTERVAL_MS = 60 * 1000;
   const HEARTBEAT_DEVICE_ID_KEY = 'torimorenuHeartbeatDeviceId';
 
-  // Ver189.5.7.3.1.34 通信停止原因完全診断・自動復旧Watchdog
+  // Ver189.5.7.3.1.35 通信停止原因完全診断・自動復旧Watchdog
   const CONNECTIVITY_DIAG_QUEUE_KEY = 'torimorenuConnectivityDiagQueue_v1';
   const CONNECTIVITY_DIAG_MAX_LOCAL = 400;
   const CONNECTIVITY_DIAG_FLUSH_MAX = 50;
@@ -458,7 +458,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
   const WATCHDOG_STRONG_RECOVER_MS = 240 * 1000;
   const WATCHDOG_COOLDOWN_MS = 60 * 1000;
 
-  // Ver189.5.7.3.1.34 端末・ブラウザ深掘り診断
+  // Ver189.5.7.3.1.35 端末・ブラウザ深掘り診断
   const DEEP_DIAG_SAMPLE_INTERVAL_MS = 30 * 1000;
   const EVENT_LOOP_INTERVAL_MS = 5 * 1000;
   const EVENT_LOOP_WARN_DRIFT_MS = 3000;
@@ -476,7 +476,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
   let cachedLongTask = null;
   let deepDiagStarted = false;
 
-  // Ver189.5.7.3.1.34 Android OS / Chrome休止・再生成推定
+  // Ver189.5.7.3.1.35 Android OS / Chrome休止・再生成推定
   const SESSION_DIAG_ID_KEY = 'torimorenuSessionDiagId_v1';
   const SESSION_LAST_ALIVE_KEY = 'torimorenuSessionLastAlive_v1';
   const SESSION_CLEAN_EXIT_KEY = 'torimorenuSessionCleanExit_v1';
@@ -552,13 +552,13 @@ Ver189.5.7.3.1.34 / INDEX:189573134
   function init(){
   const AUTO_COLLECT_M = 10;
 
-  // Ver189.5.7.3.1.34 4502 GPS補完
+  // Ver189.5.7.3.1.35 4502 GPS補完
   const AUTO_COLLECT_4502_MAX_M = 22;
   const AUTO_COLLECT_4502_MAX_ACCURACY_M = 35;
   const AUTO_COLLECT_4502_PASS_THROUGH_MAX_M = 18;
   const AUTO_COLLECT_4502_MAX_SEGMENT_M = 120;
 
-  // Ver189.5.7.3.1.34 GPS通過補完・チャイム遅延対策
+  // Ver189.5.7.3.1.35 GPS通過補完・チャイム遅延対策
   const AUTO_COLLECT_PASS_THROUGH_M = 10;
   const AUTO_COLLECT_PASS_THROUGH_MAX_SEGMENT_M = 80;
   const GPS_TARGET_DIAG_NEAR_M = 80;
@@ -644,7 +644,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
   let heartbeatConsecutiveFailures = 0;
   let heartbeatSequence = Number(localStorage.getItem('torimorenuHeartbeatSequence') || '0');
 
-  // Ver189.5.7.3.1.34 回収状態再送保証
+  // Ver189.5.7.3.1.35 回収状態再送保証
   const CRITICAL_HB_QUEUE_KEY = 'torimorenuCriticalHeartbeatQueueV123';
   const CRITICAL_HB_RETRY_DELAYS_MS = [1500, 3500, 7000, 12000, 20000, 30000];
   const CRITICAL_HB_MAX_AGE_MS = 20 * 60 * 1000;
@@ -653,7 +653,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
 
 
   // ==========================================================
-  // Ver189.5.7.3.1.34 回収記録送達保証
+  // Ver189.5.7.3.1.35 回収記録送達保証
   // V26のHeartbeat構造には一切追加しない。
   // ==========================================================
   const COLLECTION_DELIVERY_QUEUE_KEY =
@@ -669,7 +669,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
   let collectionDeliveryBusy = false;
 
 
-  // Ver189.5.7.3.1.34 Heartbeatハング完全解析・Promise監視
+  // Ver189.5.7.3.1.35 Heartbeatハング完全解析・Promise監視
   const HEARTBEAT_PROMISE_WARN_MS = 15000;
   const HEARTBEAT_BUSY_FORCE_RELEASE_MS = 30000;
   const HEARTBEAT_BUSY_WATCH_INTERVAL_MS = 5000;
@@ -679,7 +679,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
   let heartbeatCurrentAbortController = null;
   let heartbeatBusyWatchTimer = null;
 
-  // Ver189.5.7.3.1.34 ネットワークスタック完全解析
+  // Ver189.5.7.3.1.35 ネットワークスタック完全解析
   const NETWORK_PROBE_INTERVAL_MS = 60 * 1000;
   const NETWORK_PROBE_TIMEOUT_MS = 12000;
   const NETWORK_PROBE_COOLDOWN_MS = 20000;
@@ -688,7 +688,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
   let networkProbeRunning = false;
   let networkProbeLastAt = 0;
 
-  // Ver189.5.7.3.1.34 JavaScriptイベントループ・NetworkService完全解析
+  // Ver189.5.7.3.1.35 JavaScriptイベントループ・NetworkService完全解析
   const JS_LOOP_PROBE_TIMEOUT_MS = 5000;
   const RESOURCE_TIMING_MAX = 40;
   const WAKELOCK_RETRY_MS = 15000;
@@ -711,7 +711,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
     localStorage.getItem('torimorenuHeartbeatOperationCounter') || '0'
   );
 
-  // Ver189.5.7.3.1.34 Heartbeat内部処理完全分解・再入/未完了Promise監視
+  // Ver189.5.7.3.1.35 Heartbeat内部処理完全分解・再入/未完了Promise監視
   const HEARTBEAT_INTERNAL_MONITOR_INTERVAL_MS = 5000;
   const HEARTBEAT_PENDING_WARN_MS = 20000;
   const HEARTBEAT_PENDING_CRITICAL_MS = 45000;
@@ -732,7 +732,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
 
 
 
-  // Ver189.5.7.3.1.34 キャッシュ完全対策・実行コード識別
+  // Ver189.5.7.3.1.35 キャッシュ完全対策・実行コード識別
 
   function scheduleHeartbeatAfterCenterInitialization_(reason){
     if(centerInitializationRetryTimer) clearTimeout(centerInitializationRetryTimer);
@@ -2176,7 +2176,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
 
 
   // ==========================================================
-  // Ver189.5.7.3.1.34
+  // Ver189.5.7.3.1.35
   // Critical Heartbeat functions
   // すべてトップレベル関数として定義し、スコープ事故を防止する。
   // ==========================================================
@@ -2842,7 +2842,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
       pendingCount: Array.isArray(pendingRows) ? pendingRows.length : 0,
       reason: String(reason || 'interval'),
 
-      // Ver189.5.7.3.1.34
+      // Ver189.5.7.3.1.35
       heartbeatStateRevisionMs: Date.now(),
       deliveryClass: isCriticalHeartbeatReason_(reason)
         ? 'critical-collection'
@@ -3977,7 +3977,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
     const startedWall=Date.now(), startedPerf=performance.now();
     const pendingKey=registerHeartbeatPendingPromise_(operationId,'heartbeat-fetch');
 
-    // Ver189.5.7.3.1.34 GAS側計測との相関用
+    // Ver189.5.7.3.1.35 GAS側計測との相関用
     payload.heartbeatOperationId=String(operationId||'');
     payload.clientFetchStartedAtMs=Date.now();
     payload.clientFetchStartedAtIso=new Date().toISOString();
@@ -4484,7 +4484,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
         }
       );
 
-      // Ver189.5.7.3.1.34:
+      // Ver189.5.7.3.1.35:
       // 回収確定Heartbeatは通常Heartbeatとは別の永続再送キューへ保存。
       if(isCriticalHeartbeatReason_(payload.reason)){
         const criticalSnapshot =
@@ -4720,7 +4720,7 @@ Ver189.5.7.3.1.34 / INDEX:189573134
     if(heartbeatTimer) clearInterval(heartbeatTimer);
     startHeartbeatBusyWatchdog_();
 
-    // Ver189.5.7.3.1.34:
+    // Ver189.5.7.3.1.35:
     // 再読込前に未確認だった回収確定Heartbeatを復元。
     setTimeout(function(){
       flushCriticalHeartbeatQueue_();
@@ -5239,9 +5239,12 @@ const FLEET={
     realMode = target;
     updateRealBtn();
 
-    // Ver189.5.7.3.1.34:
+    // Ver189.5.7.3.1.35:
     // モード切替時は前モードの手動×閉鎖状態を持ち越さない。
     clearManualPopupCloseSuppression_(
+      'real-mode-changed'
+    );
+    resetRealModeRunPopupChoice_(
       'real-mode-changed'
     );
 
@@ -5555,7 +5558,7 @@ const blueIcon=L.icon({
   function setPopupContent(p){ p.marker.bindPopup(popupHtmlFor(p)); }
 
   // ==========================================================
-  // Ver189.5.7.3.1.34
+  // Ver189.5.7.3.1.35
   // 地点表示板（Leaflet Popup）の手動×閉鎖制御
   //
   // 実車：有効
@@ -5570,6 +5573,86 @@ const blueIcon=L.icon({
   let manualPopupClosedTarget = '';
   let manualPopupSuppressUntil = 0;
   let manualPopupReopenTimer = null;
+
+  // ==========================================================
+  // Ver189.5.7.3.1.35
+  // 実車：有効時の「今回運行中ずっと表示板を非表示」制御
+  // ==========================================================
+  let realModePopupChoiceAsked = false;
+  let realModeHideAllPopupsForThisRun = false;
+
+  function resetRealModeRunPopupChoice_(reason){
+    realModePopupChoiceAsked = false;
+    realModeHideAllPopupsForThisRun = false;
+
+    try{
+      console.log(
+        '[POPUP_CLOSE_CONTROL] run-wide choice reset:',
+        reason || ''
+      );
+    }catch(_e){}
+  }
+
+  function closeAllCollectionPointPopups_(){
+    try{
+      points.forEach(p=>{
+        if(
+          p &&
+          p.marker &&
+          p.marker.isPopupOpen &&
+          p.marker.isPopupOpen()
+        ){
+          p.marker.closePopup();
+        }
+      });
+    }catch(_e){}
+  }
+
+  function askRunWidePopupSuppressionOnce_(){
+    if(!realMode){
+      return false;
+    }
+
+    if(realModePopupChoiceAsked){
+      return realModeHideAllPopupsForThisRun;
+    }
+
+    realModePopupChoiceAsked = true;
+
+    let yes = false;
+
+    try{
+      yes = window.confirm(
+        '今回の回収が完了するまで、ずっとこの回収地点情報表示を消しますか？\n\n' +
+        '「はい」：今回の回収中は、以後すべての回収地点情報表示を自動表示しません。\n' +
+        '「いいえ」：これまでどおり、この地点だけ閉じます。'
+      );
+    }catch(_e){
+      yes = false;
+    }
+
+    realModeHideAllPopupsForThisRun = !!yes;
+
+    if(realModeHideAllPopupsForThisRun){
+      closeAllCollectionPointPopups_();
+
+      try{
+        showToast(
+          '今回の回収が完了するまで、回収地点情報表示を非表示にします。',
+          3
+        );
+      }catch(_e){}
+    }
+
+    return realModeHideAllPopupsForThisRun;
+  }
+
+  function isRunWidePopupSuppressed_(){
+    return (
+      realMode === true &&
+      realModeHideAllPopupsForThisRun === true
+    );
+  }
 
   function clearManualPopupCloseSuppression_(reason){
     if(manualPopupReopenTimer){
@@ -5615,15 +5698,28 @@ const blueIcon=L.icon({
       manualPopupReopenTimer = null;
     }
 
-    manualPopupClosedTarget = name;
-
+    // Ver189.5.7.3.1.35:
+    // 実車：有効では最初の×操作時だけ、
+    // 今回運行中すべての表示板を消すか確認。
     if(realMode){
-      // 実車：有効では同一ターゲットの間は永久抑止。
-      manualPopupSuppressUntil = Number.POSITIVE_INFINITY;
+      const hideAll =
+        askRunWidePopupSuppressionOnce_();
+
+      if(hideAll){
+        manualPopupClosedTarget = '';
+        manualPopupSuppressUntil = 0;
+        return;
+      }
+
+      // 「いいえ」の場合はV34と同じ。
+      // この地点だけ、次地点へ進むまで再表示しない。
+      manualPopupClosedTarget = name;
+      manualPopupSuppressUntil =
+        Number.POSITIVE_INFINITY;
 
       try{
         console.log(
-          '[POPUP_CLOSE_CONTROL] real-mode suppress:',
+          '[POPUP_CLOSE_CONTROL] real-mode current-target suppress:',
           name
         );
       }catch(_e){}
@@ -5631,7 +5727,8 @@ const blueIcon=L.icon({
       return;
     }
 
-    // 実車：無効では2秒だけ抑止し、その後同じ表示板を再表示。
+    // 実車：無効はV34どおり2秒後に再表示。
+    manualPopupClosedTarget = name;
     manualPopupSuppressUntil =
       Date.now() + MANUAL_POPUP_REOPEN_MS;
 
@@ -5639,8 +5736,6 @@ const blueIcon=L.icon({
       manualPopupReopenTimer = null;
 
       if(realMode){
-        // 2秒の間に実車：有効へ切り替わった場合は、
-        // その地点を閉じた状態のまま維持。
         manualPopupSuppressUntil =
           Number.POSITIVE_INFINITY;
         return;
@@ -5688,6 +5783,11 @@ const blueIcon=L.icon({
   function isPopupAutoOpenSuppressed_(pointName){
     const name = String(pointName || '').trim();
 
+    // 「はい」を選んだ今回運行中は全地点の自動表示を抑止。
+    if(isRunWidePopupSuppressed_()){
+      return true;
+    }
+
     if(
       !manualPopupClosedTarget ||
       manualPopupClosedTarget !== name
@@ -5703,7 +5803,6 @@ const blueIcon=L.icon({
       return true;
     }
 
-    // 実車：無効の2秒経過後。
     clearManualPopupCloseSuppression_(
       'non-real-timeout'
     );
@@ -5720,6 +5819,15 @@ const blueIcon=L.icon({
         popup && popup._source;
 
       if(!popup || !sourceMarker) return;
+
+      // Ver189.5.7.3.1.35:
+      // 「はい」を選択中は、別経路からopenPopup()されても再表示しない。
+      if(isRunWidePopupSuppressed_()){
+        try{
+          sourceMarker.closePopup();
+        }catch(_e){}
+        return;
+      }
 
       const rec =
         points.find(
@@ -6613,7 +6721,7 @@ async function flushCollectionDeliveryQueue_(){
 
     const payload = makeCollectionPayload(row2, rt);
 
-    // Ver189.5.7.3.1.34:
+    // Ver189.5.7.3.1.35:
     // V26の通常送信はそのまま維持し、
     // recordIdのGAS保存確認が取れるまで別キューで保証する。
     enqueueCollectionDelivery_(payload);
@@ -6798,6 +6906,16 @@ async function flushCollectionDeliveryQueue_(){
 
   function clearAllPoints(){
     const ok = confirm('回収地点・基本回収ルートのデータを消去しますか？'); if(!ok) return;
+
+    // Ver189.5.7.3.1.35:
+    // 回収地点全クリアは今回運行の終了として扱う。
+    resetRealModeRunPopupChoice_(
+      'collection-points-clear'
+    );
+    clearManualPopupCloseSuppression_(
+      'collection-points-clear'
+    );
+
     stopBlink();
     points.forEach(p=>{ if(p.selRing) map.removeLayer(p.selRing); map.removeLayer(p.marker); });
     stopCourseRead();
@@ -7027,6 +7145,16 @@ async function flushCollectionDeliveryQueue_(){
   });
   document.getElementById('file').addEventListener('change',(e)=>{
     const f=e.target.files[0]; if(!f) return;
+
+    // Ver189.5.7.3.1.35:
+    // 新しい地点ファイル読込は新しい回収運行として扱う。
+    resetRealModeRunPopupChoice_(
+      'point-file-load'
+    );
+    clearManualPopupCloseSuppression_(
+      'point-file-load'
+    );
+
     blurAllInputs();
     if(/\.csv$/i.test(f.name)) importCSV(f); else importOther(f);
   });
@@ -7174,7 +7302,7 @@ async function flushCollectionDeliveryQueue_(){
     lastGpsTargetName:'',
     lastGpsTargetDistanceM:null,
 
-    // Ver189.5.7.3.1.34
+    // Ver189.5.7.3.1.35
     // 自動/手動回収後、チャイム→次地点案内が完了するまで
     // onPos側の次地点自動案内を止める。
     guideTransitionPending:false,
@@ -7305,6 +7433,16 @@ async function flushCollectionDeliveryQueue_(){
     unlockAll();
 
     if(points.length===0){ alert('地点がありません'); return; }
+
+    // Ver189.5.7.3.1.35:
+    // 「ナビ開始」は新しい回収運行の開始として扱う。
+    // 一時停止後の「再開」は別関数なので、この選択は維持される。
+    resetRealModeRunPopupChoice_(
+      'navigation-start'
+    );
+    clearManualPopupCloseSuppression_(
+      'navigation-start'
+    );
     const v=parseFloat(document.getElementById('thres').value); if(Number.isFinite(v)) nav.thresholdM=v;
     const a=parseFloat(document.getElementById('arrive').value); if(Number.isFinite(a)) nav.arriveM=a;
     const fz=parseFloat(document.getElementById('farZoom').value); if(Number.isFinite(fz)) nav.farZoomM=fz;
@@ -7702,7 +7840,7 @@ async function flushCollectionDeliveryQueue_(){
     }
   }
 
-  // Ver189.5.7.3.1.34: 運転者プルダウンとの重なりを避けるため、
+  // Ver189.5.7.3.1.35: 運転者プルダウンとの重なりを避けるため、
   // 音声待受診断パネルを画面中央から約30mm（114px）右へ移動。
   function ensureAudioDiagnosticPanel_(){
     if(audioDiagnosticPanel) return audioDiagnosticPanel;
@@ -7826,7 +7964,7 @@ async function flushCollectionDeliveryQueue_(){
     const visibleState = document.visibilityState || 'unknown';
 
     panel.textContent =
-      '音声待受診断 Ver189.5.7.3.1.34\n' +
+      '音声待受診断 Ver189.5.7.3.1.35\n' +
       '待受：' + (audioStandbyEnabled ? 'ON' : 'OFF') + '\n' +
       '呼出音準備：' + (audioUnlockReady ? '完了' : '未完了') + '\n' +
       'AudioContext：' + contextState + '\n' +
@@ -8100,7 +8238,7 @@ async function flushCollectionDeliveryQueue_(){
       );
 
       processedAudioCalls.add(call.callId);
-      // Ver189.5.7.3.1.34: 着信処理を直ちに開始。診断通信は待たない。
+      // Ver189.5.7.3.1.35: 着信処理を直ちに開始。診断通信は待たない。
       answerAudioCall(call).catch(error => {
         safeFireAudioTrace_(
           'RING_FIRST_ANSWER_CALL_REJECTED',
@@ -8988,7 +9126,7 @@ async function flushCollectionDeliveryQueue_(){
 
   startRemoteCommandPolling();
 
-  // Ver189.5.7.3.1.34 診断・Watchdog開始
+  // Ver189.5.7.3.1.35 診断・Watchdog開始
   recordConnectivityDiag_(
     'APP_DIAGNOSTIC_START',
     '通信診断・Watchdogを開始',
@@ -9007,7 +9145,7 @@ async function flushCollectionDeliveryQueue_(){
   startWakeLockMonitor_();
   startHeartbeatInternalMonitor_();
 
-  // Ver189.5.7.3.1.34 起動時キャッシュ診断・実行コード識別
+  // Ver189.5.7.3.1.35 起動時キャッシュ診断・実行コード識別
   recordRuntimeCodeIdentity_('startup-immediate');
   clearRuntimeCaches_().then(function(){
     recordRuntimeCodeIdentity_('after-cache-cleanup');
@@ -9463,7 +9601,7 @@ async function flushCollectionDeliveryQueue_(){
 
     sendHeartbeat('auto-collected', true);
 
-    // Ver189.5.7.3.1.34:
+    // Ver189.5.7.3.1.35:
     // chime待機中のonPos再入による二重案内を防止。
     nav.guideTransitionPending = true;
     nav.guideTransitionFrom = p.name;
@@ -9523,7 +9661,7 @@ async function flushCollectionDeliveryQueue_(){
 
     if(!nav.active) return;
 
-    // Ver189.5.7.3.1.34:
+    // Ver189.5.7.3.1.35:
     // 回収直後のchime()待機中にwatchPositionが再発火すると、
     // 既存onPos側とguideNextAfter側の両方が次地点を読み上げていた。
     // 移行完了まではonPos側のナビ進行を一時停止する。
@@ -9612,7 +9750,7 @@ async function flushCollectionDeliveryQueue_(){
       d
     );
 
-    // Ver189.5.7.3.1.34:
+    // Ver189.5.7.3.1.35:
     // 目標地点が変わった場合は、
     // 前地点の手動×閉鎖抑止を解除。
     syncManualPopupSuppressionToTarget_(
@@ -9806,7 +9944,7 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 
 
-  // Ver189.5.7.3.1.34 起動完了後チャイムプリロード・TDZ完全対策
+  // Ver189.5.7.3.1.35 起動完了後チャイムプリロード・TDZ完全対策
 
   window.addEventListener('online', function(){
     if(typeof scheduleCriticalHeartbeatRetry_ === 'function'){
@@ -9826,9 +9964,9 @@ document.addEventListener('DOMContentLoaded', function(){
     setTimeout(function(){
       try{
         preloadChimeAudio_();
-        console.log('[Ver189.5.7.3.1.34] 起動完了後チャイムプリロード実行');
+        console.log('[Ver189.5.7.3.1.35] 起動完了後チャイムプリロード実行');
       }catch(error){
-        console.warn('[Ver189.5.7.3.1.34] 起動完了後チャイムプリロード失敗:', error);
+        console.warn('[Ver189.5.7.3.1.35] 起動完了後チャイムプリロード失敗:', error);
       }
     }, 0);
   }, { once:true });
