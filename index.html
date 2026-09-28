@@ -324,7 +324,7 @@ if ('serviceWorker' in navigator) {
 
 <body>
 <div id="runtimeBuildBadge" style="
-position:fixed;left:8px;bottom:8px;z-index:2147483646;
+position:fixed;left:8px;bottom:8px;z-index:1400;
 font:12px/1.2 monospace;background:rgba(0,0,0,.72);
 color:#fff;padding:4px 6px;border-radius:5px;pointer-events:none;">
 Ver189.5.7.3.1.59 / INDEX:189573159
@@ -837,7 +837,10 @@ Ver189.5.7.3.1.59 / INDEX:189573159
   // Ver189.5.7.3.1.59: 1地点の取り逃しを後続地点へ連鎖させない救済判定
   // 現在対象より先の地点へ明確に到達した場合、取り逃した地点は未回収のまま
   // 「missed」として保持し、後続地点の自動回収を継続する。
-  const AUTO_CONTINUE_LOOKAHEAD_POINTS = 4;
+  // Ver59修正版2: 誤った取り逃し判定を抑止する。
+  // 2～4地点先を根拠にした自動前進は禁止し、1地点先だけを30秒保留後に再判定する。
+  const AUTO_CONTINUE_LOOKAHEAD_POINTS = 1;
+  const AUTO_CONTINUE_ONE_AHEAD_HOLD_MS = 30000;
   const AUTO_CONTINUE_CANDIDATE_M = 22;
   const AUTO_CONTINUE_CURRENT_FAR_M = 30;
   const AUTO_CONTINUE_DISTANCE_ADVANTAGE_M = 12;
@@ -11875,27 +11878,95 @@ async function flushCollectionDeliveryQueue_(){
     };
   }
 
+  function clearAutoContinueHold_(reason){
+    if(nav.autoContinueHold){
+      try{
+        recordConnectivityDiag_(
+          'AUTO_CONTINUE_ONE_AHEAD_HOLD_CLEARED',
+          '1地点先30秒保留を解除',
+          {reason:String(reason||''), ...nav.autoContinueHold}
+        );
+      }catch(_e){}
+    }
+    nav.autoContinueHold=null;
+  }
+
   function autoContinueAfterMissed_(lat,lon,currentPoint,currentDistanceM){
-    if(!realMode || !nav.active || !currentPoint || currentPoint.status!=='normal') return null;
+    if(!realMode || !nav.active || !currentPoint || currentPoint.status!=='normal'){
+      clearAutoContinueHold_('inactive-or-current-not-normal');
+      return null;
+    }
 
     updateAutoContinueTracking_(currentPoint.name,currentDistanceM);
     const candidate=findForwardRescueCandidate_(lat,lon,currentPoint,currentDistanceM);
-    if(!candidate) return null;
 
-    const missed=[];
-    for(let i=candidate.currentIndex;i<candidate.index;i++){
-      const p=nameIndex.get(strictOrder[i]);
-      if(markPointAsAutoMissed_(p,{
-        detectedNearSeq:Number(candidate.point.seq||candidate.index+1),
-        detectedNearTarget:String(candidate.point.name||''),
-        detectedNearDistanceM:Number(candidate.distanceM.toFixed(2)),
-        currentTargetDistanceM:Number(candidate.currentDistanceM.toFixed(2)),
-        targetActiveMs:candidate.ageMs,
-        gpsSamples:candidate.samples,
-        minCurrentTargetDistanceM:candidate.minCurrentDistanceM===null?'':Number(candidate.minCurrentDistanceM.toFixed(2))
-      })) missed.push(p);
+    // Ver59修正版2:
+    // 2～4地点先は findForwardRescueCandidate_ 自体が候補にしない。
+    // 1地点先も即 missed にせず、条件成立を最初に確認した時点から30秒保留する。
+    if(!candidate){
+      clearAutoContinueHold_('one-ahead-condition-no-longer-valid');
+      return null;
     }
-    if(!missed.length) return null;
+    if(candidate.index !== candidate.currentIndex + 1){
+      clearAutoContinueHold_('lookahead-2-to-4-prohibited');
+      return null;
+    }
+
+    const now=Date.now();
+    const hold=nav.autoContinueHold;
+    const sameHold=hold &&
+      hold.currentTarget===String(currentPoint.name||'') &&
+      hold.nextTarget===String(candidate.point.name||'');
+
+    if(!sameHold){
+      nav.autoContinueHold={
+        currentTarget:String(currentPoint.name||''),
+        currentSeq:Number(currentPoint.seq||candidate.currentIndex+1),
+        nextTarget:String(candidate.point.name||''),
+        nextSeq:Number(candidate.point.seq||candidate.index+1),
+        startedAt:now
+      };
+      recordConnectivityDiag_(
+        'AUTO_CONTINUE_ONE_AHEAD_HOLD_STARTED',
+        '1地点先を検知したため30秒保留して再判定',
+        {
+          currentTarget:String(currentPoint.name||''),
+          currentSeq:Number(currentPoint.seq||candidate.currentIndex+1),
+          nextTarget:String(candidate.point.name||''),
+          nextSeq:Number(candidate.point.seq||candidate.index+1),
+          nextDistanceM:Number(candidate.distanceM.toFixed(2)),
+          currentDistanceM:Number(candidate.currentDistanceM.toFixed(2)),
+          holdMs:AUTO_CONTINUE_ONE_AHEAD_HOLD_MS
+        }
+      );
+      return null;
+    }
+
+    const holdAgeMs=Math.max(0,now-Number(hold.startedAt||now));
+    if(holdAgeMs < AUTO_CONTINUE_ONE_AHEAD_HOLD_MS){
+      return null;
+    }
+
+    // 30秒後の「現在のGPS」で条件がなお成立している場合だけ missed とする。
+    // 途中で現在対象へ戻った／1地点先から離れた場合は candidate が null となり、
+    // 上で保留解除されるため、現在対象は維持される。
+    const missed=[];
+    const p=nameIndex.get(strictOrder[candidate.currentIndex]);
+    if(markPointAsAutoMissed_(p,{
+      detectedNearSeq:Number(candidate.point.seq||candidate.index+1),
+      detectedNearTarget:String(candidate.point.name||''),
+      detectedNearDistanceM:Number(candidate.distanceM.toFixed(2)),
+      currentTargetDistanceM:Number(candidate.currentDistanceM.toFixed(2)),
+      targetActiveMs:candidate.ageMs,
+      gpsSamples:candidate.samples,
+      minCurrentTargetDistanceM:candidate.minCurrentDistanceM===null?'':Number(candidate.minCurrentDistanceM.toFixed(2)),
+      oneAheadHoldMs:holdAgeMs,
+      rule:'ONE_AHEAD_30S_RECHECK'
+    })) missed.push(p);
+    if(!missed.length){
+      clearAutoContinueHold_('missed-mark-not-needed');
+      return null;
+    }
 
     updatePointCount();
     refreshFab();
@@ -11903,28 +11974,28 @@ async function flushCollectionDeliveryQueue_(){
     nav.order=strictOrder.slice();
     nav.idx=candidate.index;
     nav.lastAnnounceTarget=candidate.point.name;
-    resetAutoCollectGpsHistory_('auto-continue-rescue-'+candidate.point.name);
+    nav.autoContinueHold=null;
+    resetAutoCollectGpsHistory_('auto-continue-one-ahead-30s-'+candidate.point.name);
     resetAutoContinueTracking_(candidate.point.name,candidate.distanceM);
 
     focusTarget(candidate.point.name);
     const missedText=missed.map(p=>'#'+String(p.seq||'')+' '+String(p.name||'')).join('、');
     speakSafe('取り逃しを検知しました。'+getSpeakOf(candidate.point)+' へ継続します。');
-    showToast('⚠ 取り逃し：'+missedText+' ／ #'+candidate.point.seq+' '+candidate.point.name+' へ自動継続',8);
+    showToast('⚠ 30秒再判定後の取り逃し：'+missedText+' ／ #'+candidate.point.seq+' '+candidate.point.name+' へ自動継続',8);
 
     recordConnectivityDiag_(
-      'AUTO_CONTINUE_RESCUE_ADVANCED',
-      '取り逃し地点を未回収で残し、後続地点へナビ対象を自動前進',
+      'AUTO_CONTINUE_ONE_AHEAD_30S_ADVANCED',
+      '1地点先を30秒保留後に再判定し、条件継続のため自動前進',
       {
         missed:missed.map(p=>({seq:p.seq,name:p.name})),
         resumeSeq:Number(candidate.point.seq||candidate.index+1),
         resumeTarget:String(candidate.point.name||''),
-        resumeDistanceM:Number(candidate.distanceM.toFixed(2))
+        resumeDistanceM:Number(candidate.distanceM.toFixed(2)),
+        holdMs:holdAgeMs
       }
     );
 
-    // missed状態をセンターへ即送信。Ver53のセンター警報と連携する。
     sendHeartbeat('auto-continue-missed-alert', true);
-
     return candidate.point;
   }
 
