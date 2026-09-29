@@ -6961,7 +6961,7 @@ const FLEET={
 
 
   // ==========================================================
-  // Ver189.5.7.3.1.59 先取り回収モード
+  // Ver189.5.7.3.1.59 修正版4 先取り回収モード（CC搬入後に実施）
   // ==========================================================
   const PRECOLLECT_STATE_KEY='torimorenuPrecollectStateV59';
   const precollectOverlay=document.getElementById('precollectOverlay');
@@ -7042,8 +7042,8 @@ const FLEET={
   function startPrecollect_(){
     const sel=precollect.setupSelection.filter(nm=>{ const p=nameIndex.get(nm); return p&&p.status==='normal'; });
     if(!sel.length){ alert('先取りする地点を1か所以上、回収する順番にタップしてください。'); return; }
-    const lines=sel.map((nm,i)=>`${i+1}　${nm}（#${(nameIndex.get(nm)||{}).seq||''}）`).join('\\n');
-    if(!confirm('先取り回収順番を確認してください。\\n\\n'+lines+'\\n\\nこの先取り回収順番でよいですか？')) return;
+    const lines=sel.map((nm)=>`${nm}(#${(nameIndex.get(nm)||{}).seq||''})`).join('、');
+    if(!confirm('先取り回収順番を確認してください。'+lines+'　この先取り回収順番でよいですか？')) return;
     const current=String(nav.order[nav.idx]||'');
     const k=strictOrder.indexOf(current);
     precollect.baseResumeIndex=k>=0?k:Math.max(0,nav.idx||0);
@@ -7081,11 +7081,21 @@ const FLEET={
   }
   function completePrecollect_(){
     if(!precollect.active) return;
-    const base=precollect.baseResumeIndex; resetPrecollectState_('completed',true); precollect.baseResumeIndex=base; prepareNormalResumeTarget_();
-    ccTransferMode=true; ccResumeGraceUntil=0; saveCcTransferMode_(); updateCcTransferUi_(); updatePrecollectUi_(); resetAutoCollectGpsHistory_('precollect-complete-cc');
-    showToast('先取り回収完了：CC搬入モードへ切替',4);
-    try{ speakSafe('先取り回収が終了しました。クリーンセンター搬入モードに切り替えます。'); }catch(_e){}
-    try{ sendHeartbeat('precollect-complete-cc',true); }catch(_e){}
+    const base=precollect.baseResumeIndex;
+    resetPrecollectState_('completed-after-cc',true);
+    precollect.baseResumeIndex=base;
+    ccTransferMode=false; ccResumeGraceUntil=Date.now()+3000; saveCcTransferMode_();
+    prepareNormalResumeTarget_();
+    if(nav && nav.order && nav.order.length){
+      nav.active=true;
+      const nm=String(nav.order[nav.idx]||'');
+      if(nm){ nav.lastAnnounceTarget=nm; focusTarget(nm); }
+    }
+    updateCcTransferUi_(); updatePrecollectUi_(); resetAutoCollectGpsHistory_('precollect-complete-normal-resume');
+    showToast('先取り回収完了：本来の回収コースへ復帰',4);
+    try{ const nm=String(nav.order[nav.idx]||''); speakSafe('先取り回収が終了しました。本来の回収コースに復帰します。'+(nm?getSpeakOf(nm)+' に向かってください。':'')); }catch(_e){}
+    try{ recordConnectivityDiag_('PRECOLLECT_COMPLETE_AFTER_CC','CC搬入後の先取り回収完了・通常回収へ復帰',{baseResumeIndex:base,currentTarget:String(nav.order[nav.idx]||'')}); }catch(_e){}
+    try{ sendHeartbeat('precollect-complete-normal-resume',true); }catch(_e){}
   }
   function directCcFromPrecollect_(){
     if(!confirm('これから先に設定されている先取り回収順番のデータを消去し、CCに直行します。\\nすでに回収済みの地点は回収済みのまま残ります。\\n\\nCCに直行しますか？')) return;
@@ -7108,15 +7118,27 @@ const FLEET={
     return true;
   }
   function handleCcTransferButton_(){
-    if(precollect.active){ directCcFromPrecollect_(); return; }
+    if(precollect.active){
+      // CC搬入後の先取り中。必要なら既存の「今以降CC直行」で先取り予定を解除できる。
+      directCcFromPrecollect_(); return;
+    }
     if(ccTransferMode){
-      if(setCcTransferMode_(false,'btnCcTransfer-click')) resumeNormalAfterCc_();
+      // Ver59修正版4: CC搬入後、「回収復帰」を押した時点の現在地から先取り候補を抽出する。
+      // 先取り順が確定するまではCC搬入モード（自動回収停止）を維持する。
+      openPrecollectSetup_(true);
+      try{ recordConnectivityDiag_('POST_CC_PRECOLLECT_SETUP','CC搬入後の先取り回収設定を開始',{baseResumeIndex:Number(precollect.baseResumeIndex)||0,radiusM:Number(precollect.radiusM)||200}); }catch(_e){}
       return;
     }
     if(!realMode){ alert('「実車：有効」にしてから「CC搬入」を押してください。'); return; }
     if(!nav || !nav.active){ alert('ナビ走行中に「CC搬入」を使用してください。'); return; }
-    const choice=confirm('先取り回収をしてからクリーンセンターへ向かいますか？\\n\\n「OK」＝先取りしてからCCへ\\n「キャンセル」＝そのままCCへ');
-    if(choice){ openPrecollectSetup_(true); } else { const cur=String(nav.order[nav.idx]||''); const k=strictOrder.indexOf(cur); precollect.baseResumeIndex=k>=0?k:Math.max(0,nav.idx||0); savePrecollectState_(); prepareNormalResumeTarget_(); setCcTransferMode_(true,'direct-cc-choice'); }
+    // Ver59修正版4: 先取りはCC搬入「後」に行う。CC搬入ボタンでは即座に自動回収を停止する。
+    const cur=String(nav.order[nav.idx]||'');
+    const k=strictOrder.indexOf(cur);
+    precollect.baseResumeIndex=k>=0?k:Math.max(0,nav.idx||0);
+    precollect.setupSelection=[];
+    savePrecollectState_(); prepareNormalResumeTarget_();
+    setCcTransferMode_(true,'cc-before-post-precollect');
+    try{ recordConnectivityDiag_('CC_TRANSFER_ENTER_BEFORE_PRECOLLECT','CC搬入開始・先取り回収はCC搬入後に実施',{baseResumeIndex:precollect.baseResumeIndex,currentTarget:cur}); }catch(_e){}
   }
 
   document.getElementById('precollectExtract').addEventListener('click',renderPrecollectCandidates_);
