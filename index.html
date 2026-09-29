@@ -327,7 +327,7 @@ if ('serviceWorker' in navigator) {
 position:fixed;left:8px;bottom:8px;z-index:1400;
 font:12px/1.2 monospace;background:rgba(0,0,0,.72);
 color:#fff;padding:4px 6px;border-radius:5px;pointer-events:none;">
-Ver189.5.7.3.1.59 / INDEX:189573159
+Ver189.5.7.3.1.59 / INDEX:189573159 / R5
 </div>
 
 
@@ -7131,7 +7131,10 @@ const FLEET={
     }
     if(!realMode){ alert('「実車：有効」にしてから「CC搬入」を押してください。'); return; }
     if(!nav || !nav.active){ alert('ナビ走行中に「CC搬入」を使用してください。'); return; }
-    // Ver59修正版4: 先取りはCC搬入「後」に行う。CC搬入ボタンでは即座に自動回収を停止する。
+    // Ver59修正版5: CC搬入開始時は先取り設定を行わない。
+    // 先取り設定は、CC搬入後に「回収復帰」を押した時点で開く。
+    if(!confirm('これからCC（クリーンセンター）へ搬入に向かいます。「OK」＝CCに向かう　「キャンセル」＝搬入を取り消す')) return;
+    // 先取りはCC搬入「後」に行う。CC搬入ボタンでは即座に自動回収を停止する。
     const cur=String(nav.order[nav.idx]||'');
     const k=strictOrder.indexOf(cur);
     precollect.baseResumeIndex=k>=0?k:Math.max(0,nav.idx||0);
