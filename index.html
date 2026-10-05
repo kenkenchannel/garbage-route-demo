@@ -1,3 +1,4 @@
+<!-- Ver60修正版3: 精明3固定先取り 138→156→167→139 / 178復帰 -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -346,8 +347,8 @@ Ver189.5.7.3.1.60 / INDEX:189573160 / R5
 <div id="err" class="err"></div>
 <div id="toast"></div>
 <div id="ccTransferBanner">CC搬入中：自動回収停止</div>
-<div id="precollectBanner"></div><div id="precollectActiveControls"><button id="btnPrecollectReset" type="button">再設定</button><button id="btnPrecollectDirectCc" type="button">今以降CC直行</button></div>
-<div id="precollectOverlay" role="dialog" aria-modal="true">
+<div id="precollectBanner"></div><div id="precollectActiveControls" style="display:none"><button id="btnPrecollectReset" type="button">再設定</button><button id="btnPrecollectDirectCc" type="button">今以降CC直行</button></div>
+<div id="precollectOverlay" role="dialog" aria-modal="true" style="display:none">
   <div id="precollectDialog">
     <h3 id="precollectTitle">先取り回収設定</h3>
     <div id="precollectSetup">
@@ -6961,16 +6962,28 @@ const FLEET={
 
 
   // ==========================================================
-  // Ver189.5.7.3.1.60 修正版4 先取り回収モード（CC搬入後に実施）
+  // Ver189.5.7.3.1.60 修正版3：精明3 固定先取り回収
+  // 条件：読み込んだ回収地点CSVのファイル名に「精明3」を含み、かつCC搬入を使用した場合のみ。
+  // CC搬入後の固定先取り順：138 → 156 → 167 → 139
+  // 4地点完了後：通常コースの178へ自動復帰。
+  // 後半で137まで到達した時点では上記4地点は回収済みのため自動的に飛ばし、158へ進む。
+  // 従来の半径50～500m候補抽出・タップ順指定ロジックは使用しない。
   // ==========================================================
-  const PRECOLLECT_STATE_KEY='torimorenuPrecollectStateV59';
-  const precollectOverlay=document.getElementById('precollectOverlay');
-  const precollectRadiusEl=document.getElementById('precollectRadius');
-  const precollectCandidatesEl=document.getElementById('precollectCandidates');
+  const PRECOLLECT_STATE_KEY='torimorenuPrecollectStateV60FixedSeimei3';
+  const SEIMEI3_FIXED_PRECOLLECT_ORDER=['138','156','167','139'];
+  const SEIMEI3_FIXED_RESUME_TARGET='178';
   const precollectBanner=document.getElementById('precollectBanner');
   const precollectActiveControls=document.getElementById('precollectActiveControls');
-  let precollect={active:false,order:[],idx:0,radiusM:200,baseResumeIndex:0,setupSelection:[]};
+  const precollectOverlay=document.getElementById('precollectOverlay');
+  let precollect={active:false,order:[],idx:0,baseResumeIndex:0,fixedSeimei3:false};
 
+  // 旧Ver59の候補抽出UIはVer60修正版3では使用しない。
+  if(precollectOverlay) precollectOverlay.style.display='none';
+  if(precollectActiveControls) precollectActiveControls.style.display='none';
+
+  function isSeimei3Course_(){
+    return String(currentCourseName||'').indexOf('精明3')>=0;
+  }
   function savePrecollectState_(){
     try{ localStorage.setItem(PRECOLLECT_STATE_KEY,JSON.stringify(precollect)); }catch(_e){}
   }
@@ -6979,9 +6992,7 @@ const FLEET={
       const x=JSON.parse(localStorage.getItem(PRECOLLECT_STATE_KEY)||'null');
       if(x && typeof x==='object'){
         precollect={...precollect,...x};
-        precollect.radiusM=Math.min(500,Math.max(50,Number(precollect.radiusM)||200));
         if(!Array.isArray(precollect.order)) precollect.order=[];
-        if(!Array.isArray(precollect.setupSelection)) precollect.setupSelection=[];
       }
     }catch(_e){}
   }
@@ -6990,91 +7001,108 @@ const FLEET={
       precollectBanner.classList.toggle('active',!!precollect.active);
       if(precollect.active){
         const nm=precollect.order[precollect.idx]||'';
-        precollectBanner.textContent='先取り回収中：'+(precollect.idx+1)+'/'+precollect.order.length+(nm?'  次 '+nm:'');
+        precollectBanner.textContent='精明3 固定先取り回収中：'+(precollect.idx+1)+'/'+precollect.order.length+(nm?'  次 '+nm:'');
       }else precollectBanner.textContent='';
     }
-    if(precollect.active && btnCcTransfer){
-      btnCcTransfer.textContent='今以降CC直行';
-      btnCcTransfer.className='warn';
-      btnCcTransfer.title='残りの先取り予定を消去し、CC搬入モードへ切り替えます。';
+    // 固定先取り中もCCボタンを別用途へ変えない。誤操作防止のため無効化する。
+    if(btnCcTransfer && precollect.active){
+      btnCcTransfer.textContent='固定先取り回収中';
+      btnCcTransfer.className='cc-transfer-active';
+      btnCcTransfer.title='138→156→167→139 の固定先取り完了後、自動的に178へ復帰します。';
+      btnCcTransfer.disabled=true;
+    }else if(btnCcTransfer){
+      btnCcTransfer.disabled=false;
     }
   }
   function resetPrecollectState_(reason,keepCollected){
-    const old=precollect;
-    precollect={active:false,order:[],idx:0,radiusM:Number(old.radiusM)||200,baseResumeIndex:Number(old.baseResumeIndex)||0,setupSelection:[]};
-    savePrecollectState_(); updatePrecollectUi_();
+    precollect={active:false,order:[],idx:0,baseResumeIndex:0,fixedSeimei3:false};
+    savePrecollectState_();
+    if(btnCcTransfer) btnCcTransfer.disabled=false;
+    updatePrecollectUi_();
     try{ recordConnectivityDiag_('PRECOLLECT_RESET','先取り回収状態を解除',{reason:String(reason||''),keepCollected:!!keepCollected}); }catch(_e){}
   }
-  function currentLatLngForPrecollect_(){
-    const ll=getLatLngFromLocMarker();
-    return Array.isArray(ll)&&ll.length>=2 ? [Number(ll[0]),Number(ll[1])] : null;
+  function validateSeimei3FixedPoints_(){
+    const required=[SEIMEI3_FIXED_RESUME_TARGET].concat(SEIMEI3_FIXED_PRECOLLECT_ORDER).concat(['137','158']);
+    const missing=required.filter(nm=>!nameIndex.get(nm));
+    if(missing.length){
+      alert('精明3の固定先取り回収に必要な地点がCSV内に見つかりません。\n不足地点：'+missing.join('、')+'\n\nCSVファイルを確認してください。');
+      return false;
+    }
+    return true;
   }
-  function extractPrecollectCandidates_(){
-    const r=Math.min(500,Math.max(50,Number(precollectRadiusEl.value)||200));
-    precollectRadiusEl.value=String(r); precollect.radiusM=r;
-    const ll=currentLatLngForPrecollect_();
-    if(!ll){ alert('現在位置を取得できません。GPS位置が表示されてから再度「抽出実行」を押してください。'); return []; }
-    return strictOrder.map((nm,i)=>{ const p=nameIndex.get(nm); return {p,i,d:p?meters(ll,[p.lat,p.lon]):Infinity}; })
-      .filter(x=>x.p && x.p.status==='normal' && Number.isFinite(x.d) && x.d<=r)
-      .sort((a,b)=>a.i-b.i);
-  }
-  function renderPrecollectCandidates_(){
-    const rows=extractPrecollectCandidates_();
-    const selected=precollect.setupSelection;
-    precollectCandidatesEl.innerHTML='';
-    if(!rows.length){ precollectCandidatesEl.innerHTML='<div style="padding:12px">指定範囲内に未回収地点がありません。</div>'; savePrecollectState_(); return; }
-    rows.forEach(x=>{
-      const nm=x.p.name; const orderNo=selected.indexOf(nm)+1;
-      const row=document.createElement('div'); row.className='precollect-row';
-      row.innerHTML='<button type="button"></button><div>#'+(x.p.seq||x.i+1)+'</div><div>'+Math.round(x.d)+'m</div><div class="precollect-order">'+(orderNo||'')+'</div>';
-      const b=row.querySelector('button'); b.textContent=nm;
-      b.onclick=()=>{ const k=selected.indexOf(nm); if(k>=0) selected.splice(k,1); else selected.push(nm); savePrecollectState_(); renderPrecollectCandidates_(); };
-      precollectCandidatesEl.appendChild(row);
+  function startFixedSeimei3Precollect_(){
+    if(!isSeimei3Course_()) return false;
+    if(!validateSeimei3FixedPoints_()) return false;
+
+    const resumeIdx=strictOrder.indexOf(SEIMEI3_FIXED_RESUME_TARGET);
+    if(resumeIdx<0){
+      alert('精明3の通常復帰地点「178」をCSV順から特定できません。');
+      return false;
+    }
+    const available=SEIMEI3_FIXED_PRECOLLECT_ORDER.filter(nm=>{
+      const p=nameIndex.get(nm);
+      return p && p.status==='normal';
     });
-    savePrecollectState_();
-  }
-  function openPrecollectSetup_(resetSelection){
-    if(resetSelection) precollect.setupSelection=[];
-    precollectRadiusEl.value=String(precollect.radiusM||200);
-    precollectOverlay.style.display='flex'; renderPrecollectCandidates_();
-  }
-  function closePrecollectSetup_(){ precollectOverlay.style.display='none'; }
-  function startPrecollect_(){
-    const sel=precollect.setupSelection.filter(nm=>{ const p=nameIndex.get(nm); return p&&p.status==='normal'; });
-    if(!sel.length){ alert('先取りする地点を1か所以上、回収する順番にタップしてください。'); return; }
-    const lines=sel.map((nm)=>`${nm}(#${(nameIndex.get(nm)||{}).seq||''})`).join('、');
-    if(!confirm('先取り回収順番を確認してください。'+lines+'　この先取り回収順番でよいですか？')) return;
-    const current=String(nav.order[nav.idx]||'');
-    const k=strictOrder.indexOf(current);
-    precollect.baseResumeIndex=k>=0?k:Math.max(0,nav.idx||0);
-    precollect.order=sel.slice(); precollect.idx=0; precollect.active=true; precollect.setupSelection=[];
-    ccTransferMode=false; saveCcTransferMode_(); savePrecollectState_(); closePrecollectSetup_();
-    syncNavToPrecollectTarget_(); updateCcTransferUi_(); updatePrecollectUi_(); resetAutoCollectGpsHistory_('precollect-start');
-    try{ speakSafe('先取り回収を開始します。まずは '+getSpeakOf(precollect.order[0])+' に向かってください。'); }catch(_e){}
-    try{ recordConnectivityDiag_('PRECOLLECT_START','先取り回収開始',{order:precollect.order.slice(),radiusM:precollect.radiusM,baseResumeIndex:precollect.baseResumeIndex}); }catch(_e){}
-    try{ sendHeartbeat('precollect-start',true); }catch(_e){}
+    if(!available.length){
+      // 4地点が既に回収済みなら、そのまま178へ復帰する。
+      precollect.baseResumeIndex=resumeIdx;
+      ccTransferMode=false; ccResumeGraceUntil=Date.now()+3000; saveCcTransferMode_();
+      prepareNormalResumeTarget_();
+      updateCcTransferUi_(); resetAutoCollectGpsHistory_('seimei3-fixed-precollect-already-done');
+      try{ speakSafe('固定先取り地点はすべて回収済みです。178から通常回収に復帰します。'); }catch(_e){}
+      try{ sendHeartbeat('seimei3-fixed-precollect-already-done',true); }catch(_e){}
+      return true;
+    }
+
+    const display=available.join(' → ');
+    if(!confirm('精明3のCC搬入後固定先取り回収を開始します。\n\n先取り順：'+display+'\n\n4地点終了後は「178」へ自動復帰します。\nよろしいですか？')) return false;
+
+    precollect={active:true,order:available.slice(),idx:0,baseResumeIndex:resumeIdx,fixedSeimei3:true};
+    ccTransferMode=false;
+    ccResumeGraceUntil=Date.now()+3000;
+    saveCcTransferMode_(); savePrecollectState_();
+    syncNavToPrecollectTarget_();
+    updateCcTransferUi_(); updatePrecollectUi_();
+    resetAutoCollectGpsHistory_('seimei3-fixed-precollect-start');
+    try{ speakSafe('精明3の固定先取り回収を開始します。まずは '+getSpeakOf(precollect.order[0])+' に向かってください。'); }catch(_e){}
+    try{ recordConnectivityDiag_('SEIMEI3_FIXED_PRECOLLECT_START','精明3 CC搬入後固定先取り回収開始',{order:precollect.order.slice(),resumeTarget:SEIMEI3_FIXED_RESUME_TARGET,courseName:String(currentCourseName||'')}); }catch(_e){}
+    try{ sendHeartbeat('seimei3-fixed-precollect-start',true); }catch(_e){}
+    return true;
   }
   function syncNavToPrecollectTarget_(){
     if(!precollect.active) return false;
     while(precollect.idx<precollect.order.length){
       const nm=precollect.order[precollect.idx], p=nameIndex.get(nm);
-      if(p && p.status==='normal'){ nav.order=precollect.order.slice(); nav.idx=precollect.idx; return true; }
+      if(p && p.status==='normal'){
+        nav.order=precollect.order.slice(); nav.idx=precollect.idx; nav.active=true;
+        return true;
+      }
       precollect.idx++;
     }
-    completePrecollect_(); return false;
+    completePrecollect_();
+    return false;
   }
   function advancePrecollectAfterCollection_(doneName){
     if(!precollect.active) return;
-    const k=precollect.order.indexOf(doneName); if(k>=precollect.idx) precollect.idx=k+1;
+    const k=precollect.order.indexOf(doneName);
+    if(k>=precollect.idx) precollect.idx=k+1;
     savePrecollectState_();
     if(!syncNavToPrecollectTarget_()) return;
     const nx=precollect.order[precollect.idx];
-    resetAutoCollectGpsHistory_('precollect-next-'+nx); nav.lastAnnounceTarget=nx; focusTarget(nx);
-    speakSafe(getSpeakOf(nx)+' に向かってください。'); updatePrecollectUi_(); sendHeartbeat('precollect-next',true);
+    resetAutoCollectGpsHistory_('seimei3-fixed-precollect-next-'+nx);
+    nav.lastAnnounceTarget=nx; focusTarget(nx);
+    try{ speakSafe(getSpeakOf(nx)+' に向かってください。'); }catch(_e){}
+    updatePrecollectUi_();
+    try{ sendHeartbeat('seimei3-fixed-precollect-next',true); }catch(_e){}
   }
   function prepareNormalResumeTarget_(){
     if(!strictOrder.length) return;
-    const start=Math.max(0,Number(precollect.baseResumeIndex)||0);
+    let start=Math.max(0,Number(precollect.baseResumeIndex)||0);
+    // 精明3固定先取り完了後は、必ず178を起点に通常CSV順へ復帰する。
+    if(precollect.fixedSeimei3){
+      const k=strictOrder.indexOf(SEIMEI3_FIXED_RESUME_TARGET);
+      if(k>=0) start=k;
+    }
     const idx=findNextPendingStrictIndex_(start);
     nav.order=strictOrder.slice();
     if(idx>=0) nav.idx=idx;
@@ -7082,31 +7110,28 @@ const FLEET={
   function completePrecollect_(){
     if(!precollect.active) return;
     const base=precollect.baseResumeIndex;
-    resetPrecollectState_('completed-after-cc',true);
-    precollect.baseResumeIndex=base;
+    const wasFixed=!!precollect.fixedSeimei3;
+    // reset前に復帰情報を保持する。
+    precollect.active=false; precollect.order=[]; precollect.idx=0;
+    precollect.baseResumeIndex=base; precollect.fixedSeimei3=wasFixed;
+    savePrecollectState_();
     ccTransferMode=false; ccResumeGraceUntil=Date.now()+3000; saveCcTransferMode_();
     prepareNormalResumeTarget_();
+    // 復帰先設定後に先取り状態を完全解除。
+    precollect={active:false,order:[],idx:0,baseResumeIndex:0,fixedSeimei3:false};
+    savePrecollectState_();
     if(nav && nav.order && nav.order.length){
       nav.active=true;
       const nm=String(nav.order[nav.idx]||'');
       if(nm){ nav.lastAnnounceTarget=nm; focusTarget(nm); }
     }
-    updateCcTransferUi_(); updatePrecollectUi_(); resetAutoCollectGpsHistory_('precollect-complete-normal-resume');
-    showToast('先取り回収完了：本来の回収コースへ復帰',4);
-    try{ const nm=String(nav.order[nav.idx]||''); speakSafe('先取り回収が終了しました。本来の回収コースに復帰します。'+(nm?getSpeakOf(nm)+' に向かってください。':'')); }catch(_e){}
-    try{ recordConnectivityDiag_('PRECOLLECT_COMPLETE_AFTER_CC','CC搬入後の先取り回収完了・通常回収へ復帰',{baseResumeIndex:base,currentTarget:String(nav.order[nav.idx]||'')}); }catch(_e){}
-    try{ sendHeartbeat('precollect-complete-normal-resume',true); }catch(_e){}
-  }
-  function directCcFromPrecollect_(){
-    if(!confirm('これから先に設定されている先取り回収順番のデータを消去し、CCに直行します。\\nすでに回収済みの地点は回収済みのまま残ります。\\n\\nCCに直行しますか？')) return;
-    const base=precollect.baseResumeIndex; resetPrecollectState_('direct-cc',true); precollect.baseResumeIndex=base; prepareNormalResumeTarget_();
-    ccTransferMode=true; ccResumeGraceUntil=0; saveCcTransferMode_(); updateCcTransferUi_(); updatePrecollectUi_(); resetAutoCollectGpsHistory_('precollect-direct-cc');
-    speakSafe('先取り予定を解除しました。クリーンセンターへ直行します。自動回収を停止します。'); sendHeartbeat('precollect-direct-cc',true);
-  }
-  function resetPrecollectPlan_(){
-    if(!precollect.active) return;
-    if(!confirm('未回収の先取り予定を消去して、現在地から先取り順番を再設定しますか？\\nすでに回収済みの地点は回収済みのまま残ります。')) return;
-    precollect.active=false; precollect.order=[]; precollect.idx=0; precollect.setupSelection=[]; savePrecollectState_(); updatePrecollectUi_(); openPrecollectSetup_(true);
+    if(btnCcTransfer) btnCcTransfer.disabled=false;
+    updateCcTransferUi_(); updatePrecollectUi_();
+    resetAutoCollectGpsHistory_('seimei3-fixed-precollect-complete-resume-178');
+    showToast('精明3 固定先取り完了：178へ復帰',4);
+    try{ speakSafe('固定先取り回収が終了しました。178から通常回収に復帰します。'); }catch(_e){}
+    try{ recordConnectivityDiag_('SEIMEI3_FIXED_PRECOLLECT_COMPLETE','精明3固定先取り完了・178へ通常復帰',{resumeTarget:SEIMEI3_FIXED_RESUME_TARGET,currentTarget:String(nav.order[nav.idx]||'')}); }catch(_e){}
+    try{ sendHeartbeat('seimei3-fixed-precollect-complete',true); }catch(_e){}
   }
   function resumeNormalAfterCc_(){
     const start=Math.max(0,Number(precollect.baseResumeIndex)||0);
@@ -7118,40 +7143,43 @@ const FLEET={
     return true;
   }
   function handleCcTransferButton_(){
-    if(precollect.active){
-      // CC搬入後の先取り中。必要なら既存の「今以降CC直行」で先取り予定を解除できる。
-      directCcFromPrecollect_(); return;
-    }
+    if(precollect.active) return;
+
     if(ccTransferMode){
-      // Ver59修正版4: CC搬入後、「回収復帰」を押した時点の現在地から先取り候補を抽出する。
-      // 先取り順が確定するまではCC搬入モード（自動回収停止）を維持する。
-      openPrecollectSetup_(true);
-      try{ recordConnectivityDiag_('POST_CC_PRECOLLECT_SETUP','CC搬入後の先取り回収設定を開始',{baseResumeIndex:Number(precollect.baseResumeIndex)||0,radiusM:Number(precollect.radiusM)||200}); }catch(_e){}
+      // 「精明3」を含む地点CSVでCC搬入した場合だけ、固定4地点の先取りへ移行。
+      if(isSeimei3Course_()){
+        startFixedSeimei3Precollect_();
+        return;
+      }
+      // その他のコースでは先取りを行わず、従来どおり現在のCSV順へ復帰。
+      setCcTransferMode_(false,'cc-normal-resume-non-seimei3');
       return;
     }
+
     if(!realMode){ alert('「実車：有効」にしてから「CC搬入」を押してください。'); return; }
     if(!nav || !nav.active){ alert('ナビ走行中に「CC搬入」を使用してください。'); return; }
-    // Ver59修正版5: CC搬入開始時は先取り設定を行わない。
-    // 先取り設定は、CC搬入後に「回収復帰」を押した時点で開く。
     if(!confirm('これからCC（クリーンセンター）へ搬入に向かいます。「OK」＝CCに向かう　「キャンセル」＝搬入を取り消す')) return;
-    // 先取りはCC搬入「後」に行う。CC搬入ボタンでは即座に自動回収を停止する。
+
     const cur=String(nav.order[nav.idx]||'');
-    const k=strictOrder.indexOf(cur);
-    precollect.baseResumeIndex=k>=0?k:Math.max(0,nav.idx||0);
-    precollect.setupSelection=[];
-    savePrecollectState_(); prepareNormalResumeTarget_();
-    setCcTransferMode_(true,'cc-before-post-precollect');
-    try{ recordConnectivityDiag_('CC_TRANSFER_ENTER_BEFORE_PRECOLLECT','CC搬入開始・先取り回収はCC搬入後に実施',{baseResumeIndex:precollect.baseResumeIndex,currentTarget:cur}); }catch(_e){}
+    if(isSeimei3Course_()){
+      if(!validateSeimei3FixedPoints_()) return;
+      // 精明3はCC搬入後、固定4地点を先取りし、必ず178へ復帰する。
+      const resumeIdx=strictOrder.indexOf(SEIMEI3_FIXED_RESUME_TARGET);
+      precollect.baseResumeIndex=resumeIdx>=0?resumeIdx:Math.max(0,nav.idx||0);
+      precollect.fixedSeimei3=true;
+      savePrecollectState_();
+      try{ recordConnectivityDiag_('SEIMEI3_CC_ENTER','精明3 CC搬入開始・搬入後は固定4地点先取り',{currentTarget:cur,resumeTarget:SEIMEI3_FIXED_RESUME_TARGET,order:SEIMEI3_FIXED_PRECOLLECT_ORDER.slice()}); }catch(_e){}
+    }else{
+      const k=strictOrder.indexOf(cur);
+      precollect.baseResumeIndex=k>=0?k:Math.max(0,nav.idx||0);
+      precollect.fixedSeimei3=false;
+      savePrecollectState_();
+    }
+    setCcTransferMode_(true,isSeimei3Course_()?'seimei3-cc-before-fixed-precollect':'cc-normal');
   }
 
-  document.getElementById('precollectExtract').addEventListener('click',renderPrecollectCandidates_);
-  document.getElementById('precollectStart').addEventListener('click',startPrecollect_);
-  document.getElementById('precollectCancel').addEventListener('click',closePrecollectSetup_);
-  document.getElementById('btnPrecollectReset').addEventListener('click',resetPrecollectPlan_);
-  document.getElementById('btnPrecollectDirectCc').addEventListener('click',directCcFromPrecollect_);
-  // 再設定は先取り中のバナーをタップする代わりに、設定画面を開く安全なダブルクリックも提供。
-  if(precollectBanner){ precollectBanner.style.pointerEvents='auto'; precollectBanner.title='ダブルクリックで先取り順を再設定'; precollectBanner.ondblclick=resetPrecollectPlan_; }
-  loadPrecollectState_(); updatePrecollectUi_();
+  loadPrecollectState_();
+  updatePrecollectUi_();
 
 
   // ==========================================================
@@ -9312,6 +9340,7 @@ async function flushCollectionDeliveryQueue_(){
 
   function importCSV(file){
     currentCourseName = deriveCourseNameFromFileName(file && file.name ? file.name : '');
+    redrawRouteStyle_();
     stopBlink();
     stopCourseRead();
       points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[]; nextDistByName.clear();
@@ -9373,6 +9402,7 @@ async function flushCollectionDeliveryQueue_(){
   async function importOther(file){
     try{
       currentCourseName = deriveCourseNameFromFileName(file && file.name ? file.name : '');
+      redrawRouteStyle_();
       stopBlink();
       stopCourseRead();
       points.length=0; nameIndex.clear(); firstLoadedName=null; strictOrder=[]; nextDistByName.clear();
@@ -12654,11 +12684,30 @@ async function flushCollectionDeliveryQueue_(){
   }
 
   let routeLayer=null, routeLatLngs=[];
+
+  // Ver60修正版4: 読み込んだ地点CSVのコース番号に合わせてルート色を固定
+  // 1系=赤 / 2系=緑 / 3系=黄。ファイル名に「原市場・名栗1」等が含まれていれば判定する。
+  function getRouteColorByCourseName_(courseName){
+    const s=String(courseName||'').replace(/\s+/g,'');
+    if(/(?:原市場[・･]?名栗|中央南|加治|両吾野|中央北|精明)1(?:$|[^0-9])/.test(s)) return '#e53935';
+    if(/(?:原市場[・･]?名栗|中央南|加治|両吾野|中央北|精明)2(?:$|[^0-9])/.test(s)) return '#2e9d50';
+    if(/(?:中央南|加治|中央北|精明)3(?:$|[^0-9])/.test(s)) return '#f2c500';
+    // 上記名称の後ろに CSV / 夏 / 冬 等が続く場合も末尾番号で補完
+    const m=s.match(/([123])(?:CSV|夏|冬|春|秋|コース|$)/i);
+    if(m) return m[1]==='1'?'#e53935':m[1]==='2'?'#2e9d50':'#f2c500';
+    return '#e53935';
+  }
+
+  function redrawRouteStyle_(){
+    if(!routeLayer) return;
+    routeLayer.setStyle({color:getRouteColorByCourseName_(currentCourseName),weight:4,opacity:0.9});
+  }
+
   function setRouteLatLngs(latlngs){
     routeLatLngs=latlngs||[];
     if(routeLayer){ map.removeLayer(routeLayer); routeLayer=null; }
     if(routeLatLngs.length>=2){
-      routeLayer=L.polyline(routeLatLngs,{color:'#ff2d2d',weight:4,opacity:0.9,pane:'markerPane'}).addTo(map);
+      routeLayer=L.polyline(routeLatLngs,{color:getRouteColorByCourseName_(currentCourseName),weight:4,opacity:0.9,pane:'markerPane'}).addTo(map);
     }
   }
   function fitRoute(){
